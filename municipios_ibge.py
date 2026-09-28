@@ -79,6 +79,8 @@ def main():
     dem = setores("demografia.zip", [f"V{i:05d}" for i in range(1034, 1042)])
     d = dem.groupby("CD_MUN").sum(numeric_only=True)
     out["idosos"] = 100 * (d.V01040 + d.V01041) / d.sum(axis=1)
+    # 15 a 24 entre os de 15+: o Censo agrupa os 15 anos junto; o eleitorado começa aos 16
+    out["jovens"] = 100 * (d.V01034 + d.V01035) / d.sum(axis=1)
     rel = tabela_ap("Tab4_1.xlsx", ["total", "catolica", "evangelica", "espirita", "umbanda", "indigena",
                                     "outras", "sem_religiao", "nao_sabe", "sem_declaracao"])
     out["catolicos"] = 100 * rel.catolica / rel.total
@@ -119,7 +121,7 @@ def main():
         print("   ", falta[["SG_UF", "NM_MUNICIPIO"]].head(40).to_string(index=False))
     casa["municipio"] = casa.CD_MUNICIPIO.astype(int)
     cols = ["municipio", "CD_MUN", "renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda",
-            "superior", "idosos", "populacao"]
+            "superior", "jovens", "idosos", "populacao"]
     casa[cols].to_parquet(IBGE / "municipios_BR.parquet", index=False)
     print(casa[cols[2:]].describe().round(1).to_string())
 

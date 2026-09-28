@@ -30,7 +30,7 @@ WEB = Path("web/dados")
 PRETA = ["V01378", "V01383", "V01388"]
 PARDA = ["V01380", "V01385", "V01390"]
 ADULTOS = [f"V{i:05d}" for i in range(1377, 1392)]
-VARS = ["renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda", "superior", "idosos"]
+VARS = ["renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda", "superior", "jovens", "idosos"]
 # pares para comparar entre eleições: mesmo campo político, candidato diferente
 PARES = {"2026": {"lula": "lula22", "flavio": "bolsonaro22"},
          "ensaio": {"lula": "haddad18", "bolsonaro": "bolsonaro18"}}
@@ -104,10 +104,12 @@ def locais_com_atributos(ano, st):
     p = p.merge(pr, on=["zona", "secao"], how="left")
     p["n_sup"] = p.superior * p.eleitores_perfil
     p["n_ido"] = p.idoso * p.eleitores_perfil
-    a = p.groupby(["zona", "local"])[["n_sup", "n_ido", "eleitores_perfil"]].sum()
+    p["n_jov"] = p.jovem * p.eleitores_perfil
+    a = p.groupby(["zona", "local"])[["n_sup", "n_ido", "n_jov", "eleitores_perfil"]].sum()
+    a["jovens"] = 100 * a.n_jov / a.eleitores_perfil
     a["superior"] = 100 * a.n_sup / a.eleitores_perfil
     a["idosos"] = 100 * a.n_ido / a.eleitores_perfil
-    c = c.merge(a[["superior", "idosos"]].reset_index(), on=["zona", "local"], how="left")
+    c = c.merge(a[["superior", "idosos", "jovens"]].reset_index(), on=["zona", "local"], how="left")
     c.to_parquet(arq, index=False)
     return c
 
@@ -270,6 +272,7 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
         _, i = cKDTree(np.c_[la.x, la.y]).query(np.c_[lb.x, lb.y])
         lb["superior"] = la.superior.to_numpy()[i]
         lb["idosos"] = la.idosos.to_numpy()[i]
+        lb["jovens"] = la.jovens.to_numpy()[i]
     lb = lb.drop(columns=["municipio"], errors="ignore")
     an = ant.merge(lb, on=["zona", "local"], how="left")
     zm = pj.principal_de(ano_ant, None).drop_duplicates(["zona", "local"])[["zona", "local", "municipio"]]

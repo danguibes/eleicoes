@@ -28,7 +28,7 @@ REGIAO = {**{u: "Norte" for u in ["AC", "AM", "AP", "PA", "RO", "RR", "TO"]},
           **{u: "Sudeste" for u in ["ES", "MG", "RJ", "SP"]},
           **{u: "Sul" for u in ["PR", "RS", "SC"]}, "ZZ": "Exterior"}
 BASE22 = {13: "lula22", 22: "bolsonaro22", 15: "tebet22", 12: "ciro22"}
-VARS = ["renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda", "superior", "idosos"]
+VARS = ["renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda", "superior", "jovens", "idosos"]
 
 
 def detalhe_mun(ano="2022"):

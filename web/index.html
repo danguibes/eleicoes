@@ -185,7 +185,7 @@ const NOMES = {lula:"Lula", flavio:"Flávio Bolsonaro", cury:"Augusto Cury", cai
 const CORES = ["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)","var(--c7)"];
 const VARS = [["renda","Renda do entorno","R$"],["catolicos","Católicos no entorno","%"],["evangelicos","Evangélicos no entorno","%"],
   ["sem_religiao","Sem religião no entorno","%"],
-  ["preta_parda","Pretos e pardos no entorno","%"],["superior","Superior completo na urna","%"],["idosos","60+ na urna","%"]];
+  ["preta_parda","Pretos e pardos no entorno","%"],["superior","Superior completo na urna","%"],["jovens","Jovens (16–24) na urna","%"],["idosos","60+ na urna","%"]];
 const fmt = (x, d=1) => (x==null||isNaN(x)) ? "—" : x.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const MODOS = [["2026","2026 — ao vivo"],["ensaio","Ensaio com 2022"]];
 
@@ -576,7 +576,7 @@ const SUB_SP = `Urnas em quintis — cinco grupos com o mesmo número de eleitor
 const SUB_BR = `Municípios em quintis — cinco grupos com o mesmo número de eleitores de 2026 no país —, pelo perfil do município no
   Censo 2022. <b>É o voto dos municípios desse perfil, não o voto das pessoas desse grupo.</b> Para o detalhe por local de votação,
   escolha São Paulo em UF. Clique para filtrar; com Shift, estende a faixa.`;
-function tituloVar(t){ return detalhado() ? t : t.replace(" do entorno", " do município").replace(" no entorno", " no município").replace(" na urna", " no município"); }
+function tituloVar(t){ return detalhado() ? t : t.replace("(16–24) na urna", "(15–24) no município").replace(" do entorno", " do município").replace(" no entorno", " no município").replace(" na urna", " no município"); }
 function limpar(){ F.regiao=null; F.uf=null; F.mun=null; F.zona=null; F.q={}; }
 function textoFaixa(lo, hi){ return lo === 1 && hi === 5 ? "todos" : lo === hi ? lo + "º quintil" : lo + "º ao " + hi + "º"; }
 
