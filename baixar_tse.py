@@ -73,10 +73,18 @@ def recortar(zip_path, membro, coluna, valor, saida):
     import pyarrow.parquet as pq
     with zipfile.ZipFile(zip_path) as z:
         nomes = z.namelist()
-        if membro not in nomes:
+        if membro in nomes and not (valor == "BR" and membro.endswith("_SP.csv")):
+            membros = [membro]
+        elif valor == "BR":
+            # zip com um CSV por UF (locais de 2026): o Brasil é a soma de todos
+            pref = membro.rsplit("_", 1)[0] + "_"
+            membros = sorted(n for n in nomes if n.startswith(pref) and n.endswith(".csv")
+                             and not n.endswith("_BR.csv") and not n.endswith("_BRASIL.csv"))
+        else:
             sys.exit(f"{membro} não está no zip; há: {nomes[:40]}")
         escritor, lidas, gravadas = None, 0, 0
-        with z.open(membro) as bruto:
+        for membro in membros:
+          with z.open(membro) as bruto:
             txt = io.TextIOWrapper(bruto, encoding="latin-1", newline="")
             for bloco in pd.read_csv(txt, sep=";", dtype=str, chunksize=1_000_000):
                 lidas += len(bloco)
