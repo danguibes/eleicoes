@@ -38,6 +38,7 @@ def tabelar(pleito, uf):
     df = pd.DataFrame(linhas, columns=["municipio", "zona", "secao", "local", "eleicao",
                                        "cargo", "aptos", "comparecimento", "tipo",
                                        "codigo", "votos"])
+    df["codigo"] = df.codigo.astype("Int64")  # nulo em branco/nulo; sem isso vira float
     df.to_parquet(d / "votos.parquet", index=False)
     print(f"{len(vistos):,} seções, {len(df):,} linhas -> {d / 'votos.parquet'}")
     return df
