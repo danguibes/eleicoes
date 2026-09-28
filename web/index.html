@@ -347,47 +347,73 @@ function curva(svg, series, rotX){
 }
 function desenharChances(res){
   const sec = document.getElementById("chances");
-  if (!D || !D.meta.apuradas || !res || !res.ord || !res.ord.length || D.meta.cargo !== "presidente") { sec.hidden = true; return; }
+  if (!D || !D.meta.apuradas || !res || !res.ord || !res.ord.length) { sec.hidden = true; return; }
   const cedo = res.cedo; const A = amostrasDoRecorte(res.pj);
   sec.hidden = false;
   if (cedo || !A) {
     document.getElementById("ch-sub").textContent = cedo ? "A partir de 1% das seções do recorte."
       : "Há chance calculada para o Brasil, cada região, cada UF, o estado de SP e uma faixa de quintis de uma variável — não para combinações de filtros.";
-    ["ch-cards","ch-curvas","ch-dif","ch-leg","ch-nota"].forEach(id => document.getElementById(id).innerHTML = ""); return;
+    ["ch-cards","ch-curvas","ch-dif","ch-leg","ch-nota","ch-dif-t"].forEach(id => document.getElementById(id).innerHTML = ""); return;
   }
   const {validos, S} = A, n = S.length;
   const idx = c => validos.indexOf(c);
   const ord = res.ord.filter(c => validos.includes(c) && c !== "outros");
-  const [c1, c2] = ord;
-  const primeiro = Object.fromEntries(ord.map(c => [c, 0])), segundoTurno = {v: 0};
-  let passa50 = Object.fromEntries(ord.map(c => [c, 0]));
-  for (const s of S) {
-    const topo = ord.reduce((a, c) => s[idx(c)] > s[idx(a)] ? c : a, ord[0]);
-    primeiro[topo]++;
-    if (Math.max(...ord.map(c => s[idx(c)])) <= 50) segundoTurno.v++; else passa50[topo]++;
-  }
+  const cargo = D.meta.cargo;
+  // a eleição inteira: Presidente no Brasil sem filtro; governador e senador no estado de SP sem filtro
+  const eleicao = cargo === "presidente"
+    ? !detalhado() && !F.uf && !F.regiao && !Object.keys(F.q).length
+    : detalhado() && F.mun == null && F.zona == null && !Object.keys(F.q).length;
+  const onde = cargo === "presidente" ? "no Brasil inteiro" : "no estado inteiro";
   const p = x => { const v = 100*x/n; return v >= 99.5 ? "> 99%" : v <= 0.5 ? "< 1%" : fmt(v,0) + "%"; };
-  const brasil = !detalhado() && !F.uf && !F.regiao && !Object.keys(F.q).length;
+  let cards, c1, c2, titDif, marcas;
+  if (cargo === "senador") {
+    // 2026: duas vagas por estado, sem 2º turno — vencem os dois mais votados
+    const eleito = Object.fromEntries(ord.map(c => [c, 0]));
+    for (const s of S) {
+      const top2 = [...ord].sort((a, b) => s[idx(b)] - s[idx(a)]).slice(0, 2);
+      top2.forEach(c => eleito[c]++);
+    }
+    cards = ord.slice(0, 5).map(c => `<div><b style="color:${corDe(c, ord)}">${p(eleito[c])}</b><span>de ${nomeCat(c)} ${eleicao ? "ficar com uma das duas vagas" : "ficar entre os dois mais votados aqui"}</span></div>`).join("");
+    [c1, c2] = [ord[1], ord[2]];                     // a disputa que decide: a 2ª vaga
+    titDif = c2 ? `${nomeCat(c1)} − ${nomeCat(c2)}: a disputa pela 2ª vaga (pontos)` : "";
+    marcas = [];
+  } else {
+    [c1, c2] = ord;
+    const primeiro = Object.fromEntries(ord.map(c => [c, 0])), segundoTurno = {v: 0};
+    const passa50 = Object.fromEntries(ord.map(c => [c, 0]));
+    for (const s of S) {
+      const topo = ord.reduce((a, c) => s[idx(c)] > s[idx(a)] ? c : a, ord[0]);
+      primeiro[topo]++;
+      if (Math.max(...ord.map(c => s[idx(c)])) <= 50) segundoTurno.v++; else passa50[topo]++;
+    }
+    cards = `<div><b>${p(segundoTurno.v)}</b><span>${eleicao ? "de haver 2º turno" : "de ninguém passar de 50% aqui"}</span></div>` +
+      ord.slice(0, 3).map(c => `<div><b style="color:${corDe(c, ord)}">${p(primeiro[c])}</b><span>de ${nomeCat(c)} terminar em 1º</span></div>`).join("") +
+      `<div><b style="color:${corDe(c1, ord)}">${p(passa50[c1])}</b><span>de ${nomeCat(c1)} passar de 50%${eleicao ? " (vencer no 1º turno)" : ""}</span></div>`;
+    titDif = c2 ? `${nomeCat(c1)} − ${nomeCat(c2)} (pontos)` : "";
+    marcas = [50];
+  }
   document.getElementById("ch-sub").innerHTML = `${n} reamostragens do modelo, alargadas pelo fator calibrado no ensaio de 2022. `
-    + (brasil ? "" : "<b>Recorte, não eleição:</b> o 2º turno só existe no Brasil inteiro; aqui a chance é de ultrapassar 50% dos válidos neste recorte.");
-  document.getElementById("ch-cards").innerHTML =
-    `<div><b>${p(segundoTurno.v)}</b><span>${brasil ? "de haver 2º turno" : "de ninguém passar de 50% aqui"}</span></div>` +
-    ord.slice(0, 3).map(c => `<div><b style="color:${corDe(c, ord)}">${p(primeiro[c])}</b><span>de ${nomeCat(c)} terminar em 1º</span></div>`).join("") +
-    `<div><b style="color:${corDe(c1, ord)}">${p(passa50[c1])}</b><span>de ${nomeCat(c1)} passar de 50%${brasil ? " (vencer no 1º turno)" : ""}</span></div>`;
-  // só os dois primeiros: com os pequenos (picos altos e estreitos perto de 4%) a escala esmagava os que importam
-  const series = ord.slice(0, 2).map(c => ({c, cor: corDe(c, ord), xs: S.map(s => s[idx(c)])}));
-  series.marcas = [50];
+    + (eleicao ? "" : `<b>Recorte, não eleição:</b> quem vence se decide ${onde}; aqui a chance é a de o recorte terminar assim.`);
+  document.getElementById("ch-cards").innerHTML = cards;
+  // curvas: os dois primeiros (no Senado, os três que disputam as duas vagas)
+  const nCurvas = cargo === "senador" ? 3 : 2;
+  const series = ord.slice(0, nCurvas).map(c => ({c, cor: corDe(c, ord), xs: S.map(s => s[idx(c)])}));
+  series.marcas = marcas;
   curva(document.getElementById("ch-curvas"), series, v => v + "%");
   document.getElementById("ch-leg").innerHTML = series.map(s => `<span><i style="background:${s.cor}"></i>${nomeCat(s.c)}</span>`).join("") +
-    `<span class="sub">cheia: distribuição do modelo · tracejada: normal com a mesma média e desvio · vertical: 50%</span>`;
-  const dif = S.map(s => s[idx(c1)] - s[idx(c2)]);
-  const ds = [{c: c1, cor: corDe(c1, ord), xs: dif}]; ds.marcas = [0];
-  document.getElementById("ch-dif-t").textContent = `${nomeCat(c1)} − ${nomeCat(c2)} (pontos)`;
-  curva(document.getElementById("ch-dif"), ds, v => (v > 0 ? "+" : "") + v);
+    `<span class="sub">cheia: distribuição do modelo · tracejada: normal com a mesma média e desvio${marcas.length ? " · vertical: 50%" : ""}</span>`;
+  if (c1 && c2) {
+    const dif = S.map(s => s[idx(c1)] - s[idx(c2)]);
+    const ds = [{c: c1, cor: corDe(c1, ord), xs: dif}]; ds.marcas = [0];
+    document.getElementById("ch-dif-t").textContent = titDif;
+    curva(document.getElementById("ch-dif"), ds, v => (v > 0 ? "+" : "") + v);
+  } else { document.getElementById("ch-dif").innerHTML = ""; document.getElementById("ch-dif-t").textContent = ""; }
   document.getElementById("ch-nota").innerHTML = `Chances <b>segundo o modelo</b>. No ensaio de 2022 o intervalo de 90% do Brasil cobriu o
     resultado real em 91% das conferências, e a projeção ficou ~0,9 ponto abaixo de Lula até a metade da noite: "85%" quer dizer que um
     modelo tão bom quanto este foi em 2022 erraria mais ou menos 1 vez em 7. A curva tracejada é a normal equivalente; quando as duas
-    divergem, a distribuição do modelo é assimétrica e a normal subestima um dos lados.`;
+    divergem, a distribuição do modelo é assimétrica e a normal subestima um dos lados.` +
+    (D.meta.cargo !== "presidente" ? ` <b>Governador e senador não têm ensaio próprio</b> (não há 2018 desses cargos baixado): o fator de
+    calibração é o do Presidente em SP, e a chance aqui é menos testada que a de Presidente.` : "");
 }
 
 
