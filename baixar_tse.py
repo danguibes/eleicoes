@@ -8,8 +8,14 @@ artefato. Nada aqui tenta disfarçar o script de navegador.
 O CSV nunca é extraído: é lido em blocos direto de dentro do zip e filtrado pelo
 município, então o arquivo de 4,7 GB do perfil de 2026 não precisa caber em disco.
 
-    python baixar_tse.py                 # todos, município 71072 (São Paulo)
+    python baixar_tse.py                 # todos, UF de SP inteira
+    python baixar_tse.py --municipio 71072   # só a capital
     python baixar_tse.py --so perfil_2022
+    python baixar_tse.py --pasta "C:/Users/Danilo Bessa/Downloads"   # zips baixados à mão
+
+**Medido em 28/09/2026: o Actions também toma 403.** O bloqueio não é pelo IP de
+casa — o CDN recusa cliente que não é navegador. Então o caminho que funciona é
+baixar os zips no navegador e rodar com `--pasta`.
 """
 import argparse
 import io
@@ -55,7 +61,7 @@ def baixar(url, destino):
     print(f"  baixado {destino.stat().st_size / 1e6:.0f} MB (anunciado {total / 1e6:.0f})", flush=True)
 
 
-def recortar(zip_path, membro, coluna, municipio, saida):
+def recortar(zip_path, membro, coluna, valor, saida):
     with zipfile.ZipFile(zip_path) as z:
         nomes = z.namelist()
         if membro not in nomes:
@@ -65,18 +71,20 @@ def recortar(zip_path, membro, coluna, municipio, saida):
             txt = io.TextIOWrapper(bruto, encoding="latin-1", newline="")
             for bloco in pd.read_csv(txt, sep=";", dtype=str, chunksize=1_000_000):
                 lidas += len(bloco)
-                partes.append(bloco[bloco[coluna] == municipio])
+                partes.append(bloco[bloco[coluna] == valor])
     df = pd.concat(partes, ignore_index=True)
     df.to_parquet(saida, index=False)
-    print(f"  {lidas:,} linhas lidas, {len(df):,} do município -> {saida} "
+    print(f"  {lidas:,} linhas lidas, {len(df):,} de {coluna}={valor} -> {saida} "
           f"({saida.stat().st_size / 1e6:.1f} MB)", flush=True)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--municipio", default="71072")
+    ap.add_argument("--municipio", help="código TSE; sem ele, recorta a UF inteira")
+    ap.add_argument("--uf", default="SP")
     ap.add_argument("--so", nargs="*")
     ap.add_argument("--saida", default="data/raw/tse")
+    ap.add_argument("--pasta", help="lê os zips já baixados daqui (ex.: a pasta Downloads) em vez de baixar")
     a = ap.parse_args()
     out = Path(a.saida)
     out.mkdir(parents=True, exist_ok=True)
@@ -87,11 +95,20 @@ def main():
             continue
         print(f"{nome}: {url}", flush=True)
         t = time.time()
-        zp = tmp / url.rsplit("/", 1)[1]
-        if not zp.exists():
-            baixar(url, zp)
-        recortar(zp, membro, col, a.municipio, out / f"{nome}_{a.municipio}.parquet")
-        zp.unlink()  # o runner tem ~14 GB; não acumula
+        nome_zip = url.rsplit("/", 1)[1]
+        if a.pasta:
+            zp = Path(a.pasta) / nome_zip
+            if not zp.exists():
+                print(f"  falta {zp}; pulando", flush=True)
+                continue
+        else:
+            zp = tmp / nome_zip
+            if not zp.exists():
+                baixar(url, zp)
+        col, valor = (col, a.municipio) if a.municipio else ("SG_UF", a.uf)
+        recortar(zp, membro, col, valor, out / f"{nome}_{valor}.parquet")
+        if not a.pasta:
+            zp.unlink()  # o runner tem ~14 GB; não acumula
         print(f"  {time.time() - t:.0f} s", flush=True)
 
 
