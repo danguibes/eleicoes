@@ -45,3 +45,45 @@ O `cdn.tse.jus.br` recusa script a partir da máquina de casa (403; do navegador
 baixa). O `baixar_tse.py` roda no GitHub Actions (workflow **baixar arquivos-base
 do TSE**, botão *Run workflow*) e devolve só o recorte do município, em Parquet,
 como artefato.
+
+## O que foi medido (28/09/2026)
+
+**O coletor confere voto a voto.** Capital, 2022, 1º turno: 26.288 seções,
+52.577 requisições, zero erro, 35 minutos a 25 req/s. A soma dos BUs bate com o
+total oficial do município em seções, aptos, comparecimento, brancos, nulos e nos
+votos de cada um dos 11 candidatos.
+
+**As urnas não chegam em ordem aleatória.** Na ordem real de 2022, com 25% das
+seções a soma simples dava Lula − Bolsonaro = +6,5; o final foi +9,6.
+
+**A projeção corrige isso** (`projecao.py --ensaio`): alvo 2022, base 2018, cada
+urna comparada com o local de votação de 2018 mais próximo, na ordem real de
+chegada de 2022.
+
+| urnas | contagem L−B | projeção L−B | final |
+|---|---|---|---|
+| 10% | +7,7 | +11,1 | +9,6 |
+| 25% | +6,5 | +9,1 | +9,6 |
+| 50% | +7,1 | +9,3 | +9,6 |
+| 75% | +8,7 | +9,6 | +9,6 |
+
+O intervalo de 90% é a meia-largura do bootstrap por zona × 1,25, centrada na
+projeção: cobre o real em 35 de 35 conferências. Os percentis crus cobriam 71%
+(assimétricos), e com o resíduo de urna somado na escala log, 46% (Jensen).
+**Calibrado neste mesmo ensaio**, numa eleição só.
+
+**Casamento local de votação ↔ Censo** (`casamento.py`): raio de 1,5 km com peso
+exp(−d/600 m) casa melhor que Voronoi, e casa **razoavelmente, não bem** —
+correlação de 0,59 na parcela de 60+ entre TSE e Censo.
+
+**A inferência ecológica de base falhou no comparecimento** (`ei.py`), que é a
+régua porque o TSE publica o comparecimento real por perfil. Errou até 10 pontos
+e **inverteu a ordem da escolaridade** (superior completo estimado abaixo do
+ensino médio). Causa: viés de agregação — grupos que moram juntos trocam
+comportamento no modelo (60–69 × 70+: correlação 0,76 entre seções; superior ×
+até fundamental incompleto: −0,75). Não era convergência (10 mil passos dão o
+mesmo) nem se resolveu com contexto como covariável. O voto por grupo só vai para
+a página com uma variante que passe nesta régua (`ei_busca.py`).
+
+**Descartado:** PyEI (R×C com voto por unidade) e NUTS no modelo enxuto — os dois
+passaram de 20 minutos num problema do tamanho da capital. O SVI ajusta em ~20 s.

@@ -41,9 +41,11 @@ EPS = 0.5  # voto somado antes do log, para urna com zero numa categoria
 
 # ---------------------------------------------------------------- coordenadas
 def locais_coord(ano, mun="71072"):
-    """(zona, local) -> x, y em metros (projeção plana local; basta para vizinhança)."""
+    """(zona, local) -> x, y em metros (projeção plana; basta para vizinhança).
+    mun=None: a UF inteira — número de zona é único na UF, e local é único na zona."""
     l = pd.read_parquet(RAW / "tse" / f"locais_{ano}_SP.parquet")
-    l = l[l.CD_MUNICIPIO == mun]
+    if mun:
+        l = l[l.CD_MUNICIPIO == str(mun)]
     if "NR_TURNO" in l:
         l = l[l.NR_TURNO == "1"]
     for c in ("NR_LATITUDE", "NR_LONGITUDE"):
@@ -64,15 +66,16 @@ def principal_de(ano, mun="71072"):
                         columns=["CD_MUNICIPIO", "NR_ZONA", "NR_SECAO", "NR_SECAO_PRINCIPAL",
                                  "NR_LOCAL_VOTACAO", "QT_ELEITOR_SECAO"]
                         + (["NR_TURNO"] if ano != "2026" else []))
-    l = l[l.CD_MUNICIPIO == mun]
+    if mun:
+        l = l[l.CD_MUNICIPIO == str(mun)]
     if "NR_TURNO" in l:
         l = l[l.NR_TURNO == "1"]
     l = l.assign(zona=l.NR_ZONA.astype(int), secao=l.NR_SECAO.astype(int),
-                 local=l.NR_LOCAL_VOTACAO.astype(int),
+                 local=l.NR_LOCAL_VOTACAO.astype(int), municipio=l.CD_MUNICIPIO.astype(int),
                  eleitores=pd.to_numeric(l.QT_ELEITOR_SECAO))
     p = pd.to_numeric(l.NR_SECAO_PRINCIPAL)
     l["principal"] = np.where(p > 0, p, l.secao).astype(int)
-    return l[["zona", "secao", "principal", "local", "eleitores"]]
+    return l[["municipio", "zona", "secao", "principal", "local", "eleitores"]]
 
 
 # ---------------------------------------------------------------- base
@@ -87,17 +90,32 @@ def base_2018(mun="71072"):
     v["cat"] = v.cod.map(cats).fillna(v.cod.map({95: "bn", 96: "bn"})).fillna("outros")
     t = v.pivot_table(index=["zona", "local"], columns="cat", values="votos",
                       aggfunc="sum").fillna(0)
-    e = principal_de("2018").groupby(["zona", "local"]).eleitores.sum()
+    e = principal_de("2018", mun).groupby(["zona", "local"]).eleitores.sum()
     t["comparecimento"] = t.sum(axis=1)
     t["aptos"] = e.reindex(t.index)
     return t.reset_index(), list(cats.values()) + ["outros", "bn"]
 
 
-def base_bu(pleito, cats, mun=71072):
-    """Base tirada dos BUs do próprio coletor (2022 para domingo)."""
+def _votos(pleito, cargo, mun, cats):
     v = pd.read_parquet(RAW / pleito / "sp" / "votos.parquet")
-    v = v[(v.cargo == "presidente") & (v.municipio == mun)]
+    v = v[v.cargo == cargo]
+    if mun:
+        v = v[v.municipio == int(mun)]
+    if cats == "auto":
+        # os mais votados até aqui viram categoria própria; o resto é "outros"
+        top = (v[v.tipo == "nominal"].groupby("codigo").votos.sum()
+               .sort_values(ascending=False).head(AUTO_K).index)
+        cats = {int(k): f"n{int(k)}" for k in top}
     v["cat"] = v.codigo.map(cats)
+    return v, cats
+
+
+AUTO_K = 5
+
+
+def base_bu(pleito, cats, mun=71072, cargo="presidente"):
+    """Base tirada dos BUs do próprio coletor (2022 para domingo)."""
+    v, cats = _votos(pleito, cargo, mun, cats)
     v.loc[v.tipo.isin(["branco", "nulo"]), "cat"] = "bn"
     v["cat"] = v.cat.fillna("outros")
     t = v.pivot_table(index=["zona", "local"], columns="cat", values="votos",
@@ -110,14 +128,16 @@ def base_bu(pleito, cats, mun=71072):
 
 # ---------------------------------------------------------------- alvo
 def perfil_secoes(ano, mun="71072"):
+    """mun=None: a UF inteira."""
     col_n = "QT_ELEITORES_PERFIL" if ano == "2022" else "QT_ELEITORES"
     p = pd.read_parquet(RAW / "tse" / f"perfil_{ano}_SP.parquet",
                         columns=["CD_MUNICIPIO", "NR_ZONA", "NR_SECAO", "DS_GENERO",
                                  "DS_FAIXA_ETARIA", "DS_GRAU_ESCOLARIDADE", col_n])
-    p = p[p.CD_MUNICIPIO == mun]
+    if mun:
+        p = p[p.CD_MUNICIPIO == str(mun)]
     p = p.assign(zona=p.NR_ZONA.astype(int), secao=p.NR_SECAO.astype(int),
                  n=pd.to_numeric(p[col_n]))
-    pr = principal_de(ano)[["zona", "secao", "principal"]]
+    pr = principal_de(ano, mun)[["zona", "secao", "principal"]]
     p = p.merge(pr, on=["zona", "secao"], how="left")
     p["secao"] = p.principal.fillna(p.secao).astype(int)
     idade = p.DS_FAIXA_ETARIA.str.strip().str.split().str[0]
@@ -134,10 +154,8 @@ def perfil_secoes(ano, mun="71072"):
     return g.rename(columns={"n": "eleitores_perfil"}).reset_index()
 
 
-def alvo_bu(pleito, cats, mun=71072):
-    v = pd.read_parquet(RAW / pleito / "sp" / "votos.parquet")
-    v = v[(v.cargo == "presidente") & (v.municipio == mun)]
-    v["cat"] = v.codigo.map(cats)
+def alvo_bu(pleito, cats, mun=71072, cargo="presidente"):
+    v, cats = _votos(pleito, cargo, mun, cats)
     v.loc[v.tipo.isin(["branco", "nulo"]), "cat"] = "bn"
     v["cat"] = v.cat.fillna("outros")
     t = v.pivot_table(index=["zona", "secao"], columns="cat", values="votos",
@@ -301,6 +319,89 @@ def ensaio(pontos=(0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90)):
           f"projeção {np.abs(r.projecao - r.real).mean():.2f} pt; "
           f"IC90 cobre o real em {r.cobre.mean():.0%} dos casos")
     return r
+
+
+# ---------------------------------------------------------------- noite da eleição
+# Candidatos de 2026 pelo número de urna (consulta_cand_2026, conferido em 28/09).
+# Os que ficam de fora caem em "outros"; branco e nulo em "bn".
+CATS_2026 = {13: "lula", 22: "flavio", 70: "cury", 55: "caiado", 14: "renan", 30: "zema"}
+BASE_2022 = {13: "lula22", 22: "bolsonaro22", 15: "tebet22", 12: "ciro22"}
+
+
+def universo_cadastro(ano, mun="71072"):
+    """Todas as seções principais do cadastro, com eleitores (somando agregadas),
+    coordenada do local e perfil. É o denominador da noite: sabe-se de antemão
+    quantas urnas existem e quantos eleitores cada uma tem."""
+    pr = principal_de(ano, mun)
+    u = (pr.groupby(["zona", "principal"])
+         .agg(municipio=("municipio", "first"), local=("local", "first"),
+              aptos=("eleitores", "sum")).reset_index()
+         .rename(columns={"principal": "secao"}))
+    coords = locais_coord(ano, mun)
+    u = u.merge(coords, on=["zona", "local"], how="left")
+    sem = u.x.isna()
+    cz = coords.groupby("zona")[["x", "y"]].mean()
+    u.loc[sem, ["x", "y"]] = cz.reindex(u.loc[sem, "zona"]).to_numpy()
+    return u.merge(perfil_secoes(ano, mun), on=["zona", "secao"], how="left")
+
+
+class Noite:
+    """Estado pesado carregado uma vez (cadastro, base, X); cada rodada só cruza
+    as urnas que chegaram e reajusta — segundos."""
+
+    def __init__(self, pleito="2026", ano_cadastro="2026", base="2022", mun=71072,
+                 cargo="presidente"):
+        """mun=None: a UF inteira. cargo != presidente: candidatos escolhidos pelo
+        voto ("auto" — os mais votados viram categoria), na base e no alvo."""
+        self.pleito, self.mun, self.cargo = pleito, mun, cargo
+        self.univ = universo_cadastro(ano_cadastro, mun)
+        if base == "2018":
+            b, self.cats_base = base_2018(str(mun))
+        else:
+            b, self.cats_base = base_bu(base, BASE_2022 if cargo == "presidente" else "auto",
+                                        mun, cargo)
+        b = b.merge(locais_coord(base, mun), on=["zona", "local"], how="left")
+        self.X, self.dist = montar(self.univ, b, self.cats_base)
+        if cargo != "presidente":
+            self.cats_alvo = "auto"
+        else:
+            self.cats_alvo = CATS_2026 if pleito != "2022" else {13: "lula", 22: "bolsonaro",
+                                                                  15: "tebet", 12: "ciro"}
+
+    def rodada(self, n_boot=200, apenas=None):
+        """apenas: conjunto de (zona, secao) — no ensaio, as que já teriam chegado."""
+        arq = RAW / self.pleito / "sp" / "votos.parquet"
+        obs, self.cats = (alvo_bu(self.pleito, self.cats_alvo, self.mun, self.cargo)
+                          if arq.exists() else (None, None))
+        if obs is not None and apenas is not None:
+            obs = obs[[k in apenas for k in zip(obs.zona, obs.secao)]]
+        if obs is None or obs.empty:
+            return {"secoes": 0, "total": len(self.univ)}
+        obs = obs.rename(columns={"aptos": "aptos_bu"}).drop(columns=["local"])
+        u = self.univ.merge(obs, on=["zona", "secao"], how="left")
+        m = u.comparecimento.notna().to_numpy()
+        for c in self.cats + ["comparecimento"]:
+            if c not in u:
+                u[c] = 0.0
+            u[c] = u[c].fillna(0)
+        # onde a urna chegou, vale o apto do BU (o do cadastro é de semanas antes)
+        u["aptos"] = np.where(m, u.aptos_bu, u.aptos)
+        validos = [c for c in self.cats if c != "bn"]
+        a = projetar(u, self.X, m, self.cats, n_boot=n_boot)
+        av = a[:, [self.cats.index(c) for c in validos]]
+        pv = av / av.sum(1, keepdims=True) * 100
+        lo, hi = intervalo(pv[1:], pv[0])
+        soma = u.loc[m, validos].sum()
+        comp_proj = a[:, :].sum(1)
+        return {
+            "secoes": int(m.sum()), "total": len(u),
+            "eleitores_apurados": float(u.aptos[m].sum() / u.aptos.sum()),
+            "comparecimento_apurado": float(u.comparecimento[m].sum() / u.aptos[m].sum()),
+            "comparecimento_projetado": float(comp_proj[0] / u.aptos.sum()),
+            "candidatos": [{"cat": c, "contagem": float(soma[c] / soma.sum() * 100),
+                            "projecao": float(pv[0, j]), "lo90": float(lo[j]), "hi90": float(hi[j])}
+                           for j, c in enumerate(validos)],
+        }
 
 
 if __name__ == "__main__":

@@ -52,7 +52,8 @@ def curva_chegada(pleito="2022", uf="sp", mun=71072, pontos=200):
     return pd.read_csv(arq)
 
 
-def main():
+def main(ao_vivo=None):
+    """ao_vivo: '2026' na noite; 'ensaio' grava web/ensaio.html (nunca publicado)."""
     sys.stdout.reconfigure(encoding="utf-8")
     cur = curva_chegada()
     cas = pd.read_csv(OUT / "casamento_2022_71072.csv")
@@ -65,12 +66,19 @@ def main():
         },
         "casamento": cas.fillna("").to_dict(orient="records"),
     }
+    chave = ao_vivo or ("2026" if (OUT / "ao_vivo_2026.json").exists() else None)
+    if chave:
+        dados["aovivo"] = json.loads((OUT / f"ao_vivo_{chave}.json").read_text(encoding="utf-8"))
+    ens = OUT / "ensaio_projecao_2018_2022.csv"
+    if ens.exists():
+        dados["ensaio"] = pd.read_csv(ens).round(3).to_dict(orient="records")
     tpl = Path("web/template.html").read_text(encoding="utf-8")
     html = tpl.replace("/*__DADOS__*/null", json.dumps(dados, ensure_ascii=False))
     if "/*__DADOS__*/null" in html:
         sys.exit("placeholder não substituído")
-    Path("web/index.html").write_text(html, encoding="utf-8")
-    print(f"web/index.html: {len(html) // 1024} KB")
+    destino = Path("web/ensaio.html" if ao_vivo == "ensaio" else "web/index.html")
+    destino.write_text(html, encoding="utf-8")
+    print(f"{destino}: {len(html) // 1024} KB", flush=True)
 
 
 if __name__ == "__main__":

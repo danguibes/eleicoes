@@ -20,7 +20,7 @@ import pandas as pd
 from tse import PLEITOS, Cliente
 
 
-def tabelar(pleito, uf):
+def tabelar(pleito, uf, cargos=None):
     d = Path("data/raw") / pleito / uf
     linhas = []
     vistos = {}
@@ -32,6 +32,8 @@ def tabelar(pleito, uf):
     for (mun, zona, secao), s in vistos.items():
         for e in s["eleicoes"]:
             for c in e["cargos"]:
+                if cargos and c["cargo"] not in cargos:
+                    continue  # na noite só Presidente: a tabela inteira do estado é lenta
                 for tipo, codigo, n in c["votos"]:
                     linhas.append((mun, zona, secao, s["local"], e["id"], c["cargo"],
                                    e["aptos"], c["comparecimento"], tipo, codigo, n))
