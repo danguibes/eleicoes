@@ -28,8 +28,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: conferir que a página saiu com dados
         run: |
-          test -f web/index.html
-          if grep -q '/\*__DADOS__\*/null' web/index.html; then
+          test -f web/index.html && test -f web/metodo.html
+          if grep -q '/\*__DADOS__\*/null' web/metodo.html; then
             echo "placeholder nao substituido: a pagina sairia vazia"; exit 1
           fi
       - run: rm -f web/template.html

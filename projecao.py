@@ -247,9 +247,18 @@ def prever(coef, X, zona, zonas):
     return np.c_[np.ones(len(X)), X, Z] @ coef
 
 
-def projetar(univ, X, obs_mask, cats, n_boot=200, seed=0):
-    """Devolve amostras (n_boot × categorias) dos votos totais projetados no município."""
+def projetar(univ, X, obs_mask, cats, n_boot=200, seed=0, grupos=None):
+    """Devolve amostras (n_boot × categorias) dos votos totais projetados.
+
+    Com `grupos` ({nome: códigos inteiros por linha de univ}) devolve também
+    (amostras, por_linha, por_grupo): por_linha são os votos de cada seção — reais
+    se apurada, previstos se não — e por_grupo[nome] as amostras somadas por
+    código (n_boot × n_códigos × categorias), de onde sai o intervalo de cada
+    recorte simples do painel."""
     rng = np.random.default_rng(seed)
+    extra = grupos is not None
+    por_grupo = {k: [] for k in (grupos or {})}
+    por_linha = None
     V = univ[cats].to_numpy(float)
     comp = univ.comparecimento.to_numpy(float)
     aptos = univ.aptos.to_numpy(float)
@@ -288,7 +297,19 @@ def projetar(univ, X, obs_mask, cats, n_boot=200, seed=0):
         partes = np.exp(P[:, :-1])
         partes /= partes.sum(1, keepdims=True)
         tc = 1 / (1 + np.exp(-P[:, -1]))
-        amostras.append(real + (partes * (tc * aptos[f])[:, None]).sum(0))
+        prev = partes * (tc * aptos[f])[:, None]
+        amostras.append(real + prev.sum(0))
+        if extra:
+            linha = V.copy()
+            linha[f] = prev
+            if bi == 0:
+                por_linha = linha
+            for k, cod in grupos.items():
+                n = cod.max() + 1
+                por_grupo[k].append(np.stack([np.bincount(cod, linha[:, j], n)
+                                              for j in range(len(cats))], axis=1))
+    if extra:
+        return np.array(amostras), por_linha, {k: np.array(v) for k, v in por_grupo.items()}
     return np.array(amostras)
 
 

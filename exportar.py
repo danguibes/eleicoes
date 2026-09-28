@@ -80,7 +80,7 @@ def main(ao_vivo=None):
     html = tpl.replace("/*__DADOS__*/null", json.dumps(dados, ensure_ascii=False))
     if "/*__DADOS__*/null" in html:
         sys.exit("placeholder não substituído")
-    destino = Path("web/ensaio.html" if ao_vivo == "ensaio" else "web/index.html")
+    destino = Path("web/ensaio.html" if ao_vivo == "ensaio" else "web/metodo.html")
     destino.write_text(html, encoding="utf-8")
     print(f"{destino}: {len(html) // 1024} KB", flush=True)
 

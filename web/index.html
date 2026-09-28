@@ -1,364 +1,337 @@
 <!doctype html>
-<!-- Sem o doctype o navegador entra em quirks mode e a tabela não herda cor nem
-     fonte: no tema escuro o texto some. Lição do Brasileirão. -->
 <html lang="pt-BR">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Eleições 2026 — voto por grupo</title>
+<title>Eleições 2026 — painel</title>
 <style>
   :root{
     --bg:#faf9f7; --card:#fff; --ink:#1c1b19; --mut:#56534e; --line:#e4e1db;
     --accent:#1f4f7a; --accent-soft:#dde8f2; --grid:#efece7;
-    --lula:#b03a2e; --bolso:#1f4f7a; --neutro:#8a867f;
+    --c1:#b03a2e; --c2:#1f4f7a; --c3:#6b8f3a; --c4:#b8862b; --c5:#7a4f9a; --c6:#2e8a86; --c7:#8a867f;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
       --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
-      --lula:#e0705f; --bolso:#7fb4d4; --neutro:#8f8b84;
+      --c1:#e0705f; --c2:#7fb4d4; --c3:#9cc26a; --c4:#e0b45f; --c5:#b58fd6; --c6:#6cc5bf; --c7:#8f8b84;
     }
   }
   :root[data-theme="dark"]{
     --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
     --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
-    --lula:#e0705f; --bolso:#7fb4d4; --neutro:#8f8b84;
+    --c1:#e0705f; --c2:#7fb4d4; --c3:#9cc26a; --c4:#e0b45f; --c5:#b58fd6; --c6:#6cc5bf; --c7:#8f8b84;
   }
   *{box-sizing:border-box}
   body{background:var(--bg);color:var(--ink);margin:0;
-       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
-  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
-  header{padding:36px 0 20px;border-bottom:1px solid var(--line);margin-bottom:24px}
-  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
-  h2{font-size:17px;margin:0 0 4px;letter-spacing:-.01em}
-  .sub{color:var(--mut);font-size:13.5px;margin:0}
-  .idade{display:inline-block;margin-top:8px;font-size:12.5px;color:var(--mut)}
-  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:20px}
-  .aviso{border-left:4px solid var(--accent);background:var(--accent-soft)}
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+  header{padding:26px 0 12px;display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+  h1{font-size:24px;margin:0;letter-spacing:-.02em}
+  h2{font-size:16px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin:0}
+  a{color:var(--accent)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+  .filtros{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  label.f{display:flex;flex-direction:column;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;gap:2px}
+  select,input{font:inherit;font-size:13.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 8px;max-width:190px}
+  select:disabled{opacity:.5}
+  .foco{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;min-height:26px;align-items:center;font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px}
+  .chip button{border:none;background:transparent;color:var(--mut);font-size:15px;cursor:pointer;padding:0 5px}
+  .limpar{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:3px 10px;cursor:pointer;font:inherit;font-size:12.5px}
+  .modo{display:flex;gap:6px}
+  .modo button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:5px 10px;cursor:pointer}
+  .modo button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .aviso-ensaio{background:var(--accent-soft);border-left:4px solid var(--accent)}
+  .barra{height:8px;background:var(--grid);border-radius:999px;overflow:hidden;margin:8px 0 4px}
+  .barra i{display:block;height:100%;background:var(--accent)}
   table{border-collapse:collapse;width:100%;font-size:13.5px}
-  th{text-align:right;font-weight:600;color:var(--mut);font-size:11.5px;text-transform:uppercase;
-     letter-spacing:.04em;padding:0 8px 8px;border-bottom:1px solid var(--line)}
+  th{text-align:right;font-weight:600;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:0 8px 6px;border-bottom:1px solid var(--line)}
   th:first-child,td:first-child{text-align:left}
   td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums}
   tr:last-child td{border-bottom:none}
-  tr.melhor td{font-weight:700}
+  .big{font-size:22px;font-weight:700}
+  .ic{color:var(--mut);font-size:11.5px;display:block}
   .scroll{overflow-x:auto}
-  .note{color:var(--mut);font-size:13px;line-height:1.65;margin-top:14px}
-  .note b{color:var(--ink)}
-  .regua{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-  .regua div{flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-  .regua b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
-  .regua span{color:var(--mut);font-size:11.5px}
-  svg text{fill:var(--mut);font-size:11px}
-  .leg{display:flex;gap:16px;font-size:13px;margin-top:6px;flex-wrap:wrap}
-  .leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:6px}
-  .emobra{color:var(--mut)}
-  .emobra li{margin:4px 0}
-  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;padding:1px 8px;
-       border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
-  .barra{height:8px;background:var(--grid);border-radius:999px;overflow:hidden;margin:10px 0 14px}
-  .barra i{display:block;height:100%;background:var(--accent)}
-  .ic{color:var(--mut);font-size:12px}
-  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
-  .mini h4{margin:0 0 6px;font-size:13.5px}
-  .mini .lin{display:grid;grid-template-columns:92px 1fr 44px;gap:6px;align-items:center;font-size:12px;margin:3px 0}
-  .mini .bar{height:10px;border-radius:2px;background:var(--grid);position:relative;overflow:hidden}
-  .mini .bar i{position:absolute;top:0;bottom:0;left:0}
-  .mini .rot{color:var(--mut);font-variant-numeric:tabular-nums}
-  footer{color:var(--mut);font-size:12.5px;margin-top:30px}
-  footer a,.note a{color:var(--accent)}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px}
+  .ab h3{font-size:13.5px;margin:0 0 8px}
+  .ab .q{display:grid;grid-template-columns:118px 1fr 64px;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;cursor:pointer;font-size:12px}
+  .ab .q:hover{background:var(--grid)}
+  .ab .q.sel{background:var(--accent-soft);outline:1px solid var(--accent)}
+  .ab .q .rot{color:var(--mut);font-variant-numeric:tabular-nums}
+  .ab .q .val{text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;line-height:1.35}
+  .tri{display:grid;grid-template-rows:repeat(3,7px);gap:2px}
+  .tri div{position:relative;background:var(--grid);border-radius:2px}
+  .tri i{position:absolute;left:0;top:0;bottom:0;border-radius:2px}
+  .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:6px 0 2px}
+  .leg span{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+  .leg span.off{opacity:.35}
+  .leg i{display:inline-block;width:12px;height:8px;border-radius:2px}
+  tr.clic{cursor:pointer} tr.clic:hover td{background:var(--grid)}
+  .vazio{color:var(--mut);font-size:13px;padding:10px 0}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
 </style>
 <body>
 <div class="wrap">
 <header>
-  <h1>Eleições 2026 — o voto por grupo, estimado a partir das urnas</h1>
-  <p class="sub">Município de São Paulo, Presidente, 1º turno. Validação em 2022; aplicação na noite de 4 de outubro.</p>
-  <span class="idade" id="idade"></span>
+  <div>
+    <h1>Eleições 2026 — apuração e projeção</h1>
+    <p class="sub" id="subtitulo">Estado de São Paulo, urna a urna.
+      <a href="metodo.html">Como funciona, o que foi medido e o que não passou na régua →</a></p>
+  </div>
+  <div class="modo" id="modo"></div>
 </header>
 
-<section class="aviso">
-  <h2>O voto é secreto</h2>
-  <p class="note" style="margin-top:6px">O menor resultado que existe é a <b>seção eleitoral</b>. Toda
-  quebra por idade, escolaridade, renda, cor ou religião que aparecer aqui é <b>estimativa por
-  inferência ecológica</b> — cruzando o resultado de cada urna com o perfil de quem está inscrito nela
-  (TSE) e de quem mora em volta (Censo 2022) — e vem com intervalo de incerteza. O que é dado e não
-  estimativa, como o comparecimento por perfil publicado pelo TSE, aparece separado e marcado.</p>
-</section>
+<div class="filtros">
+  <div class="linha" id="barra-filtros"></div>
+  <div class="foco" id="foco"></div>
+</div>
 
-<section id="aovivo" hidden>
-  <h2 id="av-titulo">Apuração ao vivo <span class="tag">PROJEÇÃO</span></h2>
-  <p class="sub" id="av-sub"></p>
-  <div class="barra"><i id="av-barra"></i></div>
-  <div class="scroll"><table id="av-tabela"></table></div>
-  <div class="scroll"><svg id="av-curva" viewBox="0 0 900 300" style="width:100%;min-width:560px"></svg></div>
-  <p class="note">A <b>contagem</b> soma as urnas que já chegaram. A <b>projeção</b> soma essas mesmas urnas com a
-  previsão das que faltam: cada urna ainda não apurada parte do resultado do seu local de votação em 2022 e recebe o
-  deslocamento medido nas urnas já apuradas, ajustado pelo perfil de quem está inscrito nela e pela sua zona. O
-  intervalo é de 90%, calibrado no ensaio de 2022 abaixo. As urnas não chegam em ordem aleatória, e é por isso que as
-  duas colunas discordam no começo da noite.</p>
-</section>
-
-<section id="ensaio" hidden>
-  <h2>O ensaio da projeção: 2022, prevista a partir de 2018 <span class="tag">MEDIDO</span></h2>
-  <p class="sub">Capital, Presidente. As urnas de 2022 entram na ordem real em que chegaram ao TSE; cada uma é comparada
-  com o local de votação de 2018 mais próximo. Candidatos diferentes, locais remexidos — o mais parecido com domingo
-  que dá para fazer antes de domingo.</p>
-  <div class="scroll"><table id="ens-tabela"></table></div>
-  <p class="note" id="ens-nota"></p>
-</section>
-
-<section id="grupos" hidden>
-  <h2>Voto por idade e sexo, 2022 <span class="tag">ESTIMATIVA</span></h2>
-  <p class="sub">Capital, Presidente, % dos votos válidos entre quem votou em cada grupo. Inferência ecológica a partir das
-  26.288 urnas, com o comparecimento real por perfil do TSE no lugar do estimado.</p>
-  <div class="scroll"><table id="gr-tabela"></table></div>
-  <p class="note">O intervalo é o da reamostragem por zona <b>somado ao erro máximo que o método cometeu na régua do
-  comparecimento</b> (±4,4 pontos na idade, ±1,2 no sexo). Sexo quase não varia entre urnas: a estimativa tem pouca
-  informação para trabalhar, e as pesquisas são referência melhor para ela.</p>
-</section>
-
-<section id="regua-comp" hidden>
-  <h2>A régua: o comparecimento real por perfil <span class="tag">MEDIDO</span></h2>
-  <p class="sub">O TSE publica quem compareceu por idade e escolaridade. Antes de estimar o voto de um grupo, o método tem
-  que acertar o comparecimento dele, onde existe gabarito.</p>
-  <div class="scroll"><table id="rg-tabela"></table></div>
-  <p class="note"><b>Por que não há "voto por escolaridade" nesta página.</b> Em todas as variantes testadas o método
-  estimou o comparecimento de quem tem superior completo 10 a 19 pontos abaixo do real, e abaixo de quem tem ensino médio:
-  a ordem invertida. A leitura provável: nas urnas de bairros de alta escolaridade há muito eleitor inscrito que já não
-  mora ali, e essa abstenção é do lugar, não do grupo; o modelo não tem como separar as duas coisas. Um método que erra
-  assim onde há gabarito não vai para onde não há. A escolaridade aparece abaixo como <b>perfil da urna</b>, não como grupo.</p>
-</section>
-
-<section id="bairros" hidden>
-  <h2>As urnas agrupadas pelo perfil do lugar, 2022 <span class="tag">DADO</span></h2>
-  <p class="sub">Cada urna da capital cai num quintil (cinco grupos com o mesmo número de votantes) segundo o perfil do seu
-  eleitorado (TSE) ou do entorno do seu local de votação (Censo 2022, raio de 1,5 km). O voto é a soma real das urnas.</p>
-  <div class="grade" id="br-grade"></div>
-  <p class="note"><b>Isto não é "como votou cada grupo".</b> É como votaram as urnas dos lugares com mais daquele grupo, e as
-  duas coisas podem apontar para lados opostos. O exemplo abaixo mostra isso acontecendo.</p>
-  <h3 style="font-size:14px;margin:18px 0 6px">Evangélicos: o quadro geral e dentro da mesma renda</h3>
-  <div class="scroll"><table id="br-cruz"></table></div>
-  <p class="note" id="br-cruz-nota"></p>
+<section id="aviso-ensaio" class="aviso-ensaio" hidden>
+  <p class="sub"><b>Modo ensaio.</b> A eleição de 2022 reproduzida urna a urna, parada no momento em que uma parte das
+  urnas tinha chegado ao TSE, com 2018 fazendo o papel de eleição anterior. Serve para ver o painel funcionando — e
+  conferir a projeção contra um resultado que já se conhece — antes de domingo.</p>
 </section>
 
 <section>
-  <h2>2022: a contagem na ordem em que as urnas chegaram <span class="tag">DADO</span></h2>
-  <p class="sub">Presidente, capital, % dos votos válidos somando as seções na hora real em que cada uma chegou ao TSE.</p>
-  <div class="scroll"><svg id="curva" viewBox="0 0 900 330" style="width:100%;min-width:560px"></svg></div>
-  <div class="leg"><span><i style="background:var(--lula)"></i>Lula</span>
-    <span><i style="background:var(--bolso)"></i>Bolsonaro</span>
-    <span><i style="background:var(--neutro);height:1px"></i>resultado final</span></div>
-  <div class="regua" id="regua"></div>
-  <p class="note">As urnas não chegam em ordem aleatória. Com um quarto das seções apuradas, a soma simples
-  errava a distância entre os dois em três pontos, sempre para o mesmo lado. É esse erro que a
-  projeção de domingo existe para corrigir: cada urna de 2026 é comparada com o <b>local de votação de 2022
-  mais próximo</b>, e as que faltam herdam o deslocamento medido nas que já chegaram — cada uma sobre a sua
-  própria base.</p>
+  <h2 id="t-principal">Resultado</h2>
+  <p class="sub" id="progresso"></p>
+  <div class="barra"><i id="barra-ap"></i></div>
+  <div class="scroll"><table id="principal"></table></div>
+  <p class="sub" id="nota-ic" style="margin-top:8px"></p>
 </section>
 
 <section>
-  <h2>Quem mora em volta é quem vota ali? <span class="tag">MEDIDO</span></h2>
-  <p class="sub">Duas formas de casar cada local de votação com os setores censitários do entorno, julgadas pelo
-  que o TSE e o Censo têm em comum: a idade e o sexo.</p>
-  <div class="scroll"><table id="casamento"></table></div>
-  <p class="note">A régua é a correlação, entre os ~2.000 locais da capital, da parcela de eleitores com 60 anos
-  ou mais (TSE) contra a de moradores com 60 ou mais no entorno (Censo). O vencedor casa <b>razoavelmente, não
-  bem</b> — o eleitor não vota necessariamente onde mora —, e isso vale para toda variável que só o Censo tem:
-  cor, renda, alfabetização e religião. O sexo quase não casa porque quase não varia entre locais.</p>
+  <h2>Por perfil do lugar</h2>
+  <p class="sub">Urnas em quintis — cinco grupos com o mesmo número de eleitores no estado —, pelo perfil do eleitorado da
+  seção (TSE) ou do entorno do local de votação (Censo 2022). <b>É o voto das urnas desses lugares, não o voto das pessoas
+  desse grupo</b>: <a href="metodo.html#bairros">por que a diferença importa</a>. Clique num quintil para filtrar a tela.</p>
+  <div class="leg" id="leg-ab"></div>
+  <div class="grade" id="aberturas"></div>
 </section>
 
 <section>
-  <h2>Em construção</h2>
-  <ul class="emobra">
-    <li>Projeção do resultado da capital na noite de domingo, urna a urna contra 2022, com intervalo.</li>
-    <li>Os mesmos quadros para 2026, na noite da apuração.</li>
-    <li>Estado de São Paulo: Presidente, governador e senador.</li>
-  </ul>
+  <h2 id="t-lugares">Municípios</h2>
+  <p class="sub">Os maiores do recorte, por eleitores. Clique para filtrar.</p>
+  <div class="scroll"><table id="lugares"></table></div>
 </section>
-
-<footer>
-  Dados: TSE (boletins de urna, eleitorado por seção, locais de votação) e IBGE (Censo 2022 por setor e por área
-  de ponderação). Código e método: <a href="https://github.com/danguibes/eleicoes">github.com/danguibes/eleicoes</a>.
-  Projeto pessoal, irmão do <a href="https://danguibes.github.io/monte-carlo-brasileirao/">Brasileirão</a> e da
-  <a href="https://danguibes.github.io/montecarlo_nfl/">NFL</a>.
-</footer>
 </div>
 
 <script>
-const D = {"gerado": "28/09/2026 16:07", "chegada2022": {"hora": ["18:06:41", "18:21:09", "18:23:20", "18:27:20", "18:28:57", "18:31:32", "18:34:30", "18:35:39", "18:37:27", "18:39:25", "18:40:25", "18:41:30", "18:42:27", "18:43:35", "18:44:58", "18:46:26", "18:47:33", "18:48:33", "18:49:30", "18:50:31", "18:51:00", "18:51:44", "18:52:34", "18:53:26", "18:54:43", "18:55:38", "18:56:47", "18:57:13", "18:57:51", "18:59:02", "18:59:49", "19:00:43", "19:01:04", "19:01:57", "19:02:46", "19:03:33", "19:04:27", "19:05:21", "19:05:47", "19:06:25", "19:06:45", "19:07:27", "19:07:45", "19:08:30", "19:08:47", "19:09:09", "19:09:50", "19:10:44", "19:11:26", "19:12:10", "19:12:37", "19:13:18", "19:14:04", "19:14:44", "19:15:12", "19:15:29", "19:15:42", "19:15:53", "19:16:15", "19:16:42", "19:17:25", "19:17:53", "19:18:38", "19:19:08", "19:19:44", "19:20:11", "19:20:34", "19:21:12", "19:21:46", "19:22:37", "19:23:03", "19:23:43", "19:24:13", "19:24:35", "19:24:48", "19:25:04", "19:25:40", "19:26:02", "19:26:44", "19:27:22", "19:27:46", "19:28:12", "19:28:47", "19:29:17", "19:29:44", "19:30:09", "19:30:32", "19:30:42", "19:31:03", "19:31:36", "19:31:54", "19:32:39", "19:33:29", "19:33:45", "19:34:28", "19:34:44", "19:35:00", "19:35:34", "19:35:53", "19:36:13", "19:36:39", "19:36:58", "19:37:42", "19:38:29", "19:38:46", "19:39:31", "19:39:44", "19:40:02", "19:40:40", "19:41:02", "19:41:34", "19:41:57", "19:42:46", "19:43:06", "19:43:40", "19:43:59", "19:44:34", "19:44:54", "19:45:34", "19:45:50", "19:46:31", "19:46:47", "19:47:16", "19:47:46", "19:48:32", "19:48:48", "19:49:05", "19:49:43", "19:50:05", "19:50:35", "19:51:03", "19:51:51", "19:52:15", "19:52:52", "19:53:37", "19:53:56", "19:54:34", "19:54:47", "19:55:32", "19:55:50", "19:56:32", "19:56:49", "19:57:32", "19:57:53", "19:58:36", "19:58:53", "19:59:36", "19:59:56", "20:00:37", "20:01:02", "20:01:56", "20:02:40", "20:03:31", "20:04:01", "20:04:45", "20:05:32", "20:05:49", "20:06:10", "20:06:44", "20:07:13", "20:07:45", "20:08:13", "20:08:40", "20:08:53", "20:09:36", "20:09:43", "20:10:04", "20:10:39", "20:10:50", "20:11:36", "20:11:49", "20:12:33", "20:12:41", "20:12:50", "20:13:31", "20:13:40", "20:13:49", "20:14:51", "20:15:42", "20:16:03", "20:16:48", "20:17:32", "20:18:33", "20:19:41", "20:20:42", "20:21:37", "20:22:44", "20:24:09", "20:25:47", "20:27:05", "20:28:47", "20:35:24", "20:38:30", "20:45:42", "20:56:46", "21:22:13", "21:31:11", "21:41:47", "21:54:42", "22:34:33"], "frac": [0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.1, 0.105, 0.11, 0.115, 0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.165, 0.17, 0.175, 0.18, 0.185, 0.19, 0.195, 0.2, 0.205, 0.21, 0.215, 0.22, 0.225, 0.23, 0.235, 0.24, 0.245, 0.25, 0.255, 0.26, 0.265, 0.27, 0.275, 0.28, 0.285, 0.29, 0.295, 0.3, 0.305, 0.31, 0.315, 0.32, 0.325, 0.33, 0.335, 0.34, 0.345, 0.35, 0.355, 0.36, 0.365, 0.37, 0.375, 0.38, 0.385, 0.39, 0.395, 0.4, 0.405, 0.41, 0.415, 0.42, 0.425, 0.43, 0.435, 0.44, 0.445, 0.45, 0.455, 0.46, 0.465, 0.47, 0.475, 0.48, 0.485, 0.49, 0.495, 0.5, 0.505, 0.51, 0.515, 0.52, 0.525, 0.53, 0.535, 0.54, 0.545, 0.55, 0.555, 0.56, 0.565, 0.57, 0.575, 0.58, 0.585, 0.59, 0.595, 0.6, 0.605, 0.61, 0.615, 0.62, 0.625, 0.63, 0.635, 0.64, 0.645, 0.65, 0.655, 0.66, 0.665, 0.67, 0.675, 0.68, 0.685, 0.69, 0.695, 0.7, 0.705, 0.71, 0.715, 0.72, 0.725, 0.73, 0.735, 0.74, 0.745, 0.75, 0.755, 0.76, 0.765, 0.77, 0.775, 0.78, 0.785, 0.79, 0.795, 0.8, 0.805, 0.81, 0.815, 0.82, 0.825, 0.83, 0.835, 0.84, 0.845, 0.85, 0.855, 0.86, 0.865, 0.87, 0.875, 0.88, 0.885, 0.89, 0.895, 0.9, 0.905, 0.91, 0.915, 0.92, 0.925, 0.93, 0.935, 0.94, 0.945, 0.95, 0.955, 0.96, 0.965, 0.97, 0.975, 0.98, 0.985, 0.99, 0.995, 1.0], "lula": [50.44, 48.9, 48.41, 48.2, 47.82, 47.66, 47.55, 47.63, 47.26, 47.29, 47.47, 47.21, 47.15, 46.85, 46.99, 46.83, 46.71, 46.54, 46.6, 46.64, 46.37, 46.42, 46.43, 46.18, 46.08, 46.3, 46.28, 46.23, 46.36, 46.4, 46.26, 46.27, 46.13, 46.05, 45.96, 46.0, 45.99, 45.86, 45.8, 45.87, 45.9, 45.91, 46.01, 45.95, 45.9, 45.85, 45.88, 45.92, 45.94, 45.96, 45.87, 45.88, 45.85, 45.85, 45.83, 45.81, 45.78, 45.74, 45.74, 45.69, 45.68, 45.68, 45.66, 45.64, 45.61, 45.58, 45.53, 45.56, 45.58, 45.58, 45.63, 45.65, 45.66, 45.69, 45.75, 45.76, 45.79, 45.82, 45.87, 45.91, 45.89, 45.93, 45.96, 45.97, 45.95, 45.96, 45.97, 45.98, 46.0, 46.01, 45.99, 46.03, 46.05, 46.08, 46.11, 46.13, 46.17, 46.19, 46.2, 46.21, 46.23, 46.26, 46.33, 46.36, 46.37, 46.39, 46.42, 46.43, 46.42, 46.42, 46.4, 46.4, 46.43, 46.45, 46.47, 46.48, 46.51, 46.53, 46.57, 46.58, 46.62, 46.64, 46.67, 46.7, 46.71, 46.73, 46.72, 46.72, 46.72, 46.73, 46.75, 46.75, 46.75, 46.75, 46.75, 46.78, 46.8, 46.85, 46.9, 46.92, 46.94, 46.95, 46.98, 47.0, 46.99, 47.01, 47.02, 47.03, 47.05, 47.06, 47.07, 47.07, 47.07, 47.08, 47.1, 47.13, 47.15, 47.16, 47.18, 47.22, 47.21, 47.21, 47.19, 47.17, 47.15, 47.15, 47.15, 47.16, 47.19, 47.22, 47.2, 47.17, 47.13, 47.09, 47.07, 47.04, 47.02, 47.02, 47.02, 47.01, 47.03, 47.05, 47.09, 47.1, 47.12, 47.12, 47.12, 47.14, 47.18, 47.21, 47.24, 47.25, 47.28, 47.27, 47.26, 47.27, 47.32, 47.39, 47.46, 47.54], "bolsonaro": [34.93, 35.78, 36.2, 36.87, 37.35, 37.65, 37.9, 37.93, 38.32, 38.3, 38.24, 38.45, 38.53, 38.79, 38.69, 38.85, 38.96, 39.07, 39.03, 38.98, 39.2, 39.17, 39.2, 39.4, 39.46, 39.27, 39.28, 39.3, 39.18, 39.14, 39.24, 39.25, 39.36, 39.43, 39.49, 39.44, 39.45, 39.55, 39.59, 39.51, 39.5, 39.51, 39.45, 39.49, 39.52, 39.55, 39.53, 39.51, 39.5, 39.49, 39.54, 39.53, 39.54, 39.56, 39.57, 39.58, 39.6, 39.63, 39.63, 39.65, 39.65, 39.64, 39.65, 39.66, 39.66, 39.68, 39.69, 39.66, 39.65, 39.64, 39.6, 39.58, 39.56, 39.53, 39.49, 39.47, 39.44, 39.41, 39.37, 39.35, 39.36, 39.34, 39.32, 39.32, 39.33, 39.33, 39.33, 39.33, 39.33, 39.32, 39.32, 39.29, 39.28, 39.25, 39.23, 39.21, 39.19, 39.17, 39.16, 39.16, 39.15, 39.13, 39.08, 39.05, 39.03, 39.01, 38.99, 38.97, 38.97, 38.97, 38.98, 38.97, 38.95, 38.94, 38.93, 38.91, 38.88, 38.85, 38.82, 38.82, 38.78, 38.77, 38.75, 38.73, 38.72, 38.71, 38.71, 38.7, 38.7, 38.7, 38.68, 38.68, 38.68, 38.68, 38.67, 38.65, 38.62, 38.58, 38.54, 38.52, 38.5, 38.48, 38.46, 38.44, 38.45, 38.43, 38.42, 38.41, 38.39, 38.38, 38.37, 38.37, 38.36, 38.36, 38.34, 38.32, 38.31, 38.3, 38.28, 38.25, 38.25, 38.25, 38.26, 38.27, 38.29, 38.29, 38.29, 38.28, 38.26, 38.23, 38.25, 38.28, 38.31, 38.34, 38.37, 38.39, 38.41, 38.4, 38.4, 38.4, 38.39, 38.37, 38.35, 38.34, 38.33, 38.33, 38.33, 38.31, 38.28, 38.26, 38.23, 38.22, 38.2, 38.2, 38.2, 38.19, 38.15, 38.1, 38.05, 37.99], "secoes": 26288}, "casamento": [{"metodo": "voronoi", "locais": 2021, "dist_vt_media": 0.1510580868542705, "r_60mais": 0.5411058942394967, "r_feminino": 0.2403604133597034, "setores_sem_local": 0, "raio": "", "h": ""}, {"metodo": "raio", "locais": 2030, "dist_vt_media": 0.1481615908163425, "r_60mais": 0.5822987843928706, "r_feminino": 0.2759379419943807, "setores_sem_local": 907, "raio": 800.0, "h": 300.0}, {"metodo": "raio", "locais": 2030, "dist_vt_media": 0.1480457100804988, "r_60mais": 0.5880856465724339, "r_feminino": 0.2739461405676248, "setores_sem_local": 182, "raio": 1500.0, "h": 600.0}, {"metodo": "raio", "locais": 2030, "dist_vt_media": 0.149728976473752, "r_60mais": 0.5872193805408438, "r_feminino": 0.2300951230346214, "setores_sem_local": 40, "raio": 3000.0, "h": 1200.0}], "ensaio": [{"frac": 0.01, "hora": "18:21", "cat": "lula", "real": 47.536, "contagem": 48.92, "projecao": 49.191, "lo90": 45.631, "hi90": 52.752, "cobre": true}, {"frac": 0.01, "hora": "18:21", "cat": "bolsonaro", "real": 37.991, "contagem": 35.784, "projecao": 36.365, "lo90": 34.463, "hi90": 38.267, "cobre": true}, {"frac": 0.01, "hora": "18:21", "cat": "tebet", "real": 8.106, "contagem": 8.281, "projecao": 7.583, "lo90": 6.69, "hi90": 8.477, "cobre": true}, {"frac": 0.01, "hora": "18:21", "cat": "ciro", "real": 4.323, "contagem": 4.843, "projecao": 4.71, "lo90": 3.368, "hi90": 6.051, "cobre": true}, {"frac": 0.01, "hora": "18:21", "cat": "outros", "real": 2.043, "contagem": 2.172, "projecao": 2.151, "lo90": 0.215, "hi90": 4.087, "cobre": true}, {"frac": 0.05, "hora": "18:39", "cat": "lula", "real": 47.536, "contagem": 47.305, "projecao": 49.763, "lo90": 46.906, "hi90": 52.621, "cobre": true}, {"frac": 0.05, "hora": "18:39", "cat": "bolsonaro", "real": 37.991, "contagem": 38.288, "projecao": 36.2, "lo90": 33.797, "hi90": 38.603, "cobre": true}, {"frac": 0.05, "hora": "18:39", "cat": "tebet", "real": 8.106, "contagem": 7.826, "projecao": 7.67, "lo90": 7.218, "hi90": 8.122, "cobre": true}, {"frac": 0.05, "hora": "18:39", "cat": "ciro", "real": 4.323, "contagem": 4.538, "projecao": 4.331, "lo90": 4.081, "hi90": 4.581, "cobre": true}, {"frac": 0.05, "hora": "18:39", "cat": "outros", "real": 2.043, "contagem": 2.043, "projecao": 2.035, "lo90": 1.866, "hi90": 2.204, "cobre": true}, {"frac": 0.1, "hora": "18:50", "cat": "lula", "real": 47.536, "contagem": 46.645, "projecao": 48.363, "lo90": 47.083, "hi90": 49.643, "cobre": true}, {"frac": 0.1, "hora": "18:50", "cat": "bolsonaro", "real": 37.991, "contagem": 38.97, "projecao": 37.274, "lo90": 36.119, "hi90": 38.428, "cobre": true}, {"frac": 0.1, "hora": "18:50", "cat": "tebet", "real": 8.106, "contagem": 7.889, "projecao": 7.934, "lo90": 7.661, "hi90": 8.207, "cobre": true}, {"frac": 0.1, "hora": "18:50", "cat": "ciro", "real": 4.323, "contagem": 4.462, "projecao": 4.398, "lo90": 4.238, "hi90": 4.559, "cobre": true}, {"frac": 0.1, "hora": "18:50", "cat": "outros", "real": 2.043, "contagem": 2.034, "projecao": 2.03, "lo90": 1.956, "hi90": 2.104, "cobre": true}, {"frac": 0.25, "hora": "19:12", "cat": "lula", "real": 47.536, "contagem": 45.958, "projecao": 47.321, "lo90": 46.953, "hi90": 47.69, "cobre": true}, {"frac": 0.25, "hora": "19:12", "cat": "bolsonaro", "real": 37.991, "contagem": 39.486, "projecao": 38.216, "lo90": 37.881, "hi90": 38.551, "cobre": true}, {"frac": 0.25, "hora": "19:12", "cat": "tebet", "real": 8.106, "contagem": 8.051, "projecao": 8.055, "lo90": 7.929, "hi90": 8.181, "cobre": true}, {"frac": 0.25, "hora": "19:12", "cat": "ciro", "real": 4.323, "contagem": 4.458, "projecao": 4.375, "lo90": 4.3, "hi90": 4.451, "cobre": true}, {"frac": 0.25, "hora": "19:12", "cat": "outros", "real": 2.043, "contagem": 2.047, "projecao": 2.032, "lo90": 1.996, "hi90": 2.068, "cobre": true}, {"frac": 0.5, "hora": "19:36", "cat": "lula", "real": 47.536, "contagem": 46.207, "projecao": 47.392, "lo90": 47.182, "hi90": 47.601, "cobre": true}, {"frac": 0.5, "hora": "19:36", "cat": "bolsonaro", "real": 37.991, "contagem": 39.161, "projecao": 38.134, "lo90": 37.941, "hi90": 38.327, "cobre": true}, {"frac": 0.5, "hora": "19:36", "cat": "tebet", "real": 8.106, "contagem": 8.168, "projecao": 8.079, "lo90": 7.984, "hi90": 8.175, "cobre": true}, {"frac": 0.5, "hora": "19:36", "cat": "ciro", "real": 4.323, "contagem": 4.417, "projecao": 4.369, "lo90": 4.321, "hi90": 4.417, "cobre": true}, {"frac": 0.5, "hora": "19:36", "cat": "outros", "real": 2.043, "contagem": 2.047, "projecao": 2.026, "lo90": 2.004, "hi90": 2.048, "cobre": true}, {"frac": 0.75, "hora": "20:01", "cat": "lula", "real": 47.536, "contagem": 47.06, "projecao": 47.553, "lo90": 47.445, "hi90": 47.662, "cobre": true}, {"frac": 0.75, "hora": "20:01", "cat": "bolsonaro", "real": 37.991, "contagem": 38.384, "projecao": 37.964, "lo90": 37.865, "hi90": 38.063, "cobre": true}, {"frac": 0.75, "hora": "20:01", "cat": "tebet", "real": 8.106, "contagem": 8.151, "projecao": 8.109, "lo90": 8.072, "hi90": 8.147, "cobre": true}, {"frac": 0.75, "hora": "20:01", "cat": "ciro", "real": 4.323, "contagem": 4.357, "projecao": 4.332, "lo90": 4.313, "hi90": 4.35, "cobre": true}, {"frac": 0.75, "hora": "20:01", "cat": "outros", "real": 2.043, "contagem": 2.047, "projecao": 2.042, "lo90": 2.022, "hi90": 2.062, "cobre": true}, {"frac": 0.9, "hora": "20:16", "cat": "lula", "real": 47.536, "contagem": 47.01, "projecao": 47.535, "lo90": 47.479, "hi90": 47.591, "cobre": true}, {"frac": 0.9, "hora": "20:16", "cat": "bolsonaro", "real": 37.991, "contagem": 38.401, "projecao": 38.004, "lo90": 37.949, "hi90": 38.059, "cobre": true}, {"frac": 0.9, "hora": "20:16", "cat": "tebet", "real": 8.106, "contagem": 8.183, "projecao": 8.093, "lo90": 8.078, "hi90": 8.108, "cobre": true}, {"frac": 0.9, "hora": "20:16", "cat": "ciro", "real": 4.323, "contagem": 4.357, "projecao": 4.328, "lo90": 4.316, "hi90": 4.339, "cobre": true}, {"frac": 0.9, "hora": "20:16", "cat": "outros", "real": 2.043, "contagem": 2.049, "projecao": 2.04, "lo90": 2.032, "hi90": 2.049, "cobre": true}], "quintis": [{"variavel": "superior", "quintil": 1, "de": 1.03, "ate": 8.66, "secoes": 5110, "comparecimento": 79.39, "lula": 58.79, "bolsonaro": 30.81, "tebet": 5.19, "ciro": 3.5, "outros": 1.71}, {"variavel": "superior", "quintil": 2, "de": 8.66, "ate": 13.59, "secoes": 5168, "comparecimento": 79.55, "lula": 53.55, "bolsonaro": 34.49, "tebet": 6.17, "ciro": 3.97, "outros": 1.81}, {"variavel": "superior", "quintil": 3, "de": 13.59, "ate": 21.11, "secoes": 5351, "comparecimento": 78.71, "lula": 46.46, "bolsonaro": 39.67, "tebet": 7.45, "ciro": 4.49, "outros": 1.93}, {"variavel": "superior", "quintil": 4, "de": 21.11, "ate": 37.47, "secoes": 5445, "comparecimento": 77.91, "lula": 40.77, "bolsonaro": 43.24, "tebet": 8.95, "ciro": 4.91, "outros": 2.13}, {"variavel": "superior", "quintil": 5, "de": 37.47, "ate": 87.66, "secoes": 5200, "comparecimento": 78.19, "lula": 38.52, "bolsonaro": 41.54, "tebet": 12.61, "ciro": 4.71, "outros": 2.62}, {"variavel": "renda", "quintil": 1, "de": 1504.63, "ate": 2270.78, "secoes": 5044, "comparecimento": 80.07, "lula": 59.49, "bolsonaro": 29.97, "tebet": 5.19, "ciro": 3.6, "outros": 1.74}, {"variavel": "renda", "quintil": 2, "de": 2270.78, "ate": 2846.49, "secoes": 5206, "comparecimento": 79.86, "lula": 52.09, "bolsonaro": 35.8, "tebet": 6.26, "ciro": 4.03, "outros": 1.83}, {"variavel": "renda", "quintil": 3, "de": 2846.49, "ate": 3878.92, "secoes": 5231, "comparecimento": 79.0, "lula": 46.22, "bolsonaro": 39.82, "tebet": 7.49, "ciro": 4.51, "outros": 1.95}, {"variavel": "renda", "quintil": 4, "de": 3878.92, "ate": 7014.86, "secoes": 5406, "comparecimento": 77.7, "lula": 41.16, "bolsonaro": 42.87, "tebet": 8.98, "ciro": 4.87, "outros": 2.12}, {"variavel": "renda", "quintil": 5, "de": 7014.86, "ate": 22748.68, "secoes": 5324, "comparecimento": 77.2, "lula": 39.27, "bolsonaro": 41.21, "tebet": 12.39, "ciro": 4.58, "outros": 2.55}, {"variavel": "preta_parda", "quintil": 1, "de": 6.79, "ate": 24.78, "secoes": 5343, "comparecimento": 77.37, "lula": 37.36, "bolsonaro": 42.95, "tebet": 12.46, "ciro": 4.65, "outros": 2.57}, {"variavel": "preta_parda", "quintil": 2, "de": 24.78, "ate": 39.61, "secoes": 5412, "comparecimento": 77.73, "lula": 40.84, "bolsonaro": 43.07, "tebet": 9.1, "ciro": 4.86, "outros": 2.11}, {"variavel": "preta_parda", "quintil": 3, "de": 39.69, "ate": 50.6, "secoes": 5283, "comparecimento": 78.82, "lula": 47.17, "bolsonaro": 39.38, "tebet": 7.22, "ciro": 4.34, "outros": 1.89}, {"variavel": "preta_parda", "quintil": 4, "de": 50.6, "ate": 59.12, "secoes": 5139, "comparecimento": 79.87, "lula": 53.05, "bolsonaro": 34.74, "tebet": 6.27, "ciro": 4.11, "outros": 1.83}, {"variavel": "preta_parda", "quintil": 5, "de": 59.12, "ate": 73.29, "secoes": 5034, "comparecimento": 80.03, "lula": 59.85, "bolsonaro": 29.48, "tebet": 5.26, "ciro": 3.62, "outros": 1.78}, {"variavel": "evangelicos", "quintil": 1, "de": 4.38, "ate": 14.67, "secoes": 5380, "comparecimento": 76.81, "lula": 39.42, "bolsonaro": 41.23, "tebet": 12.26, "ciro": 4.58, "outros": 2.51}, {"variavel": "evangelicos", "quintil": 2, "de": 14.67, "ate": 22.02, "secoes": 5353, "comparecimento": 77.97, "lula": 41.53, "bolsonaro": 42.52, "tebet": 9.01, "ciro": 4.8, "outros": 2.14}, {"variavel": "evangelicos", "quintil": 3, "de": 22.02, "ate": 26.04, "secoes": 5144, "comparecimento": 79.02, "lula": 50.84, "bolsonaro": 35.8, "tebet": 7.05, "ciro": 4.34, "outros": 1.98}, {"variavel": "evangelicos", "quintil": 4, "de": 26.04, "ate": 30.79, "secoes": 5138, "comparecimento": 79.75, "lula": 52.62, "bolsonaro": 35.27, "tebet": 6.25, "ciro": 4.02, "outros": 1.84}, {"variavel": "evangelicos", "quintil": 5, "de": 30.79, "ate": 39.32, "secoes": 5196, "comparecimento": 80.31, "lula": 53.8, "bolsonaro": 34.87, "tebet": 5.75, "ciro": 3.86, "outros": 1.72}, {"variavel": "idosos", "quintil": 1, "de": 0.0, "ate": 10.43, "secoes": 5050, "comparecimento": 81.42, "lula": 54.18, "bolsonaro": 34.04, "tebet": 5.84, "ciro": 4.09, "outros": 1.85}, {"variavel": "idosos", "quintil": 2, "de": 10.43, "ate": 14.68, "secoes": 4997, "comparecimento": 81.78, "lula": 50.96, "bolsonaro": 35.99, "tebet": 6.82, "ciro": 4.23, "outros": 2.0}, {"variavel": "idosos", "quintil": 3, "de": 14.68, "ate": 25.75, "secoes": 5038, "comparecimento": 80.95, "lula": 47.51, "bolsonaro": 37.31, "tebet": 8.49, "ciro": 4.48, "outros": 2.2}, {"variavel": "idosos", "quintil": 4, "de": 25.76, "ate": 35.07, "secoes": 5374, "comparecimento": 76.2, "lula": 45.82, "bolsonaro": 39.18, "tebet": 8.57, "ciro": 4.4, "outros": 2.03}, {"variavel": "idosos", "quintil": 5, "de": 35.07, "ate": 88.55, "secoes": 5815, "comparecimento": 74.01, "lula": 39.32, "bolsonaro": 43.36, "tebet": 10.77, "ciro": 4.41, "outros": 2.14}], "rendaevang": [{"renda": 1, "evangelicos": "menos", "evang_%": 25.8, "lula": 62.0, "bolsonaro": 27.1}, {"renda": 1, "evangelicos": "meio", "evang_%": 30.6, "lula": 58.3, "bolsonaro": 31.1}, {"renda": 1, "evangelicos": "mais", "evang_%": 35.6, "lula": 57.6, "bolsonaro": 32.1}, {"renda": 2, "evangelicos": "menos", "evang_%": 24.5, "lula": 54.5, "bolsonaro": 33.0}, {"renda": 2, "evangelicos": "meio", "evang_%": 29.4, "lula": 50.2, "bolsonaro": 37.5}, {"renda": 2, "evangelicos": "mais", "evang_%": 33.5, "lula": 50.8, "bolsonaro": 37.4}, {"renda": 3, "evangelicos": "menos", "evang_%": 21.9, "lula": 45.1, "bolsonaro": 40.5}, {"renda": 3, "evangelicos": "meio", "evang_%": 25.2, "lula": 46.0, "bolsonaro": 40.0}, {"renda": 3, "evangelicos": "mais", "evang_%": 29.6, "lula": 46.8, "bolsonaro": 39.7}, {"renda": 4, "evangelicos": "menos", "evang_%": 15.0, "lula": 40.0, "bolsonaro": 43.6}, {"renda": 4, "evangelicos": "meio", "evang_%": 18.4, "lula": 41.1, "bolsonaro": 43.0}, {"renda": 4, "evangelicos": "mais", "evang_%": 21.7, "lula": 42.0, "bolsonaro": 42.3}, {"renda": 5, "evangelicos": "menos", "evang_%": 6.5, "lula": 40.0, "bolsonaro": 38.9}, {"renda": 5, "evangelicos": "meio", "evang_%": 9.9, "lula": 41.0, "bolsonaro": 39.6}, {"renda": 5, "evangelicos": "mais", "evang_%": 14.4, "lula": 36.9, "bolsonaro": 45.1}], "regua": [{"variavel": "escolaridade", "nivel": "zona", "grupos": "finos", "grupo": "até fund. incompleto", "real": 66.46, "estimado": 58.61, "erro": -7.84}, {"variavel": "escolaridade", "nivel": "zona", "grupos": "finos", "grupo": "fund. completo / médio incompleto", "real": 77.31, "estimado": 84.08, "erro": 6.78}, {"variavel": "escolaridade", "nivel": "zona", "grupos": "finos", "grupo": "médio completo / sup. incompleto", "real": 83.86, "estimado": 88.37, "erro": 4.51}, {"variavel": "escolaridade", "nivel": "zona", "grupos": "finos", "grupo": "superior completo", "real": 86.68, "estimado": 76.2, "erro": -10.47}, {"variavel": "escolaridade", "nivel": "zona", "grupos": "juntos", "grupo": "até fund. incompleto", "real": 66.46, "estimado": 57.47, "erro": -8.98}, {"variavel": "escolaridade", "nivel": "zona", "grupos": "juntos", "grupo": "fund. completo a sup. incompleto", "real": 81.1, "estimado": 86.51, "erro": 5.41}, {"variavel": "escolaridade", "nivel": "zona", "grupos": "juntos", "grupo": "superior completo", "real": 86.68, "estimado": 77.27, "erro": -9.4}, {"variavel": "escolaridade", "nivel": "local", "grupos": "finos", "grupo": "até fund. incompleto", "real": 66.46, "estimado": 61.76, "erro": -4.7}, {"variavel": "escolaridade", "nivel": "local", "grupos": "finos", "grupo": "fund. completo / médio incompleto", "real": 77.31, "estimado": 78.62, "erro": 1.32}, {"variavel": "escolaridade", "nivel": "local", "grupos": "finos", "grupo": "médio completo / sup. incompleto", "real": 83.86, "estimado": 95.11, "erro": 11.25}, {"variavel": "escolaridade", "nivel": "local", "grupos": "finos", "grupo": "superior completo", "real": 86.68, "estimado": 67.91, "erro": -18.77}, {"variavel": "escolaridade", "nivel": "local", "grupos": "juntos", "grupo": "até fund. incompleto", "real": 66.46, "estimado": 61.21, "erro": -5.25}, {"variavel": "escolaridade", "nivel": "local", "grupos": "juntos", "grupo": "fund. completo a sup. incompleto", "real": 81.1, "estimado": 86.87, "erro": 5.77}, {"variavel": "escolaridade", "nivel": "local", "grupos": "juntos", "grupo": "superior completo", "real": 86.68, "estimado": 71.42, "erro": -15.26}, {"variavel": "idade", "nivel": "zona", "grupos": "finos", "grupo": "16-24", "real": 80.25, "estimado": 76.39, "erro": -3.86}, {"variavel": "idade", "nivel": "zona", "grupos": "finos", "grupo": "25-34", "real": 80.09, "estimado": 81.07, "erro": 0.98}, {"variavel": "idade", "nivel": "zona", "grupos": "finos", "grupo": "35-44", "real": 83.51, "estimado": 83.51, "erro": -0.0}, {"variavel": "idade", "nivel": "zona", "grupos": "finos", "grupo": "45-59", "real": 87.12, "estimado": 85.42, "erro": -1.7}, {"variavel": "idade", "nivel": "zona", "grupos": "finos", "grupo": "60-69", "real": 87.05, "estimado": 99.59, "erro": 12.53}, {"variavel": "idade", "nivel": "zona", "grupos": "finos", "grupo": "70+", "real": 37.45, "estimado": 31.3, "erro": -6.15}, {"variavel": "idade", "nivel": "zona", "grupos": "juntos", "grupo": "16-24", "real": 80.25, "estimado": 77.65, "erro": -2.61}, {"variavel": "idade", "nivel": "zona", "grupos": "juntos", "grupo": "25-34", "real": 80.09, "estimado": 84.48, "erro": 4.38}, {"variavel": "idade", "nivel": "zona", "grupos": "juntos", "grupo": "35-44", "real": 83.51, "estimado": 85.34, "erro": 1.83}, {"variavel": "idade", "nivel": "zona", "grupos": "juntos", "grupo": "45-59", "real": 87.12, "estimado": 87.98, "erro": 0.86}, {"variavel": "idade", "nivel": "zona", "grupos": "juntos", "grupo": "60+", "real": 63.31, "estimado": 58.97, "erro": -4.34}, {"variavel": "idade", "nivel": "local", "grupos": "finos", "grupo": "16-24", "real": 80.25, "estimado": 75.73, "erro": -4.52}, {"variavel": "idade", "nivel": "local", "grupos": "finos", "grupo": "25-34", "real": 80.09, "estimado": 80.94, "erro": 0.85}, {"variavel": "idade", "nivel": "local", "grupos": "finos", "grupo": "35-44", "real": 83.51, "estimado": 83.51, "erro": 0.0}, {"variavel": "idade", "nivel": "local", "grupos": "finos", "grupo": "45-59", "real": 87.12, "estimado": 85.06, "erro": -2.06}, {"variavel": "idade", "nivel": "local", "grupos": "finos", "grupo": "60-69", "real": 87.05, "estimado": 99.13, "erro": 12.08}, {"variavel": "idade", "nivel": "local", "grupos": "finos", "grupo": "70+", "real": 37.45, "estimado": 32.71, "erro": -4.74}, {"variavel": "idade", "nivel": "local", "grupos": "juntos", "grupo": "16-24", "real": 80.25, "estimado": 77.2, "erro": -3.06}, {"variavel": "idade", "nivel": "local", "grupos": "juntos", "grupo": "25-34", "real": 80.09, "estimado": 83.79, "erro": 3.7}, {"variavel": "idade", "nivel": "local", "grupos": "juntos", "grupo": "35-44", "real": 83.51, "estimado": 84.94, "erro": 1.43}, {"variavel": "idade", "nivel": "local", "grupos": "juntos", "grupo": "45-59", "real": 87.12, "estimado": 88.37, "erro": 1.25}, {"variavel": "idade", "nivel": "local", "grupos": "juntos", "grupo": "60+", "real": 63.31, "estimado": 58.74, "erro": -4.57}]};
-const fmt = (x, d=1) => x.toLocaleString("pt-BR", {minimumFractionDigits:d, maximumFractionDigits:d});
-document.getElementById("idade").textContent = "Gerado em " + D.gerado;
+const NOMES = {lula:"Lula", flavio:"Flávio Bolsonaro", cury:"Augusto Cury", caiado:"Ronaldo Caiado", renan:"Renan Santos",
+  zema:"Romeu Zema", bolsonaro:"Bolsonaro", tebet:"Tebet", ciro:"Ciro", outros:"outros", bn:"brancos e nulos",
+  lula22:"Lula", bolsonaro22:"Bolsonaro", tebet22:"Tebet", ciro22:"Ciro", haddad18:"Haddad", bolsonaro18:"Bolsonaro",
+  ciro18:"Ciro", alckmin18:"Alckmin", amoedo18:"Amoêdo"};
+const CORES = ["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)","var(--c7)"];
+const VARS = [["renda","Renda do entorno","R$"],["evangelicos","Evangélicos no entorno","%"],
+  ["preta_parda","Pretos e pardos no entorno","%"],["superior","Superior completo na urna","%"],["idosos","60+ na urna","%"]];
+const fmt = (x, d=1) => (x==null||isNaN(x)) ? "—" : x.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const MODOS = [["2026","2026 — ao vivo"],["ensaio","Ensaio com 2022"]];
 
-const NOMES = {lula:"Lula", flavio:"Flávio Bolsonaro", cury:"Augusto Cury", caiado:"Ronaldo Caiado",
-  renan:"Renan Santos", zema:"Romeu Zema", bolsonaro:"Jair Bolsonaro", tebet:"Simone Tebet",
-  ciro:"Ciro Gomes", outros:"outros"};
-const CORES = {lula:"var(--lula)", flavio:"var(--bolso)", bolsonaro:"var(--bolso)"};
+let D = null, modo = null;
+const F = {cargo:"presidente", mun:null, zona:null, q:{}};   // o estado inteiro da tela
+let escondidos = new Set();
 
-// --- ao vivo -------------------------------------------------------------------
-(function(){
-  const A = D.aovivo;
-  if (!A || !A.ultima || !A.ultima.candidatos) return;
-  document.getElementById("aovivo").hidden = false;
-  const u = A.ultima, ens = A.pleito === "ensaio";
-  if (ens) document.getElementById("av-titulo").innerHTML = 'Apuração ao vivo — ENSAIO com 2022 <span class="tag">ENSAIO</span>';
-  const pct = 100*u.secoes/u.total;
-  document.getElementById("av-sub").textContent =
-    `${u.secoes.toLocaleString("pt-BR")} de ${u.total.toLocaleString("pt-BR")} seções apuradas (${fmt(pct)}%) · ` +
-    `comparecimento nas apuradas ${fmt(100*u.comparecimento_apurado)}% · atualizado às ${u.hora}`;
-  document.getElementById("av-barra").style.width = pct + "%";
-  // Abaixo de 1% das seções não há de onde tirar deslocamento: no ensaio de 2022,
-  // com 13 urnas a projeção dava Lula − Bolsonaro +2,4 para um final de +9,6.
-  const MIN = 0.01, cedo = u.secoes/u.total < MIN;
-  const cs = [...u.candidatos].sort((a,b) => cedo ? b.contagem - a.contagem : b.projecao - a.projecao);
-  document.getElementById("av-tabela").innerHTML =
-    `<tr><th>candidato</th><th>contagem</th><th>projeção</th><th>intervalo 90%</th></tr>` +
-    cs.map(c => `<tr><td>${NOMES[c.cat]||c.cat}</td><td>${fmt(c.contagem)}%</td>
-      <td>${cedo ? "—" : `<b>${fmt(c.projecao)}%</b>`}</td>
-      <td class="ic">${cedo ? "a partir de 1% das seções" : `${fmt(c.lo90)} – ${fmt(c.hi90)}`}</td></tr>`).join("");
-  const R = A.rodadas.filter(r => r.candidatos && r.secoes/r.total >= MIN);
-  if (R.length < 2) return;
-  const svg = document.getElementById("av-curva"), W=900, H=300, m={l:44,r:110,t:12,b:30};
-  const top = cs.slice(0, 2).map(c => c.cat);
-  const vals = R.flatMap(r => r.candidatos.filter(c => top.includes(c.cat)).flatMap(c => [c.lo90, c.hi90, c.contagem]));
-  const y0 = Math.floor(Math.min(...vals)) - 1, y1 = Math.ceil(Math.max(...vals)) + 1;
-  const X = f => m.l + f*(W-m.l-m.r), Y = v => m.t + (y1-v)/(y1-y0)*(H-m.t-m.b);
-  const fr = R.map(r => r.secoes / r.total);
-  let s = "";
-  for (let v=Math.ceil(y0); v<=y1; v+=Math.max(1, Math.round((y1-y0)/6)))
-    s += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end">${v}%</text>`;
-  for (const f of [0,.25,.5,.75,1]) s += `<text x="${X(f)}" y="${H-10}" text-anchor="middle">${Math.round(f*100)}% das seções</text>`;
-  for (const k of top) {
-    const cor = CORES[k] || "var(--neutro)";
-    const c = R.map(r => r.candidatos.find(x => x.cat === k));
-    const banda = fr.map((f,i) => `${X(f)},${Y(c[i].hi90)}`).concat(fr.map((f,i) => `${X(f)},${Y(c[i].lo90)}`).reverse()).join(" ");
-    s += `<polygon points="${banda}" fill="${cor}" opacity=".15"/>`;
-    s += `<polyline points="${fr.map((f,i) => `${X(f)},${Y(c[i].projecao)}`).join(" ")}" fill="none" stroke="${cor}" stroke-width="2.2"/>`;
-    s += `<polyline points="${fr.map((f,i) => `${X(f)},${Y(c[i].contagem)}`).join(" ")}" fill="none" stroke="${cor}" stroke-width="1.2" stroke-dasharray="4 4"/>`;
-    s += `<text x="${W-m.r+6}" y="${Y(c[c.length-1].projecao)+4}" style="fill:${cor};font-weight:600">${NOMES[k]}</text>`;
+function nomeCat(c){ return NOMES[c] || c; }
+
+async function carregar(m){
+  modo = m;
+  const r = await fetch(`dados/${m}_${F.cargo}.json`, {cache:"no-store"});
+  if (!r.ok) { D = null; desenhar(); return; }
+  D = await r.json();
+  desenhar();
+}
+
+// ---------- filtro: a única fonte de todos os quadros --------------------------
+function passa(t, i, ignorar){
+  if (F.mun != null && ignorar !== "mun" && t.municipio[i] !== F.mun) return false;
+  if (F.zona != null && ignorar !== "zona" && t.zona[i] !== F.zona) return false;
+  for (const [v, q] of Object.entries(F.q)) if (ignorar !== v && t["q_"+v][i] !== q) return false;
+  return true;
+}
+function somar(t, cols, ignorar){
+  const s = Object.fromEntries(cols.map(c => [c, 0]));
+  const n = t.zona.length;
+  for (let i = 0; i < n; i++) if (passa(t, i, ignorar)) for (const c of cols) s[c] += t[c][i] || 0;
+  return s;
+}
+function pct(s, cats){ const v = cats.filter(c => c !== "bn"); const tot = v.reduce((a,c)=>a+s[c],0);
+  return Object.fromEntries(v.map(c => [c, tot ? 100*s[c]/tot : NaN])); }
+
+// intervalo só existe para o total e para recortes de uma dimensão
+function chaveIC(){
+  const ativos = (F.mun!=null) + (F.zona!=null) + Object.keys(F.q).length;
+  if (ativos === 0) return ["total","total"];
+  if (ativos > 1) return null;
+  if (F.mun != null) return ["mun", String(F.mun)];
+  if (F.zona != null) return ["zona", String(F.zona)];
+  const [v, q] = Object.entries(F.q)[0]; return ["q_"+v, String(q)];
+}
+
+// ---------- quadros ---------------------------------------------------------------
+function desenharModo(){
+  document.getElementById("modo").innerHTML = MODOS.map(([k,t]) =>
+    `<button class="${k===modo?"on":""}" data-m="${k}">${t}</button>`).join("");
+  document.querySelectorAll("#modo button").forEach(b => b.onclick = () => { limpar(); carregar(b.dataset.m); });
+}
+
+function desenharFiltros(){
+  const m = D ? D.meta : null;
+  const muns = m ? Object.entries(m.municipios).sort((a,b)=>a[1].localeCompare(b[1],"pt")) : [];
+  const zonas = D ? [...new Set(D.atual.zona.filter((z,i) => F.mun==null || D.atual.municipio[i]===F.mun))].sort((a,b)=>a-b) : [];
+  const sel = (id, rot, ops, val, dis) => `<label class="f">${rot}<select id="${id}" ${dis?"disabled":""}>${ops.map(([v,t]) =>
+      `<option value="${v}" ${String(v)===String(val)?"selected":""}>${t}</option>`).join("")}</select></label>`;
+  let h = sel("f-cargo","Cargo",[["presidente","Presidente"],["governador","Governador"],["senador","Senador"]], F.cargo);
+  h += sel("f-regiao","Região",[["se","Sudeste"]],"se",true);
+  h += sel("f-uf","UF",[["SP","São Paulo"]],"SP",true);
+  h += sel("f-mun","Município",[["","todos"], ...muns.map(([c,n]) => [c, n])], F.mun ?? "");
+  h += sel("f-zona","Zona",[["","todas"], ...zonas.map(z => [z, z])], F.zona ?? "");
+  for (const [v, t] of VARS) h += sel("f-"+v, t.replace(" no entorno","").replace(" na urna",""),
+      [["","todos"],[1,"1º quintil"],[2,"2º"],[3,"3º"],[4,"4º"],[5,"5º quintil"]], F.q[v] ?? "");
+  document.getElementById("barra-filtros").innerHTML = h;
+  document.getElementById("f-cargo").onchange = e => { F.cargo = e.target.value; carregar(modo); };
+  document.getElementById("f-mun").onchange = e => { F.mun = e.target.value ? +e.target.value : null; F.zona = null; desenhar(); };
+  document.getElementById("f-zona").onchange = e => { F.zona = e.target.value ? +e.target.value : null; desenhar(); };
+  for (const [v] of VARS) document.getElementById("f-"+v).onchange = e => {
+    if (e.target.value) F.q[v] = +e.target.value; else delete F.q[v]; desenhar(); };
+}
+
+function desenharFoco(){
+  const m = D ? D.meta : null, partes = [];
+  if (F.mun != null) partes.push(["mun", m.municipios[F.mun]]);
+  if (F.zona != null) partes.push(["zona", "zona " + F.zona]);
+  for (const [v, q] of Object.entries(F.q)) partes.push([v, VARS.find(x=>x[0]===v)[1] + ": " + q + "º quintil"]);
+  const el = document.getElementById("foco");
+  if (!partes.length) { el.innerHTML = `<span class="sub">Sem recorte: estado de São Paulo inteiro.</span>`; return; }
+  el.innerHTML = `<span class="sub">Recorte:</span>` + partes.map(([k,t]) =>
+    `<span class="chip">${t}<button data-k="${k}" title="tirar este filtro">×</button></span>`).join("") +
+    ` <button class="limpar" id="limpar">limpar tudo</button>`;
+  el.querySelectorAll(".chip button").forEach(b => b.onclick = () => {
+    const k = b.dataset.k; if (k==="mun") { F.mun=null; F.zona=null; } else if (k==="zona") F.zona=null; else delete F.q[k]; desenhar(); });
+  document.getElementById("limpar").onclick = () => { limpar(); desenhar(); };
+}
+function limpar(){ F.mun=null; F.zona=null; F.q={}; }
+
+function desenharPrincipal(){
+  const tab = document.getElementById("principal");
+  if (!D) { tab.innerHTML = ""; document.getElementById("progresso").textContent =
+    `Sem dados para ${F.cargo} neste modo ainda.`; return; }
+  const m = D.meta, cats = m.cats, catsA = m.cats_anterior;
+  const temAp = m.apuradas > 0;
+  const colsAt = ["aptos","secoes","apurada"].concat(temAp ? [...cats.map(c=>"pj_"+c), ...cats.map(c=>"ap_"+c), "aptos_ap","comp_ap"] : []);
+  const s = somar(D.atual, colsAt);
+  const sa = somar(D.anterior, [...catsA, "comparecimento", "aptos"]);
+  const pa = pct(sa, catsA);
+  document.getElementById("t-principal").innerHTML = `${F.cargo[0].toUpperCase()+F.cargo.slice(1)} — ${m.atual}`;
+  document.getElementById("barra-ap").style.width = (100*s.apurada/s.secoes) + "%";
+  document.getElementById("progresso").textContent = temAp
+    ? `${s.apurada.toLocaleString("pt-BR")} de ${s.secoes.toLocaleString("pt-BR")} seções apuradas no recorte (${fmt(100*s.apurada/s.secoes)}%) · `
+      + `comparecimento nas apuradas ${fmt(100*s.comp_ap/s.aptos_ap)}% · ${m.modo==="ensaio" ? "momento do ensaio: " : "atualizado às "}${m.hora}`
+    : `Aguardando as primeiras urnas. ${s.secoes.toLocaleString("pt-BR")} seções e ${s.aptos.toLocaleString("pt-BR")} eleitores no recorte.`;
+  const ic = chaveIC(), faixa = ic && D.ic[ic[0]] ? D.ic[ic[0]][ic[1]] : null;
+  const pj = temAp ? pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c]])), cats) : {};
+  const ap = temAp ? pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats) : {};
+  const cedo = temAp && s.apurada/s.secoes < 0.01;
+  const ord = cats.filter(c=>c!=="bn").sort((a,b) => (temAp ? (pj[b]-pj[a]) : 0));
+  const par = Object.fromEntries(Object.entries(m.pares));
+  tab.innerHTML = `<tr><th>candidatura</th><th>${m.atual} projetado</th><th>${m.atual} apurado</th><th>${m.anterior} completo</th></tr>` +
+    ord.map((c,i) => `<tr><td><b style="color:${CORES[i%7]}">${nomeCat(c)}</b></td>
+      <td>${temAp && !cedo ? `<span class="big">${fmt(pj[c])}%</span>${faixa && faixa[c] ? `<span class="ic">${fmt(faixa[c][0])} – ${fmt(faixa[c][1])}</span>` : ""}` : "—"}</td>
+      <td>${temAp ? fmt(ap[c])+"%" : "—"}</td>
+      <td>${par[c] ? `${fmt(pa[par[c]])}% <span class="ic">${nomeCat(par[c])}</span>` : "—"}</td></tr>`).join("") +
+    `<tr><td class="sub">demais de ${m.anterior}</td><td></td><td></td><td class="ic">${catsA.filter(c=>c!=="bn" && !Object.values(par).includes(c))
+        .map(c => nomeCat(c)+" "+fmt(pa[c])+"%").join(" · ")}</td></tr>`;
+  document.getElementById("nota-ic").innerHTML = !temAp ? "" : cedo
+    ? "Projeção só a partir de 1% das seções do recorte: antes disso não há de onde medir o deslocamento."
+    : faixa ? `Intervalo de 90%, calibrado no ensaio de 2022 (largura do bootstrap × ${fmt(m.fator_ic,2)}).`
+    : "Recorte com mais de um filtro: a projeção aparece sem intervalo — o intervalo só é pré-calculado para o total e para recortes de uma dimensão.";
+  return {pj, ap, pa, ord};
+}
+
+function desenharAberturas(res){
+  const box = document.getElementById("aberturas");
+  if (!D) { box.innerHTML = ""; return; }
+  const m = D.meta, cats = m.cats, catsA = m.cats_anterior, temAp = m.apuradas > 0;
+  const par = m.pares, alvo = (res && res.ord ? res.ord : cats.filter(c=>c!=="bn")).slice(0, 2).filter(c => !escondidos.has(c));
+  document.getElementById("leg-ab").innerHTML = (res && res.ord ? res.ord : []).slice(0,2).map((c,i) =>
+    `<span data-c="${c}" class="${escondidos.has(c)?"off":""}"><i style="background:${CORES[i]}"></i>${nomeCat(c)}</span>`).join("") +
+    `<span class="sub">barras de cima para baixo: ${m.anterior} completo · ${m.atual} apurado · ${m.atual} projetado; número à direita: ${m.apuradas ? "projetado" : m.anterior} — clique no nome para esconder</span>`;
+  document.querySelectorAll("#leg-ab span[data-c]").forEach(sp => sp.onclick = () => {
+    const c = sp.dataset.c; escondidos.has(c) ? escondidos.delete(c) : escondidos.add(c); desenharAberturas(res); });
+  box.innerHTML = VARS.map(([v, t, u]) => {
+    const cortes = m.cortes[v];
+    const rot = q => { const a = q===1 ? null : cortes[q-2], b = q===5 ? null : cortes[q-1];
+      const f = x => u==="R$" ? "R$ "+Math.round(x).toLocaleString("pt-BR") : fmt(x,0)+"%";
+      return a==null ? "até "+f(b) : b==null ? "acima de "+f(a) : f(a)+"–"+f(b); };
+    const linhas = [1,2,3,4,5].map(q => {
+      const salvo = F.q[v]; F.q[v] = q;             // o quintil desta linha + os outros filtros
+      const s = temAp ? somar(D.atual, [...cats.map(c=>"pj_"+c), ...cats.map(c=>"ap_"+c)]) : null;
+      const sa = somar(D.anterior, catsA);
+      if (salvo == null) delete F.q[v]; else F.q[v] = salvo;
+      const pj = s ? pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c]])), cats) : {};
+      const ap = s ? pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats) : {};
+      const pa = pct(sa, catsA);
+      const barras = alvo.map((c) => { const i = (res.ord||[]).indexOf(c); const cor = CORES[i];
+        const w = x => isNaN(x) ? 0 : Math.min(100, x/70*100);
+        return `<div class="tri" title="${nomeCat(c)}: ${m.anterior} ${fmt(pa[par[c]])}% · apurado ${fmt(ap[c])}% · projetado ${fmt(pj[c])}%">
+          <div><i style="width:${w(pa[par[c]])}%;background:${cor};opacity:.35"></i></div>
+          <div><i style="width:${w(ap[c])}%;background:${cor};opacity:.65"></i></div>
+          <div><i style="width:${w(pj[c])}%;background:${cor}"></i></div></div>`; }).join("");
+      const vals = alvo.map(c => { const i = (res.ord||[]).indexOf(c);
+        const x = temAp ? pj[c] : pa[par[c]];
+        return `<span style="color:${CORES[i]}">${fmt(x,0)}%</span>`; }).join("<br>");
+      return `<div class="q ${F.q[v]===q?"sel":""}" data-v="${v}" data-q="${q}"><span class="rot">${rot(q)}</span><div style="display:grid;gap:4px">${barras}</div><span class="val">${vals}</span></div>`;
+    }).join("");
+    return `<div class="ab"><h3>${t}</h3>${linhas}</div>`;
+  }).join("");
+  box.querySelectorAll(".q").forEach(el => el.onclick = () => {
+    const v = el.dataset.v, q = +el.dataset.q; if (F.q[v] === q) delete F.q[v]; else F.q[v] = q; desenhar(); });
+}
+
+function desenharLugares(res){
+  const tab = document.getElementById("lugares");
+  if (!D) { tab.innerHTML = ""; return; }
+  const m = D.meta, cats = m.cats, temAp = m.apuradas > 0, porZona = F.mun != null;
+  document.getElementById("t-lugares").textContent = porZona ? "Zonas eleitorais do município" : "Municípios";
+  const t = D.atual, grupos = new Map(), chave = i => porZona ? t.zona[i] : t.municipio[i];
+  const cols = ["aptos","secoes","apurada", ...(temAp ? [...cats.map(c=>"pj_"+c), ...cats.map(c=>"ap_"+c)] : [])];
+  for (let i = 0; i < t.zona.length; i++) {
+    if (!passa(t, i, porZona ? "zona" : "mun")) continue;
+    const k = chave(i); if (!grupos.has(k)) grupos.set(k, Object.fromEntries(cols.map(c=>[c,0])));
+    const g = grupos.get(k); for (const c of cols) g[c] += t[c][i] || 0;
   }
-  svg.innerHTML = s + `<text x="${m.l}" y="${m.t+10}">linha cheia: projeção (faixa = 90%) · tracejada: contagem</text>`;
-})();
+  const top = [...grupos.entries()].sort((a,b) => b[1].aptos - a[1].aptos).slice(0, 25);
+  const [c1, c2] = (res.ord || cats).slice(0, 2);
+  tab.innerHTML = `<tr><th>${porZona ? "zona" : "município"}</th><th>eleitores</th><th>apuradas</th>
+      <th>${nomeCat(c1)} proj.</th><th>${nomeCat(c2)} proj.</th><th>${nomeCat(c1)} apur.</th><th>${nomeCat(c2)} apur.</th></tr>` +
+    top.map(([k, g]) => { const pj = pct(Object.fromEntries(cats.map(c=>[c,g["pj_"+c]])), cats),
+                                 ap = pct(Object.fromEntries(cats.map(c=>[c,g["ap_"+c]])), cats);
+      const sel = porZona ? F.zona === k : F.mun === k;
+      return `<tr class="clic" data-k="${k}" style="${sel ? "background:var(--accent-soft)" : ""}"><td>${porZona ? "zona " + k : m.municipios[k]}</td>
+        <td>${g.aptos.toLocaleString("pt-BR")}</td><td>${fmt(100*g.apurada/g.secoes,0)}%</td>
+        <td><b>${temAp && g.apurada ? fmt(pj[c1]) : "—"}</b></td><td><b>${temAp && g.apurada ? fmt(pj[c2]) : "—"}</b></td>
+        <td>${temAp && g.apurada ? fmt(ap[c1]) : "—"}</td><td>${temAp && g.apurada ? fmt(ap[c2]) : "—"}</td></tr>`; }).join("");
+  tab.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => {
+    const k = +tr.dataset.k;
+    if (porZona) F.zona = F.zona === k ? null : k; else { F.mun = F.mun === k ? null : k; F.zona = null; }
+    desenhar(); });
+}
 
-// --- ensaio ----------------------------------------------------------------------
-(function(){
-  const E = D.ensaio; if (!E) return;
-  document.getElementById("ensaio").hidden = false;
-  const fr = [...new Set(E.map(e => e.frac))];
-  const L = f => E.find(e => e.frac===f && e.cat==="lula"), B = f => E.find(e => e.frac===f && e.cat==="bolsonaro");
-  const fim = L(fr[0]).real - B(fr[0]).real;
-  document.getElementById("ens-tabela").innerHTML =
-    `<tr><th>urnas apuradas</th><th>hora (2022)</th><th>Lula − Bolsonaro, contagem</th><th>projeção</th><th>Lula projetado (90%)</th></tr>` +
-    fr.map(f => `<tr><td>${Math.round(f*100)}%</td><td>${L(f).hora}</td><td>${fmt(L(f).contagem-B(f).contagem)}</td>
-      <td><b>${fmt(L(f).projecao-B(f).projecao)}</b></td><td class="ic">${fmt(L(f).projecao)} (${fmt(L(f).lo90)} – ${fmt(L(f).hi90)})</td></tr>`).join("") +
-    `<tr><td>final</td><td>22:34</td><td colspan="2"><b>${fmt(fim)}</b></td><td class="ic">${fmt(L(fr[0]).real)}</td></tr>`;
-  const cob = E.filter(e => e.real >= e.lo90 && e.real <= e.hi90).length;
-  document.getElementById("ens-nota").innerHTML = `Com um quarto das urnas, a contagem dizia ${fmt(L(.25).contagem-B(.25).contagem)} pontos de
-    diferença e a projeção ${fmt(L(.25).projecao-B(.25).projecao)}; o final foi ${fmt(fim)}. O intervalo de 90% conteve o resultado
-    real em <b>${cob} de ${E.length}</b> conferências (7 momentos × 5 candidaturas). Ressalva que o número esconde: o intervalo foi
-    calibrado <b>neste mesmo ensaio</b> — e 2026 muda mais que 2022, com dois estreantes entre os três primeiros. Com 5% das urnas a projeção errou mais que a contagem simples
-    (${fmt(L(.05).projecao-B(.05).projecao)} contra ${fmt(L(.05).contagem-B(.05).contagem)}): no começo da noite o intervalo largo é o aviso.`;
-})();
+function desenhar(){
+  desenharModo();
+  document.getElementById("aviso-ensaio").hidden = modo !== "ensaio";
+  desenharFiltros();
+  desenharFoco();
+  const res = desenharPrincipal() || {};
+  desenharAberturas(res);
+  desenharLugares(res);
+}
 
-// --- voto por grupo ------------------------------------------------------------
-(function(){
-  const G = D.grupos; if (!G) return;
-  document.getElementById("grupos").hidden = false;
-  const cats = ["lula","bolsonaro","tebet","ciro","outros"];
-  const grupos = [...new Set(G.map(g => g.variavel + "|" + g.grupo))];
-  document.getElementById("gr-tabela").innerHTML =
-    `<tr><th>grupo</th>${cats.map(c => `<th>${NOMES[c]}</th>`).join("")}</tr>` +
-    grupos.map(k => { const [v, g] = k.split("|");
-      return `<tr><td>${v === "idade" ? g + " anos" : g}</td>` + cats.map(c => {
-        const x = G.find(y => y.variavel===v && y.grupo===g && y.cat===c);
-        return `<td>${fmt(x.estimado)}<br><span class="ic">${fmt(Math.max(0,x.lo90))}–${fmt(x.hi90)}</span></td>`; }).join("") + "</tr>"; }).join("");
-})();
-
-// --- régua ---------------------------------------------------------------------
-(function(){
-  const R = D.regua; if (!R) return;
-  document.getElementById("regua-comp").hidden = false;
-  const sel = R.filter(r => r.nivel === "zona" && ((r.variavel === "escolaridade" && r.grupos === "finos") ||
-                                                    (r.variavel === "idade" && r.grupos === "juntos")));
-  document.getElementById("rg-tabela").innerHTML =
-    `<tr><th>grupo</th><th>comparecimento real</th><th>estimado pelo método</th><th>erro</th></tr>` +
-    sel.map(r => `<tr><td>${r.variavel === "idade" ? r.grupo + " anos" : r.grupo}</td><td>${fmt(r.real)}%</td>
-      <td>${fmt(r.estimado)}%</td><td>${r.erro > 0 ? "+" : ""}${fmt(r.erro)}</td></tr>`).join("");
-})();
-
-// --- bairros -------------------------------------------------------------------
-(function(){
-  const Q = D.quintis; if (!Q) return;
-  document.getElementById("bairros").hidden = false;
-  const TIT = {superior:"Eleitores com superior completo na urna", renda:"Renda média do responsável no entorno",
-    preta_parda:"Pretos e pardos no entorno (15+)", evangelicos:"Evangélicos no entorno (10+)", idosos:"Eleitores com 60+ na urna"};
-  const faixa = (v, x) => v === "renda" ? `R$ ${Math.round(x.de).toLocaleString("pt-BR")}–${Math.round(x.ate).toLocaleString("pt-BR")}`
-                                        : `${fmt(x.de,0)}–${fmt(x.ate,0)}%`;
-  const max = 65;
-  document.getElementById("br-grade").innerHTML = Object.keys(TIT).map(v => {
-    const q = Q.filter(x => x.variavel === v);
-    return `<div class="mini"><h4>${TIT[v]}</h4>` + q.map(x => `
-      <div class="lin"><span class="rot">${faixa(v, x)}</span>
-        <div><div class="bar"><i style="width:${x.lula/max*100}%;background:var(--lula)"></i></div>
-             <div class="bar" style="margin-top:2px"><i style="width:${x.bolsonaro/max*100}%;background:var(--bolso)"></i></div></div>
-        <span class="rot">${fmt(x.lula,0)} / ${fmt(x.bolsonaro,0)}</span></div>`).join("") + `</div>`;
-  }).join("") + `<div class="leg" style="grid-column:1/-1"><span><i style="background:var(--lula)"></i>Lula</span>
-    <span><i style="background:var(--bolso)"></i>Bolsonaro</span><span class="ic">% dos votos válidos das urnas do quintil, do menor para o maior valor</span></div>`;
-  const C = D.rendaevang; if (!C) return;
-  const ev = Q.filter(x => x.variavel === "evangelicos");
-  const lin = r => C.filter(x => x.renda === r);
-  document.getElementById("br-cruz").innerHTML =
-    `<tr><th>renda do entorno</th><th>Lula, menos evangélicos</th><th>Lula, mais evangélicos</th><th>Bolsonaro, menos</th><th>Bolsonaro, mais</th></tr>` +
-    [1,2,3,4,5].map(r => { const m = lin(r).find(x => x.evangelicos==="menos"), M = lin(r).find(x => x.evangelicos==="mais");
-      return `<tr><td>${r === 1 ? "1º quintil (mais pobre)" : r === 5 ? "5º quintil (mais rico)" : r + "º quintil"}</td>
-        <td>${fmt(m.lula)}</td><td><b>${fmt(M.lula)}</b></td><td>${fmt(m.bolsonaro)}</td><td><b>${fmt(M.bolsonaro)}</b></td></tr>`; }).join("");
-  document.getElementById("br-cruz-nota").innerHTML = `No quadro geral, as urnas do quintil com mais evangélicos deram
-    ${fmt(ev[4].lula)}% a Lula, contra ${fmt(ev[0].lula)}% no quintil com menos. Mas os lugares com mais evangélicos são também os
-    mais pobres, e os lugares mais pobres votaram em Lula. <b>Comparando lugares da mesma renda</b> (cada linha acima: o terço com
-    mais evangélicos contra o terço com menos), o sinal se inverte nos dois quintis mais pobres e no mais rico: mais evangélicos,
-    menos Lula e mais Bolsonaro. É o paradoxo de Simpson, e a razão de nenhum gráfico desta seção dizer como um grupo votou.`;
-})();
-
-// --- curva de chegada -------------------------------------------------------
-(function(){
-  const c = D.chegada2022, svg = document.getElementById("curva");
-  const W=900, H=330, m={l:44,r:20,t:14,b:36};
-  const ys = c.lula.concat(c.bolsonaro).slice(Math.floor(c.frac.length*0.01));
-  const y0 = Math.floor(Math.min(...ys)) - 1, y1 = Math.ceil(Math.max(...ys)) + 1;
-  const X = f => m.l + f*(W-m.l-m.r), Y = v => m.t + (y1-v)/(y1-y0)*(H-m.t-m.b);
-  let s = "";
-  for (let v=Math.ceil(y0); v<=y1; v+=2)
-    s += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/>
-          <text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end">${v}%</text>`;
-  for (const f of [0,.25,.5,.75,1]) {
-    const i = Math.max(0, c.frac.findIndex(x => x >= f));
-    s += `<text x="${X(f)}" y="${H-18}" text-anchor="middle">${Math.round(f*100)}%</text>
-          <text x="${X(f)}" y="${H-4}" text-anchor="middle">${f===0? c.hora[0] : c.hora[i].slice(0,5)}</text>`;
-  }
-  const fim = k => c[k][c[k].length-1];
-  for (const [k, cor] of [["lula","var(--lula)"],["bolsonaro","var(--bolso)"]]) {
-    s += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(fim(k))}" y2="${Y(fim(k))}" stroke="var(--neutro)" stroke-dasharray="3 4"/>`;
-    const pts = c.frac.map((f,i) => `${X(f).toFixed(1)},${Y(Math.max(y0,Math.min(y1,c[k][i]))).toFixed(1)}`).join(" ");
-    s += `<polyline points="${pts}" fill="none" stroke="${cor}" stroke-width="2.2"/>`;
-  }
-  svg.innerHTML = s;
-  const q = f => c.frac.findIndex(x => x >= f);
-  const i25 = q(0.25), n = c.frac.length-1;
-  const dif = i => c.lula[i] - c.bolsonaro[i];
-  document.getElementById("regua").innerHTML = [
-    [fmt(dif(i25)) + " pts", "Lula − Bolsonaro com 25% das seções (" + c.hora[i25].slice(0,5) + ")"],
-    [fmt(dif(n)) + " pts", "Lula − Bolsonaro no fim (" + c.hora[n].slice(0,5) + ")"],
-    [c.secoes.toLocaleString("pt-BR"), "seções, conferidas voto a voto com o total oficial"],
-  ].map(([b, t]) => `<div><b>${b}</b><span>${t}</span></div>`).join("");
-})();
-
-// --- casamento ----------------------------------------------------------------
-(function(){
-  const r = D.casamento, best = Math.max(...r.map(x => x.r_60mais));
-  const nome = x => x.metodo === "voronoi" ? "Voronoi (setor → local mais próximo)"
-                 : `Raio de ${fmt(x.raio/1000)} km, peso cai a cada ${x.h} m`;
-  document.getElementById("casamento").innerHTML =
-    `<tr><th>método</th><th>r, parcela 60+</th><th>r, % mulheres</th><th>distância média das idades</th><th>setores sem local</th></tr>` +
-    r.map(x => `<tr class="${x.r_60mais===best?"melhor":""}"><td>${nome(x)}</td><td>${fmt(x.r_60mais,2)}</td>
-      <td>${fmt(x.r_feminino,2)}</td><td>${fmt(x.dist_vt_media,3)}</td><td>${x.setores_sem_local}</td></tr>`).join("");
+(async () => {
+  // abre no 2026; se ainda não há arquivo de 2026, abre no ensaio
+  const r = await fetch("dados/2026_presidente.json", {method:"HEAD", cache:"no-store"});
+  carregar(r.ok ? "2026" : "ensaio");
 })();
 </script>
 </body>

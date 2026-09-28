@@ -1,6 +1,7 @@
 """A noite da eleição num comando: coletar, projetar, gerar a página, publicar — em ciclo.
 
-    python domingo.py                      # 2026, capital, publica a cada rodada
+    python domingo.py --estado             # 2026: estado inteiro, painel dos 3 cargos, publica
+    python domingo.py                      # 2026, só a capital (página de método)
     python domingo.py --sem-publicar       # tudo, menos o git push
     python domingo.py --ensaio             # 2022 reproduzido na ordem real de chegada,
                                            # base 2018, relógio acelerado, sem publicar
@@ -29,7 +30,7 @@ OUT = Path("out")
 
 
 def publicar(msg):
-    subprocess.run(["git", "add", "web/index.html", "out/"], check=True)
+    subprocess.run(["git", "add", "web/metodo.html", "web/dados/", "out/"], check=True)
     r = subprocess.run(["git", "commit", "-q", "-m", msg])
     if r.returncode == 0:
         subprocess.run(["git", "push", "-q"], check=False)
@@ -55,6 +56,8 @@ def main():
     ap.add_argument("--intervalo", type=int, default=60)
     ap.add_argument("--taxa", type=float, default=40)
     ap.add_argument("--sem-publicar", action="store_true")
+    ap.add_argument("--estado", action="store_true", help="coleta a UF inteira e gera o painel (3 cargos)")
+    ap.add_argument("--boot", type=int, default=50, help="reamostragens do painel por rodada")
     ap.add_argument("--ensaio", action="store_true")
     ap.add_argument("--acelerar", type=float, default=60, help="ensaio: minutos de 2022 por minuto real")
     a = ap.parse_args()
@@ -89,8 +92,13 @@ def main():
     from coletor import Coletor
     from tse import Bloqueado
 
-    col = Coletor(a.pleito, "sp", [a.mun], a.taxa, 10)
+    import painel
+    # o painel é do estado inteiro; --mun só estreita a página de método (capital)
+    col = Coletor(a.pleito, "sp", None if a.estado else [a.mun], a.taxa, 16)
     noite = projecao.Noite(pleito=a.pleito, ano_cadastro="2026", base="2022", mun=int(a.mun))
+    cargos = ["presidente", "governador", "senador"] if a.estado else []
+    for c in cargos:
+        painel.preparar("2026", c)
     print("pronto; entrando no ciclo", flush=True)
     while True:
         t = time.time()
@@ -103,7 +111,12 @@ def main():
             time.sleep(a.intervalo)
             continue
         if novas:
-            tabelar.tabelar(a.pleito, "sp", cargos=["presidente"])
+            tabelar.tabelar(a.pleito, "sp", cargos=["presidente", "governador", "senador"])
+            for c in cargos:
+                try:
+                    painel.montar("2026", cargo=c, n_boot=a.boot)
+                except Exception as e:  # um cargo com problema não derruba os outros
+                    print(f"   painel {c}: {e}", flush=True)
             res = noite.rodada()
             hora = datetime.now().strftime("%H:%M")
             registrar(a.pleito, res, hora)
