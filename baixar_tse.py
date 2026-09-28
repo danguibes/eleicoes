@@ -45,6 +45,11 @@ ARQUIVOS = {
                      "votacao_secao_2022_BR.csv", "CD_MUNICIPIO"),
     "detalhe_2022": (f"{ODS}/detalhe_votacao_secao/detalhe_votacao_secao_2022.zip",
                      "detalhe_votacao_secao_2022_BR.csv", "CD_MUNICIPIO"),
+    # 2018 é a base do ensaio da projeção: alvo 2022, na ordem real de chegada
+    "votacao_2018": (f"{ODS}/votacao_secao/votacao_secao_2018_BR.zip",
+                     "votacao_secao_2018_BR.csv", "CD_MUNICIPIO"),
+    "locais_2018": (f"{ODS}/eleitorado_locais_votacao/eleitorado_local_votacao_2018.zip",
+                    "eleitorado_local_votacao_2018.csv", "CD_MUNICIPIO"),
     "comparecimento_2022": (f"{ODS}/perfil_comparecimento_abstencao/perfil_comparecimento_abstencao_2022.zip",
                             "perfil_comparecimento_abstencao_2022_SP.csv", "CD_MUNICIPIO"),
 }

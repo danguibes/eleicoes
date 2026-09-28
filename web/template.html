@@ -1,0 +1,173 @@
+<!doctype html>
+<!-- Sem o doctype o navegador entra em quirks mode e a tabela não herda cor nem
+     fonte: no tema escuro o texto some. Lição do Brasileirão. -->
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eleições 2026 — voto por grupo</title>
+<style>
+  :root{
+    --bg:#faf9f7; --card:#fff; --ink:#1c1b19; --mut:#56534e; --line:#e4e1db;
+    --accent:#1f4f7a; --accent-soft:#dde8f2; --grid:#efece7;
+    --lula:#b03a2e; --bolso:#1f4f7a; --neutro:#8a867f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
+      --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
+      --lula:#e0705f; --bolso:#7fb4d4; --neutro:#8f8b84;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
+    --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
+    --lula:#e0705f; --bolso:#7fb4d4; --neutro:#8f8b84;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+  header{padding:36px 0 20px;border-bottom:1px solid var(--line);margin-bottom:24px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+  h2{font-size:17px;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--mut);font-size:13.5px;margin:0}
+  .idade{display:inline-block;margin-top:8px;font-size:12.5px;color:var(--mut)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:20px}
+  .aviso{border-left:4px solid var(--accent);background:var(--accent-soft)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th{text-align:right;font-weight:600;color:var(--mut);font-size:11.5px;text-transform:uppercase;
+     letter-spacing:.04em;padding:0 8px 8px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  tr.melhor td{font-weight:700}
+  .scroll{overflow-x:auto}
+  .note{color:var(--mut);font-size:13px;line-height:1.65;margin-top:14px}
+  .note b{color:var(--ink)}
+  .regua{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .regua div{flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .regua b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+  .regua span{color:var(--mut);font-size:11.5px}
+  svg text{fill:var(--mut);font-size:11px}
+  .leg{display:flex;gap:16px;font-size:13px;margin-top:6px;flex-wrap:wrap}
+  .leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:6px}
+  .emobra{color:var(--mut)}
+  .emobra li{margin:4px 0}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;padding:1px 8px;
+       border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
+  footer{color:var(--mut);font-size:12.5px;margin-top:30px}
+  footer a,.note a{color:var(--accent)}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>Eleições 2026 — o voto por grupo, estimado a partir das urnas</h1>
+  <p class="sub">Município de São Paulo, Presidente, 1º turno. Validação em 2022; aplicação na noite de 4 de outubro.</p>
+  <span class="idade" id="idade"></span>
+</header>
+
+<section class="aviso">
+  <h2>O voto é secreto</h2>
+  <p class="note" style="margin-top:6px">O menor resultado que existe é a <b>seção eleitoral</b>. Toda
+  quebra por idade, escolaridade, renda, cor ou religião que aparecer aqui é <b>estimativa por
+  inferência ecológica</b> — cruzando o resultado de cada urna com o perfil de quem está inscrito nela
+  (TSE) e de quem mora em volta (Censo 2022) — e vem com intervalo de incerteza. O que é dado e não
+  estimativa, como o comparecimento por perfil publicado pelo TSE, aparece separado e marcado.</p>
+</section>
+
+<section>
+  <h2>2022: a contagem na ordem em que as urnas chegaram <span class="tag">DADO</span></h2>
+  <p class="sub">Presidente, capital, % dos votos válidos somando as seções na hora real em que cada uma chegou ao TSE.</p>
+  <div class="scroll"><svg id="curva" viewBox="0 0 900 330" style="width:100%;min-width:560px"></svg></div>
+  <div class="leg"><span><i style="background:var(--lula)"></i>Lula</span>
+    <span><i style="background:var(--bolso)"></i>Bolsonaro</span>
+    <span><i style="background:var(--neutro);height:1px"></i>resultado final</span></div>
+  <div class="regua" id="regua"></div>
+  <p class="note">As urnas não chegam em ordem aleatória. Com um quarto das seções apuradas, a soma simples
+  errava a distância entre os dois em três pontos, sempre para o mesmo lado. É esse erro que a
+  projeção de domingo existe para corrigir: cada urna de 2026 é comparada com o <b>local de votação de 2022
+  mais próximo</b>, e as que faltam herdam o deslocamento medido nas que já chegaram — cada uma sobre a sua
+  própria base.</p>
+</section>
+
+<section>
+  <h2>Quem mora em volta é quem vota ali? <span class="tag">MEDIDO</span></h2>
+  <p class="sub">Duas formas de casar cada local de votação com os setores censitários do entorno, julgadas pelo
+  que o TSE e o Censo têm em comum: a idade e o sexo.</p>
+  <div class="scroll"><table id="casamento"></table></div>
+  <p class="note">A régua é a correlação, entre os ~2.000 locais da capital, da parcela de eleitores com 60 anos
+  ou mais (TSE) contra a de moradores com 60 ou mais no entorno (Censo). O vencedor casa <b>razoavelmente, não
+  bem</b> — o eleitor não vota necessariamente onde mora —, e isso vale para toda variável que só o Censo tem:
+  cor, renda, alfabetização e religião. O sexo quase não casa porque quase não varia entre locais.</p>
+</section>
+
+<section>
+  <h2>Em construção</h2>
+  <ul class="emobra">
+    <li>Projeção do resultado da capital na noite de domingo, urna a urna contra 2022, com intervalo.</li>
+    <li>Ensaio da projeção em 2022 com base em 2018, na ordem real de chegada.</li>
+    <li>Voto estimado por idade, escolaridade, renda, cor e religião — 2022 e 2026 — com intervalo.</li>
+    <li>Validação: comparecimento estimado contra o comparecimento real por perfil (TSE), e voto por grupo contra as pesquisas.</li>
+    <li>Estado de São Paulo: Presidente, governador e senador.</li>
+  </ul>
+</section>
+
+<footer>
+  Dados: TSE (boletins de urna, eleitorado por seção, locais de votação) e IBGE (Censo 2022 por setor e por área
+  de ponderação). Código e método: <a href="https://github.com/danguibes/eleicoes">github.com/danguibes/eleicoes</a>.
+  Projeto pessoal, irmão do <a href="https://danguibes.github.io/monte-carlo-brasileirao/">Brasileirão</a> e da
+  <a href="https://danguibes.github.io/montecarlo_nfl/">NFL</a>.
+</footer>
+</div>
+
+<script>
+const D = /*__DADOS__*/null;
+const fmt = (x, d=1) => x.toLocaleString("pt-BR", {minimumFractionDigits:d, maximumFractionDigits:d});
+document.getElementById("idade").textContent = "Gerado em " + D.gerado;
+
+// --- curva de chegada -------------------------------------------------------
+(function(){
+  const c = D.chegada2022, svg = document.getElementById("curva");
+  const W=900, H=330, m={l:44,r:20,t:14,b:36};
+  const ys = c.lula.concat(c.bolsonaro).slice(Math.floor(c.frac.length*0.01));
+  const y0 = Math.floor(Math.min(...ys)) - 1, y1 = Math.ceil(Math.max(...ys)) + 1;
+  const X = f => m.l + f*(W-m.l-m.r), Y = v => m.t + (y1-v)/(y1-y0)*(H-m.t-m.b);
+  let s = "";
+  for (let v=Math.ceil(y0); v<=y1; v+=2)
+    s += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/>
+          <text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end">${v}%</text>`;
+  for (const f of [0,.25,.5,.75,1]) {
+    const i = Math.max(0, c.frac.findIndex(x => x >= f));
+    s += `<text x="${X(f)}" y="${H-18}" text-anchor="middle">${Math.round(f*100)}%</text>
+          <text x="${X(f)}" y="${H-4}" text-anchor="middle">${f===0? c.hora[0] : c.hora[i].slice(0,5)}</text>`;
+  }
+  const fim = k => c[k][c[k].length-1];
+  for (const [k, cor] of [["lula","var(--lula)"],["bolsonaro","var(--bolso)"]]) {
+    s += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(fim(k))}" y2="${Y(fim(k))}" stroke="var(--neutro)" stroke-dasharray="3 4"/>`;
+    const pts = c.frac.map((f,i) => `${X(f).toFixed(1)},${Y(Math.max(y0,Math.min(y1,c[k][i]))).toFixed(1)}`).join(" ");
+    s += `<polyline points="${pts}" fill="none" stroke="${cor}" stroke-width="2.2"/>`;
+  }
+  svg.innerHTML = s;
+  const q = f => c.frac.findIndex(x => x >= f);
+  const i25 = q(0.25), n = c.frac.length-1;
+  const dif = i => c.lula[i] - c.bolsonaro[i];
+  document.getElementById("regua").innerHTML = [
+    [fmt(dif(i25)) + " pts", "Lula − Bolsonaro com 25% das seções (" + c.hora[i25].slice(0,5) + ")"],
+    [fmt(dif(n)) + " pts", "Lula − Bolsonaro no fim (" + c.hora[n].slice(0,5) + ")"],
+    [c.secoes.toLocaleString("pt-BR"), "seções, conferidas voto a voto com o total oficial"],
+  ].map(([b, t]) => `<div><b>${b}</b><span>${t}</span></div>`).join("");
+})();
+
+// --- casamento ----------------------------------------------------------------
+(function(){
+  const r = D.casamento, best = Math.max(...r.map(x => x.r_60mais));
+  const nome = x => x.metodo === "voronoi" ? "Voronoi (setor → local mais próximo)"
+                 : `Raio de ${fmt(x.raio/1000)} km, peso cai a cada ${x.h} m`;
+  document.getElementById("casamento").innerHTML =
+    `<tr><th>método</th><th>r, parcela 60+</th><th>r, % mulheres</th><th>distância média das idades</th><th>setores sem local</th></tr>` +
+    r.map(x => `<tr class="${x.r_60mais===best?"melhor":""}"><td>${nome(x)}</td><td>${fmt(x.r_60mais,2)}</td>
+      <td>${fmt(x.r_feminino,2)}</td><td>${fmt(x.dist_vt_media,3)}</td><td>${x.setores_sem_local}</td></tr>`).join("");
+})();
+</script>
+</body>
+</html>

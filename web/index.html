@@ -1,0 +1,173 @@
+<!doctype html>
+<!-- Sem o doctype o navegador entra em quirks mode e a tabela não herda cor nem
+     fonte: no tema escuro o texto some. Lição do Brasileirão. -->
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eleições 2026 — voto por grupo</title>
+<style>
+  :root{
+    --bg:#faf9f7; --card:#fff; --ink:#1c1b19; --mut:#56534e; --line:#e4e1db;
+    --accent:#1f4f7a; --accent-soft:#dde8f2; --grid:#efece7;
+    --lula:#b03a2e; --bolso:#1f4f7a; --neutro:#8a867f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
+      --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
+      --lula:#e0705f; --bolso:#7fb4d4; --neutro:#8f8b84;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
+    --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
+    --lula:#e0705f; --bolso:#7fb4d4; --neutro:#8f8b84;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+  header{padding:36px 0 20px;border-bottom:1px solid var(--line);margin-bottom:24px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+  h2{font-size:17px;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--mut);font-size:13.5px;margin:0}
+  .idade{display:inline-block;margin-top:8px;font-size:12.5px;color:var(--mut)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:20px}
+  .aviso{border-left:4px solid var(--accent);background:var(--accent-soft)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th{text-align:right;font-weight:600;color:var(--mut);font-size:11.5px;text-transform:uppercase;
+     letter-spacing:.04em;padding:0 8px 8px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  tr.melhor td{font-weight:700}
+  .scroll{overflow-x:auto}
+  .note{color:var(--mut);font-size:13px;line-height:1.65;margin-top:14px}
+  .note b{color:var(--ink)}
+  .regua{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .regua div{flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .regua b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+  .regua span{color:var(--mut);font-size:11.5px}
+  svg text{fill:var(--mut);font-size:11px}
+  .leg{display:flex;gap:16px;font-size:13px;margin-top:6px;flex-wrap:wrap}
+  .leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:6px}
+  .emobra{color:var(--mut)}
+  .emobra li{margin:4px 0}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;padding:1px 8px;
+       border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
+  footer{color:var(--mut);font-size:12.5px;margin-top:30px}
+  footer a,.note a{color:var(--accent)}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>Eleições 2026 — o voto por grupo, estimado a partir das urnas</h1>
+  <p class="sub">Município de São Paulo, Presidente, 1º turno. Validação em 2022; aplicação na noite de 4 de outubro.</p>
+  <span class="idade" id="idade"></span>
+</header>
+
+<section class="aviso">
+  <h2>O voto é secreto</h2>
+  <p class="note" style="margin-top:6px">O menor resultado que existe é a <b>seção eleitoral</b>. Toda
+  quebra por idade, escolaridade, renda, cor ou religião que aparecer aqui é <b>estimativa por
+  inferência ecológica</b> — cruzando o resultado de cada urna com o perfil de quem está inscrito nela
+  (TSE) e de quem mora em volta (Censo 2022) — e vem com intervalo de incerteza. O que é dado e não
+  estimativa, como o comparecimento por perfil publicado pelo TSE, aparece separado e marcado.</p>
+</section>
+
+<section>
+  <h2>2022: a contagem na ordem em que as urnas chegaram <span class="tag">DADO</span></h2>
+  <p class="sub">Presidente, capital, % dos votos válidos somando as seções na hora real em que cada uma chegou ao TSE.</p>
+  <div class="scroll"><svg id="curva" viewBox="0 0 900 330" style="width:100%;min-width:560px"></svg></div>
+  <div class="leg"><span><i style="background:var(--lula)"></i>Lula</span>
+    <span><i style="background:var(--bolso)"></i>Bolsonaro</span>
+    <span><i style="background:var(--neutro);height:1px"></i>resultado final</span></div>
+  <div class="regua" id="regua"></div>
+  <p class="note">As urnas não chegam em ordem aleatória. Com um quarto das seções apuradas, a soma simples
+  errava a distância entre os dois em três pontos, sempre para o mesmo lado. É esse erro que a
+  projeção de domingo existe para corrigir: cada urna de 2026 é comparada com o <b>local de votação de 2022
+  mais próximo</b>, e as que faltam herdam o deslocamento medido nas que já chegaram — cada uma sobre a sua
+  própria base.</p>
+</section>
+
+<section>
+  <h2>Quem mora em volta é quem vota ali? <span class="tag">MEDIDO</span></h2>
+  <p class="sub">Duas formas de casar cada local de votação com os setores censitários do entorno, julgadas pelo
+  que o TSE e o Censo têm em comum: a idade e o sexo.</p>
+  <div class="scroll"><table id="casamento"></table></div>
+  <p class="note">A régua é a correlação, entre os ~2.000 locais da capital, da parcela de eleitores com 60 anos
+  ou mais (TSE) contra a de moradores com 60 ou mais no entorno (Censo). O vencedor casa <b>razoavelmente, não
+  bem</b> — o eleitor não vota necessariamente onde mora —, e isso vale para toda variável que só o Censo tem:
+  cor, renda, alfabetização e religião. O sexo quase não casa porque quase não varia entre locais.</p>
+</section>
+
+<section>
+  <h2>Em construção</h2>
+  <ul class="emobra">
+    <li>Projeção do resultado da capital na noite de domingo, urna a urna contra 2022, com intervalo.</li>
+    <li>Ensaio da projeção em 2022 com base em 2018, na ordem real de chegada.</li>
+    <li>Voto estimado por idade, escolaridade, renda, cor e religião — 2022 e 2026 — com intervalo.</li>
+    <li>Validação: comparecimento estimado contra o comparecimento real por perfil (TSE), e voto por grupo contra as pesquisas.</li>
+    <li>Estado de São Paulo: Presidente, governador e senador.</li>
+  </ul>
+</section>
+
+<footer>
+  Dados: TSE (boletins de urna, eleitorado por seção, locais de votação) e IBGE (Censo 2022 por setor e por área
+  de ponderação). Código e método: <a href="https://github.com/danguibes/eleicoes">github.com/danguibes/eleicoes</a>.
+  Projeto pessoal, irmão do <a href="https://danguibes.github.io/monte-carlo-brasileirao/">Brasileirão</a> e da
+  <a href="https://danguibes.github.io/montecarlo_nfl/">NFL</a>.
+</footer>
+</div>
+
+<script>
+const D = {"gerado": "28/09/2026 13:36", "chegada2022": {"hora": ["18:06:41", "18:21:09", "18:23:20", "18:27:20", "18:28:57", "18:31:32", "18:34:30", "18:35:39", "18:37:27", "18:39:25", "18:40:25", "18:41:30", "18:42:27", "18:43:35", "18:44:58", "18:46:26", "18:47:33", "18:48:33", "18:49:30", "18:50:31", "18:51:00", "18:51:44", "18:52:34", "18:53:26", "18:54:43", "18:55:38", "18:56:47", "18:57:13", "18:57:51", "18:59:02", "18:59:49", "19:00:43", "19:01:04", "19:01:57", "19:02:46", "19:03:33", "19:04:27", "19:05:21", "19:05:47", "19:06:25", "19:06:45", "19:07:27", "19:07:45", "19:08:30", "19:08:47", "19:09:09", "19:09:50", "19:10:44", "19:11:26", "19:12:10", "19:12:37", "19:13:18", "19:14:04", "19:14:44", "19:15:12", "19:15:29", "19:15:42", "19:15:53", "19:16:15", "19:16:42", "19:17:25", "19:17:53", "19:18:38", "19:19:08", "19:19:44", "19:20:11", "19:20:34", "19:21:12", "19:21:46", "19:22:37", "19:23:03", "19:23:43", "19:24:13", "19:24:35", "19:24:48", "19:25:04", "19:25:40", "19:26:02", "19:26:44", "19:27:22", "19:27:46", "19:28:12", "19:28:47", "19:29:17", "19:29:44", "19:30:09", "19:30:32", "19:30:42", "19:31:03", "19:31:36", "19:31:54", "19:32:39", "19:33:29", "19:33:45", "19:34:28", "19:34:44", "19:35:00", "19:35:34", "19:35:53", "19:36:13", "19:36:39", "19:36:58", "19:37:42", "19:38:29", "19:38:46", "19:39:31", "19:39:44", "19:40:02", "19:40:40", "19:41:02", "19:41:34", "19:41:57", "19:42:46", "19:43:06", "19:43:40", "19:43:59", "19:44:34", "19:44:54", "19:45:34", "19:45:50", "19:46:31", "19:46:47", "19:47:16", "19:47:46", "19:48:32", "19:48:48", "19:49:05", "19:49:43", "19:50:05", "19:50:35", "19:51:03", "19:51:51", "19:52:15", "19:52:52", "19:53:37", "19:53:56", "19:54:34", "19:54:47", "19:55:32", "19:55:50", "19:56:32", "19:56:49", "19:57:32", "19:57:53", "19:58:36", "19:58:53", "19:59:36", "19:59:56", "20:00:37", "20:01:02", "20:01:56", "20:02:40", "20:03:31", "20:04:01", "20:04:45", "20:05:32", "20:05:49", "20:06:10", "20:06:44", "20:07:13", "20:07:45", "20:08:13", "20:08:40", "20:08:53", "20:09:36", "20:09:43", "20:10:04", "20:10:39", "20:10:50", "20:11:36", "20:11:49", "20:12:33", "20:12:41", "20:12:50", "20:13:31", "20:13:40", "20:13:49", "20:14:51", "20:15:42", "20:16:03", "20:16:48", "20:17:32", "20:18:33", "20:19:41", "20:20:42", "20:21:37", "20:22:44", "20:24:09", "20:25:47", "20:27:05", "20:28:47", "20:35:24", "20:38:30", "20:45:42", "20:56:46", "21:22:13", "21:31:11", "21:41:47", "21:54:42", "22:34:33"], "frac": [0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.1, 0.105, 0.11, 0.115, 0.12, 0.125, 0.13, 0.135, 0.14, 0.145, 0.15, 0.155, 0.16, 0.165, 0.17, 0.175, 0.18, 0.185, 0.19, 0.195, 0.2, 0.205, 0.21, 0.215, 0.22, 0.225, 0.23, 0.235, 0.24, 0.245, 0.25, 0.255, 0.26, 0.265, 0.27, 0.275, 0.28, 0.285, 0.29, 0.295, 0.3, 0.305, 0.31, 0.315, 0.32, 0.325, 0.33, 0.335, 0.34, 0.345, 0.35, 0.355, 0.36, 0.365, 0.37, 0.375, 0.38, 0.385, 0.39, 0.395, 0.4, 0.405, 0.41, 0.415, 0.42, 0.425, 0.43, 0.435, 0.44, 0.445, 0.45, 0.455, 0.46, 0.465, 0.47, 0.475, 0.48, 0.485, 0.49, 0.495, 0.5, 0.505, 0.51, 0.515, 0.52, 0.525, 0.53, 0.535, 0.54, 0.545, 0.55, 0.555, 0.56, 0.565, 0.57, 0.575, 0.58, 0.585, 0.59, 0.595, 0.6, 0.605, 0.61, 0.615, 0.62, 0.625, 0.63, 0.635, 0.64, 0.645, 0.65, 0.655, 0.66, 0.665, 0.67, 0.675, 0.68, 0.685, 0.69, 0.695, 0.7, 0.705, 0.71, 0.715, 0.72, 0.725, 0.73, 0.735, 0.74, 0.745, 0.75, 0.755, 0.76, 0.765, 0.77, 0.775, 0.78, 0.785, 0.79, 0.795, 0.8, 0.805, 0.81, 0.815, 0.82, 0.825, 0.83, 0.835, 0.84, 0.845, 0.85, 0.855, 0.86, 0.865, 0.87, 0.875, 0.88, 0.885, 0.89, 0.895, 0.9, 0.905, 0.91, 0.915, 0.92, 0.925, 0.93, 0.935, 0.94, 0.945, 0.95, 0.955, 0.96, 0.965, 0.97, 0.975, 0.98, 0.985, 0.99, 0.995, 1.0], "lula": [50.44, 48.9, 48.41, 48.2, 47.82, 47.66, 47.55, 47.63, 47.26, 47.29, 47.47, 47.21, 47.15, 46.85, 46.99, 46.83, 46.71, 46.54, 46.6, 46.64, 46.37, 46.42, 46.43, 46.18, 46.08, 46.3, 46.28, 46.23, 46.36, 46.4, 46.26, 46.27, 46.13, 46.05, 45.96, 46.0, 45.99, 45.86, 45.8, 45.87, 45.9, 45.91, 46.01, 45.95, 45.9, 45.85, 45.88, 45.92, 45.94, 45.96, 45.87, 45.88, 45.85, 45.85, 45.83, 45.81, 45.78, 45.74, 45.74, 45.69, 45.68, 45.68, 45.66, 45.64, 45.61, 45.58, 45.53, 45.56, 45.58, 45.58, 45.63, 45.65, 45.66, 45.69, 45.75, 45.76, 45.79, 45.82, 45.87, 45.91, 45.89, 45.93, 45.96, 45.97, 45.95, 45.96, 45.97, 45.98, 46.0, 46.01, 45.99, 46.03, 46.05, 46.08, 46.11, 46.13, 46.17, 46.19, 46.2, 46.21, 46.23, 46.26, 46.33, 46.36, 46.37, 46.39, 46.42, 46.43, 46.42, 46.42, 46.4, 46.4, 46.43, 46.45, 46.47, 46.48, 46.51, 46.53, 46.57, 46.58, 46.62, 46.64, 46.67, 46.7, 46.71, 46.73, 46.72, 46.72, 46.72, 46.73, 46.75, 46.75, 46.75, 46.75, 46.75, 46.78, 46.8, 46.85, 46.9, 46.92, 46.94, 46.95, 46.98, 47.0, 46.99, 47.01, 47.02, 47.03, 47.05, 47.06, 47.07, 47.07, 47.07, 47.08, 47.1, 47.13, 47.15, 47.16, 47.18, 47.22, 47.21, 47.21, 47.19, 47.17, 47.15, 47.15, 47.15, 47.16, 47.19, 47.22, 47.2, 47.17, 47.13, 47.09, 47.07, 47.04, 47.02, 47.02, 47.02, 47.01, 47.03, 47.05, 47.09, 47.1, 47.12, 47.12, 47.12, 47.14, 47.18, 47.21, 47.24, 47.25, 47.28, 47.27, 47.26, 47.27, 47.32, 47.39, 47.46, 47.54], "bolsonaro": [34.93, 35.78, 36.2, 36.87, 37.35, 37.65, 37.9, 37.93, 38.32, 38.3, 38.24, 38.45, 38.53, 38.79, 38.69, 38.85, 38.96, 39.07, 39.03, 38.98, 39.2, 39.17, 39.2, 39.4, 39.46, 39.27, 39.28, 39.3, 39.18, 39.14, 39.24, 39.25, 39.36, 39.43, 39.49, 39.44, 39.45, 39.55, 39.59, 39.51, 39.5, 39.51, 39.45, 39.49, 39.52, 39.55, 39.53, 39.51, 39.5, 39.49, 39.54, 39.53, 39.54, 39.56, 39.57, 39.58, 39.6, 39.63, 39.63, 39.65, 39.65, 39.64, 39.65, 39.66, 39.66, 39.68, 39.69, 39.66, 39.65, 39.64, 39.6, 39.58, 39.56, 39.53, 39.49, 39.47, 39.44, 39.41, 39.37, 39.35, 39.36, 39.34, 39.32, 39.32, 39.33, 39.33, 39.33, 39.33, 39.33, 39.32, 39.32, 39.29, 39.28, 39.25, 39.23, 39.21, 39.19, 39.17, 39.16, 39.16, 39.15, 39.13, 39.08, 39.05, 39.03, 39.01, 38.99, 38.97, 38.97, 38.97, 38.98, 38.97, 38.95, 38.94, 38.93, 38.91, 38.88, 38.85, 38.82, 38.82, 38.78, 38.77, 38.75, 38.73, 38.72, 38.71, 38.71, 38.7, 38.7, 38.7, 38.68, 38.68, 38.68, 38.68, 38.67, 38.65, 38.62, 38.58, 38.54, 38.52, 38.5, 38.48, 38.46, 38.44, 38.45, 38.43, 38.42, 38.41, 38.39, 38.38, 38.37, 38.37, 38.36, 38.36, 38.34, 38.32, 38.31, 38.3, 38.28, 38.25, 38.25, 38.25, 38.26, 38.27, 38.29, 38.29, 38.29, 38.28, 38.26, 38.23, 38.25, 38.28, 38.31, 38.34, 38.37, 38.39, 38.41, 38.4, 38.4, 38.4, 38.39, 38.37, 38.35, 38.34, 38.33, 38.33, 38.33, 38.31, 38.28, 38.26, 38.23, 38.22, 38.2, 38.2, 38.2, 38.19, 38.15, 38.1, 38.05, 37.99], "secoes": 26288}, "casamento": [{"metodo": "voronoi", "locais": 2021, "dist_vt_media": 0.1510580868542705, "r_60mais": 0.5411058942394967, "r_feminino": 0.2403604133597034, "setores_sem_local": 0, "raio": "", "h": ""}, {"metodo": "raio", "locais": 2030, "dist_vt_media": 0.1481615908163425, "r_60mais": 0.5822987843928706, "r_feminino": 0.2759379419943807, "setores_sem_local": 907, "raio": 800.0, "h": 300.0}, {"metodo": "raio", "locais": 2030, "dist_vt_media": 0.1480457100804988, "r_60mais": 0.5880856465724339, "r_feminino": 0.2739461405676248, "setores_sem_local": 182, "raio": 1500.0, "h": 600.0}, {"metodo": "raio", "locais": 2030, "dist_vt_media": 0.149728976473752, "r_60mais": 0.5872193805408438, "r_feminino": 0.2300951230346214, "setores_sem_local": 40, "raio": 3000.0, "h": 1200.0}]};
+const fmt = (x, d=1) => x.toLocaleString("pt-BR", {minimumFractionDigits:d, maximumFractionDigits:d});
+document.getElementById("idade").textContent = "Gerado em " + D.gerado;
+
+// --- curva de chegada -------------------------------------------------------
+(function(){
+  const c = D.chegada2022, svg = document.getElementById("curva");
+  const W=900, H=330, m={l:44,r:20,t:14,b:36};
+  const ys = c.lula.concat(c.bolsonaro).slice(Math.floor(c.frac.length*0.01));
+  const y0 = Math.floor(Math.min(...ys)) - 1, y1 = Math.ceil(Math.max(...ys)) + 1;
+  const X = f => m.l + f*(W-m.l-m.r), Y = v => m.t + (y1-v)/(y1-y0)*(H-m.t-m.b);
+  let s = "";
+  for (let v=Math.ceil(y0); v<=y1; v+=2)
+    s += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/>
+          <text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end">${v}%</text>`;
+  for (const f of [0,.25,.5,.75,1]) {
+    const i = Math.max(0, c.frac.findIndex(x => x >= f));
+    s += `<text x="${X(f)}" y="${H-18}" text-anchor="middle">${Math.round(f*100)}%</text>
+          <text x="${X(f)}" y="${H-4}" text-anchor="middle">${f===0? c.hora[0] : c.hora[i].slice(0,5)}</text>`;
+  }
+  const fim = k => c[k][c[k].length-1];
+  for (const [k, cor] of [["lula","var(--lula)"],["bolsonaro","var(--bolso)"]]) {
+    s += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(fim(k))}" y2="${Y(fim(k))}" stroke="var(--neutro)" stroke-dasharray="3 4"/>`;
+    const pts = c.frac.map((f,i) => `${X(f).toFixed(1)},${Y(Math.max(y0,Math.min(y1,c[k][i]))).toFixed(1)}`).join(" ");
+    s += `<polyline points="${pts}" fill="none" stroke="${cor}" stroke-width="2.2"/>`;
+  }
+  svg.innerHTML = s;
+  const q = f => c.frac.findIndex(x => x >= f);
+  const i25 = q(0.25), n = c.frac.length-1;
+  const dif = i => c.lula[i] - c.bolsonaro[i];
+  document.getElementById("regua").innerHTML = [
+    [fmt(dif(i25)) + " pts", "Lula − Bolsonaro com 25% das seções (" + c.hora[i25].slice(0,5) + ")"],
+    [fmt(dif(n)) + " pts", "Lula − Bolsonaro no fim (" + c.hora[n].slice(0,5) + ")"],
+    [c.secoes.toLocaleString("pt-BR"), "seções, conferidas voto a voto com o total oficial"],
+  ].map(([b, t]) => `<div><b>${b}</b><span>${t}</span></div>`).join("");
+})();
+
+// --- casamento ----------------------------------------------------------------
+(function(){
+  const r = D.casamento, best = Math.max(...r.map(x => x.r_60mais));
+  const nome = x => x.metodo === "voronoi" ? "Voronoi (setor → local mais próximo)"
+                 : `Raio de ${fmt(x.raio/1000)} km, peso cai a cada ${x.h} m`;
+  document.getElementById("casamento").innerHTML =
+    `<tr><th>método</th><th>r, parcela 60+</th><th>r, % mulheres</th><th>distância média das idades</th><th>setores sem local</th></tr>` +
+    r.map(x => `<tr class="${x.r_60mais===best?"melhor":""}"><td>${nome(x)}</td><td>${fmt(x.r_60mais,2)}</td>
+      <td>${fmt(x.r_feminino,2)}</td><td>${fmt(x.dist_vt_media,3)}</td><td>${x.setores_sem_local}</td></tr>`).join("");
+})();
+</script>
+</body>
+</html>

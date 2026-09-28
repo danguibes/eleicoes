@@ -1,0 +1,41 @@
+name: publicar
+
+# O pipeline roda na máquina de casa (o CDN do TSE recusa script em qualquer IP,
+# medido também daqui do Actions) e o web/index.html chega pronto no push. Este
+# workflow só confere e publica.
+on:
+  push:
+    branches: [main]
+    paths: ["web/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true  # na noite da eleição, só a versão mais nova importa
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: conferir que a página saiu com dados
+        run: |
+          test -f web/index.html
+          if grep -q '/\*__DADOS__\*/null' web/index.html; then
+            echo "placeholder nao substituido: a pagina sairia vazia"; exit 1
+          fi
+      - run: rm -f web/template.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deploy
+        uses: actions/deploy-pages@v4
