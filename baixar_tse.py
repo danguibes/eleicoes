@@ -62,19 +62,33 @@ def baixar(url, destino):
 
 
 def recortar(zip_path, membro, coluna, valor, saida):
+    """Grava em blocos: o perfil de 2026 do estado tem 18,7 milhões de linhas, e
+    juntá-las antes de gravar pediu 4 GB e estourou a memória (medido)."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
     with zipfile.ZipFile(zip_path) as z:
         nomes = z.namelist()
         if membro not in nomes:
             sys.exit(f"{membro} não está no zip; há: {nomes[:40]}")
-        partes, lidas = [], 0
+        escritor, lidas, gravadas = None, 0, 0
         with z.open(membro) as bruto:
             txt = io.TextIOWrapper(bruto, encoding="latin-1", newline="")
             for bloco in pd.read_csv(txt, sep=";", dtype=str, chunksize=1_000_000):
                 lidas += len(bloco)
-                partes.append(bloco[bloco[coluna] == valor])
-    df = pd.concat(partes, ignore_index=True)
-    df.to_parquet(saida, index=False)
-    print(f"  {lidas:,} linhas lidas, {len(df):,} de {coluna}={valor} -> {saida} "
+                bloco = bloco[bloco[coluna] == valor]
+                if bloco.empty:
+                    continue
+                if escritor is None:
+                    # tudo texto: com esquema inferido, uma coluna vazia no 1º
+                    # bloco viraria tipo nulo e os blocos seguintes falhariam
+                    esquema = pa.schema([(c, pa.string()) for c in bloco.columns])
+                    escritor = pq.ParquetWriter(saida, esquema)
+                t = pa.Table.from_pandas(bloco, schema=escritor.schema, preserve_index=False)
+                escritor.write_table(t.cast(escritor.schema))
+                gravadas += len(bloco)
+        if escritor:
+            escritor.close()
+    print(f"  {lidas:,} linhas lidas, {gravadas:,} de {coluna}={valor} -> {saida} "
           f"({saida.stat().st_size / 1e6:.1f} MB)", flush=True)
 
 
