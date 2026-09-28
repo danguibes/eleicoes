@@ -193,7 +193,16 @@ def main():
     c = Coletor(a.pleito, a.uf, a.mun, a.taxa, a.trabalhadores)
     try:
         while True:
-            c.rodada(a.limite)
+            try:
+                c.rodada(a.limite)
+            except RuntimeError as e:
+                # índice ainda não publicado (404 antes da apuração): espera, devagar —
+                # um 404 por minuto fica longe do limite que bloqueia
+                print(f"{agora()}  {e}; tentando de novo em {max(a.intervalo, 60)} s", flush=True)
+                if a.uma_vez:
+                    break
+                time.sleep(max(a.intervalo, 60))
+                continue
             if a.uma_vez:
                 break
             time.sleep(a.intervalo)

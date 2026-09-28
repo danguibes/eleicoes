@@ -73,12 +73,35 @@ class Nacional:
         self.cargo = cargo
         self.dir = RAW / pleito / "nacional"
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.etags, self.linhas = {}, {}
+        self.etags, self.linhas, self.ufs = {}, {}, {}
         self.muns = lista_municipios(self.p, self.cli, self.dir)
 
+    def url_uf(self, uf):
+        suf = "v" if self.p.ciclo == "ele2022" else "u"
+        return f"{self.p.raiz()}/{self.p.eleicao}/dados/{uf}/{uf}-c{self.cargo:04d}-e{self.p.eleicao:06d}-{suf}.json"
+
     def rodada(self):
+        """Antes de varrer os municípios de uma UF, confirma que o arquivo da UF existe.
+        Sem isso, rodar antes de o TSE publicar pediria ~5.700 endereços inexistentes
+        por rodada — e 404 em excesso bloqueia o IP."""
         t0, mudou, erros = time.time(), 0, 0
+        ufs = sorted({uf for uf, _ in self.muns})
+        prontas = set()
+        for uf in ufs:
+            url = self.url_uf(uf)
+            st, corpo, etag = self.cli.get(url, self.etags.get(url))
+            if st in (200, 304):
+                prontas.add(uf)
+                if st == 200:
+                    self.etags[url] = etag
+                    self.ufs[uf] = ler_u(corpo)
+        if not prontas:
+            print(f"{datetime.now():%H:%M:%S}  nenhum arquivo de UF publicado ainda", flush=True)
+            return 0
+        falhas = {}
         for uf, mun in self.muns:
+            if uf not in prontas or falhas.get(uf, 0) >= 3:
+                continue
             url = self.p.url_municipio(uf, mun, self.cargo)
             st, corpo, etag = self.cli.get(url, self.etags.get(url))
             if st == 200:
@@ -87,11 +110,14 @@ class Nacional:
                 mudou += 1
             elif st != 304:
                 erros += 1
+                falhas[uf] = falhas.get(uf, 0) + 1   # 3 falhas numa UF: para a UF nesta rodada
         t = pd.DataFrame(self.linhas.values())
         if len(t):
             tmp = self.dir / "municipios.tmp.parquet"
             t.to_parquet(tmp, index=False)
             tmp.replace(self.dir / "municipios.parquet")
+        if self.ufs:
+            pd.DataFrame([{"uf": u.upper(), **v} for u, v in self.ufs.items()]).to_parquet(self.dir / "ufs.parquet", index=False)
         tot = t.ts.sum() if len(t) else 0
         print(f"{datetime.now():%H:%M:%S}  {len(self.muns):,} municípios em {time.time() - t0:.0f} s; "
               f"{mudou:,} mudaram, {erros} erros; seções totalizadas {t.st.sum() if len(t) else 0:,}/{tot:,}; "

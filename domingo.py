@@ -1,20 +1,13 @@
-"""A noite da eleição num comando: coletar, projetar, gerar a página, publicar — em ciclo.
+"""A noite da eleição: o publicador. Quem coleta são o coletor.py (SP, urna a urna) e o
+nacional.py (Brasil, por município), em processos próprios — o noite.py sobe os três.
 
-    python domingo.py --estado             # 2026: estado inteiro, painel dos 3 cargos, publica
-    python domingo.py                      # 2026, só a capital (página de método)
+    python noite.py                        # a noite inteira: 2 coletores + publicador
+    python domingo.py                      # só o publicador
     python domingo.py --sem-publicar       # tudo, menos o git push
-    python domingo.py --ensaio             # 2022 reproduzido na ordem real de chegada,
-                                           # base 2018, relógio acelerado, sem publicar
+    python domingo.py --ensaio             # 2022 reproduzido na ordem real de chegada (capital)
 
-Cada rodada:
-  1. coletor: índice de seções do TSE + BU de cada urna nova (para no 1º 403)
-  2. tabelar: BUs -> votos.parquet (só Presidente, para ser rápido)
-  3. projeção: urnas apuradas + previsão das que faltam, com intervalo
-  4. out/ao_vivo_<pleito>.json ganha uma linha; exportar.py refaz a página
-  5. git commit + push de web/ e out/ — o Actions publica em ~1 minuto
-
-Se o TSE bloquear (403), o ciclo para e diz quanto esperar: insistir só
-prolonga o bloqueio.
+A cada 30 s, se o coletor de SP ou o nacional gravou dado novo: refaz a projeção,
+os painéis (Brasil; SP nos três cargos) e publica (git push → Actions → Pages).
 """
 import argparse
 import json
@@ -53,7 +46,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pleito", default="2026")
     ap.add_argument("--mun", default="71072")
-    ap.add_argument("--intervalo", type=int, default=60)
+    ap.add_argument("--intervalo", type=int, default=30)
     ap.add_argument("--taxa", type=float, default=40)
     ap.add_argument("--sem-publicar", action="store_true")
     ap.add_argument("--estado", action="store_true", help="coleta a UF inteira e gera o painel (3 cargos)")
@@ -89,42 +82,42 @@ def main():
             relogio += timedelta(minutes=a.acelerar * a.intervalo / 60)
         return
 
-    from coletor import Coletor
-    from tse import Bloqueado
-
+    # publicador: não coleta nada (quem coleta é o coletor.py e o nacional.py, em
+    # processos próprios — ver noite.py). Quando um dos dois grava dado novo, refaz
+    # as projeções e os painéis e publica.
     import painel
-    # o painel é do estado inteiro; --mun só estreita a página de método (capital)
-    col = Coletor(a.pleito, "sp", None if a.estado else [a.mun], a.taxa, 16)
-    noite = projecao.Noite(pleito=a.pleito, ano_cadastro="2026", base="2022", mun=int(a.mun))
-    cargos = ["presidente", "governador", "senador"] if a.estado else []
+    import painel_brasil
+    sp = Path("data/raw") / a.pleito / "sp" / "secoes.jsonl"
+    nac = Path("data/raw") / a.pleito / "nacional" / "municipios.parquet"
+    cargos = ["presidente", "governador", "senador"]
     for c in cargos:
         painel.preparar("2026", c)
-    print("pronto; entrando no ciclo", flush=True)
+    visto = {sp: 0, nac: 0}
+    print("publicador pronto", flush=True)
     while True:
-        t = time.time()
-        try:
-            novas = col.rodada()
-        except Bloqueado as e:
-            sys.exit(f"PARADO pelo TSE: {e}. Espere 10 minutos inteiros antes de rodar de novo.")
-        except RuntimeError as e:  # índice ainda não publicado (404 antes das 17h)
-            print(f"{datetime.now():%H:%M:%S}  {e}; tentando de novo", flush=True)
-            time.sleep(a.intervalo)
-            continue
-        if novas:
-            tabelar.tabelar(a.pleito, "sp", cargos=["presidente", "governador", "senador"])
+        t, feito = time.time(), []
+        if nac.exists() and nac.stat().st_mtime > visto[nac]:
+            visto[nac] = nac.stat().st_mtime
+            try:
+                d = painel_brasil.montar("2026", n_boot=a.boot)
+                feito.append(f"Brasil {d['meta']['apuradas']:,}/{d['meta']['secoes']:,}")
+            except Exception as e:
+                print(f"   painel Brasil: {e!r}", flush=True)
+        if sp.exists() and sp.stat().st_mtime > visto[sp]:
+            visto[sp] = sp.stat().st_mtime
+            tabelar.tabelar(a.pleito, "sp", cargos=cargos)
             for c in cargos:
                 try:
-                    painel.montar("2026", cargo=c, n_boot=a.boot)
+                    d = painel.montar("2026", cargo=c, n_boot=a.boot)
+                    if c == "presidente":
+                        feito.append(f"SP {d['meta']['apuradas']:,}/{d['meta']['secoes']:,}")
                 except Exception as e:  # um cargo com problema não derruba os outros
-                    print(f"   painel {c}: {e}", flush=True)
-            res = noite.rodada()
+                    print(f"   painel SP {c}: {e!r}", flush=True)
+        if feito:
             hora = datetime.now().strftime("%H:%M")
-            registrar(a.pleito, res, hora)
-            exportar.main(ao_vivo=a.pleito)
             if not a.sem_publicar:
-                publicar(f"Apuração {hora}: {res['secoes']} de {res['total']} seções")
-            print(f"{hora}  {res['secoes']}/{res['total']} seções, rodada em {time.time() - t:.0f} s",
-                  flush=True)
+                publicar(f"Apuração {hora}: " + " · ".join(feito))
+            print(f"{hora}  {' · '.join(feito)} seções; rodada em {time.time() - t:.0f} s", flush=True)
         time.sleep(max(5, a.intervalo - (time.time() - t)))
 
 
