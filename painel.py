@@ -30,7 +30,7 @@ WEB = Path("web/dados")
 PRETA = ["V01378", "V01383", "V01388"]
 PARDA = ["V01380", "V01385", "V01390"]
 ADULTOS = [f"V{i:05d}" for i in range(1377, 1392)]
-VARS = ["renda", "evangelicos", "preta_parda", "superior", "idosos"]
+VARS = ["renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda", "superior", "idosos"]
 # pares para comparar entre eleições: mesmo campo político, candidato diferente
 PARES = {"2026": {"lula": "lula22", "flavio": "bolsonaro22"},
          "ensaio": {"lula": "haddad18", "bolsonaro": "bolsonaro18"}}
@@ -51,6 +51,8 @@ def setores_uf():
     s["y"] = (s.lat + 23.55) * 111_000
     rel = pd.read_parquet(RAW / "ibge" / "religiao_ap_35.parquet").set_index("CD_AP")
     s["evang"] = s.CD_AP.map(rel.evangelica / rel.total).fillna(0) * s.V01006
+    s["catol"] = s.CD_AP.map(rel.catolica / rel.total).fillna(0) * s.V01006
+    s["semrel"] = s.CD_AP.map(rel.sem_religiao / rel.total).fillna(0) * s.V01006
     s["renda_x_resp"] = s.V06004.fillna(0) * s.V06001.fillna(0)
     s["resp"] = s.V06001.where(s.V06004.notna(), 0).fillna(0)
     s["pp"] = s[PRETA + PARDA].sum(axis=1)
@@ -75,12 +77,14 @@ def entorno(locais, st, raio=1500, h=600):
         li += [i] * len(v); si += list(v); dd += list(dist)
     w = pd.DataFrame({"l": li, "s": si, "w": np.exp(-np.array(dd) / h)})
     w["w"] /= w.groupby("s").w.transform("sum")
-    cols = ["pp", "adultos", "evang", "V01006", "renda_x_resp", "resp"]
+    cols = ["pp", "adultos", "evang", "catol", "semrel", "V01006", "renda_x_resp", "resp"]
     v = st[cols].to_numpy(float)[w.s.to_numpy()] * w.w.to_numpy()[:, None]
     e = pd.DataFrame(v, columns=cols).assign(l=w.l.to_numpy()).groupby("l").sum()
     out = pd.DataFrame(index=range(len(locais)))
     out["renda"] = (e.renda_x_resp / e.resp.replace(0, np.nan)).reindex(out.index)
     out["evangelicos"] = (100 * e.evang / e.V01006).reindex(out.index)
+    out["catolicos"] = (100 * e.catol / e.V01006).reindex(out.index)
+    out["sem_religiao"] = (100 * e.semrel / e.V01006).reindex(out.index)
     out["preta_parda"] = (100 * e.pp / e.adultos.replace(0, np.nan)).reindex(out.index)
     return out
 
@@ -145,7 +149,9 @@ def nomes_candidatos(ano, cargo):
         d = pd.read_csv(io.TextIOWrapper(zz.open(m), encoding="latin-1"), sep=";", dtype=str)
     d = d[d.DS_CARGO.str.upper().str.normalize("NFKD").str.encode("ascii", "ignore").str.decode("ascii")
           == {"presidente": "PRESIDENTE", "governador": "GOVERNADOR", "senador": "SENADOR"}[cargo]]
-    return {f"n{int(r.NR_CANDIDATO)}": r.NM_URNA_CANDIDATO.title() for r in d.itertuples()}
+    # só número, nome de urna e partido: o arquivo traz CPF, e-mail e título, que não saem daqui
+    return {f"n{int(r.NR_CANDIDATO)}": f"{r.NM_URNA_CANDIDATO.title()} ({r.SG_PARTIDO})"
+            for r in d.itertuples()}
 
 
 # ---------------------------------------------------------------- montagem
@@ -176,6 +182,16 @@ def preparar(modo, cargo):
 def montar(modo, frac=None, cargo="presidente", n_boot=200):
     ano_ant, ano_at, pleito, noite, ant, cats_ant, la, lb = preparar(modo, cargo)
     lb = lb.copy()
+    nomes_cand = {}
+    if cargo != "presidente":
+        # O mesmo número de urna muda de dono entre eleições (222 ao Senado: Marcos
+        # Pontes em 2022, André do Prado em 2026). As chaves da anterior ganham
+        # sufixo, senão os votos de 2022 sairiam com o nome de 2026.
+        ren = {c: f"{c}_ant" for c in cats_ant if c != "bn"}
+        ant = ant.rename(columns=ren)
+        cats_ant = [ren.get(c, c) for c in cats_ant]
+        nomes_cand = {**{f"{k}_ant": v for k, v in nomes_candidatos(ano_ant, cargo).items()},
+                 **nomes_candidatos(ano_at, cargo)}
     # o cadastro já traz `superior` (fração da seção, usada no modelo); para o filtro
     # vale o do local, então o da seção sai antes da junção
     u = noite.univ.drop(columns=["superior"]).merge(la[["zona", "local"] + VARS],
@@ -227,6 +243,9 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
             ic[k] = {str(mapas[k][g]): {c: [round(float(lo[g, j]), 2), round(float(hi[g, j]), 2)]
                                         for j, c in enumerate(validos)}
                      for g in range(pv.shape[1]) if s[0, g, iv].sum() > 0}
+        # amostras por quintil (votos, sem a projeção central): o navegador soma as de
+        # uma faixa de quintis — 2º ao 4º, por exemplo — e tira o intervalo dela
+        amostras_q = {v: np.rint(pg[f"q_{v}"][1:][:, :, iv]).astype(int).tolist() for v in VARS}
         for j, c in enumerate(cats):
             u[f"pj_{c}"] = linha[:, j]
             u[f"ap_{c}"] = np.where(m, u[c], 0)
@@ -235,6 +254,7 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
         u["comp_ap"] = np.where(m, u.comparecimento, 0)
     else:
         cats, ic = list(noite.cats_alvo.values()) + ["outros", "bn"] if isinstance(noite.cats_alvo, dict) else [], {}
+        amostras_q = {}
         u["apurada"] = 0
 
     # --- por local de votação
@@ -264,12 +284,12 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
                  "secoes": int(len(u)), "apuradas": int(u.apurada.sum()),
                  "cats": cats, "cats_anterior": cats_ant, "pares": PARES["ensaio" if modo == "ensaio" else "2026"],
                  "cortes": cortes, "fator_ic": pj.FATOR_UF,
-                 "nomes": {**nomes_candidatos(ano_ant, cargo), **nomes_candidatos(ano_at, cargo)}
-                          if cargo != "presidente" else {},
+                 "nomes": nomes_cand,
                  "municipios": {int(r.CD_MUNICIPIO): r.NM_MUNICIPIO for r in nomes.itertuples()}},
         "atual": col(at, chave + ["secoes"] + num + [f"q_{v}" for v in VARS]),
         "anterior": col(an, chave + cats_ant + ["comparecimento", "aptos"] + [f"q_{v}" for v in VARS]),
         "ic": ic,
+        "amostras_q": amostras_q,
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = f"{modo}_{cargo}.json"

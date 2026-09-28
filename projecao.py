@@ -232,19 +232,29 @@ def montar(universo, base, cats_base):
 
 
 def ajustar(X, Y, w, zona, zonas, lam=50.0):
-    """Mínimos quadrados ponderados; zonas com penalidade ridge, resto livre."""
-    Z = (zona[:, None] == zonas[None, :]).astype(float)
-    A = np.c_[np.ones(len(X)), X, Z]
-    pen = np.r_[np.zeros(1 + X.shape[1]), np.full(len(zonas), lam)]
-    sw = np.sqrt(w)[:, None]
-    Aw = A * sw
-    coef = np.linalg.solve(Aw.T @ Aw + np.diag(pen) + 1e-6 * np.eye(A.shape[1]), Aw.T @ (Y * sw))
-    return coef
+    """Mínimos quadrados ponderados; zonas com penalidade ridge, resto livre.
+
+    As equações normais saem por soma dentro de cada zona, sem montar a matriz
+    de indicadoras seções × zonas: no Brasil são ~470 mil × ~2.700, mais de 10 GB
+    densa. Mesma conta, mesmo resultado (conferido contra a versão densa)."""
+    K = len(zonas)
+    zi = np.searchsorted(zonas, zona)
+    B = np.c_[np.ones(len(X)), X]                   # parte densa: intercepto + covariáveis
+    p = B.shape[1]
+    Bw = B * w[:, None]
+    BtB = B.T @ Bw
+    BtZ = np.stack([np.bincount(zi, Bw[:, j], K) for j in range(p)])       # p × K
+    ZtZ = np.bincount(zi, w, K) + lam
+    BtY = Bw.T @ Y
+    ZtY = np.stack([np.bincount(zi, w * Y[:, j], K) for j in range(Y.shape[1])], axis=1)  # K × C
+    M = np.block([[BtB, BtZ], [BtZ.T, np.diag(ZtZ)]]) + 1e-6 * np.eye(p + K)
+    return np.linalg.solve(M, np.vstack([BtY, ZtY]))
 
 
 def prever(coef, X, zona, zonas):
-    Z = (zona[:, None] == zonas[None, :]).astype(float)
-    return np.c_[np.ones(len(X)), X, Z] @ coef
+    p = X.shape[1] + 1
+    zi = np.searchsorted(zonas, zona)
+    return np.c_[np.ones(len(X)), X] @ coef[:p] + coef[p:][zi]
 
 
 def projetar(univ, X, obs_mask, cats, n_boot=200, seed=0, grupos=None):
@@ -272,13 +282,18 @@ def projetar(univ, X, obs_mask, cats, n_boot=200, seed=0, grupos=None):
     f = np.where(~obs_mask)[0]
     real = V[o].sum(0)
     zo = np.unique(zona[o])
+    # seções apuradas de cada zona, indexadas uma vez (no Brasil, varrer todas as
+    # apuradas para cada zona sorteada custaria bilhões de comparações por rodada)
+    ordem = o[np.argsort(zona[o], kind="stable")]
+    cortes = np.searchsorted(zona[ordem], zo)
+    por_zona = dict(zip(zo, np.split(ordem, cortes[1:])))
     amostras = []
     for bi in range(n_boot):
         if bi == 0:
             idx = o
         else:  # reamostra zonas inteiras entre as apuradas
             zs = rng.choice(zo, size=len(zo), replace=True)
-            idx = np.concatenate([o[zona[o] == z] for z in zs])
+            idx = np.concatenate([por_zona[z] for z in zs])
         coef = ajustar(Xn[idx], Y[idx], comp[idx], zona[idx], zonas)
         P = prever(coef, Xn[f], zona[f], zonas)
         if bi > 0:
@@ -352,6 +367,7 @@ def ensaio(pontos=(0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90)):
           f"p90 {np.percentile(dist, 90):.0f} m, >1 km {(dist > 1000).mean():.1%}")
 
     ch = pd.read_csv(RAW / "2022" / "sp" / "chegadas.csv", dtype=str)
+    ch = ch[ch.municipio == "71072"]  # o arquivo agora tem o estado inteiro
     ch["t"] = pd.to_datetime(ch.recebido, format="%d/%m/%Y %H:%M:%S")
     ch = ch.assign(zona=ch.zona.astype(int), secao=ch.secao.astype(int))
     ordem = univ[["zona", "secao"]].merge(ch[["zona", "secao", "t"]], how="left").t.rank(method="first")

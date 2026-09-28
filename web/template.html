@@ -135,8 +135,9 @@
   <div class="grade" id="br-grade"></div>
   <p class="note"><b>Isto não é "como votou cada grupo".</b> É como votaram as urnas dos lugares com mais daquele grupo, e as
   duas coisas podem apontar para lados opostos. O exemplo abaixo mostra isso acontecendo.</p>
-  <h3 style="font-size:14px;margin:18px 0 6px">Evangélicos: o quadro geral e dentro da mesma renda</h3>
-  <div class="scroll"><table id="br-cruz"></table></div>
+  <h3 style="font-size:14px;margin:18px 0 6px">Religião dentro da mesma renda</h3>
+  <p class="sub">Em cada faixa de renda do entorno, o terço de urnas com mais fiéis contra o terço com menos.</p>
+  <div class="grade" id="br-cruz"></div>
   <p class="note" id="br-cruz-nota"></p>
 </section>
 
@@ -289,7 +290,8 @@ const CORES = {lula:"var(--lula)", flavio:"var(--bolso)", bolsonaro:"var(--bolso
   const Q = D.quintis; if (!Q) return;
   document.getElementById("bairros").hidden = false;
   const TIT = {superior:"Eleitores com superior completo na urna", renda:"Renda média do responsável no entorno",
-    preta_parda:"Pretos e pardos no entorno (15+)", evangelicos:"Evangélicos no entorno (10+)", idosos:"Eleitores com 60+ na urna"};
+    preta_parda:"Pretos e pardos no entorno (15+)", catolicos:"Católicos no entorno (10+)",
+    evangelicos:"Evangélicos no entorno (10+)", sem_religiao:"Sem religião no entorno (10+)", idosos:"Eleitores com 60+ na urna"};
   const faixa = (v, x) => v === "renda" ? `R$ ${Math.round(x.de).toLocaleString("pt-BR")}–${Math.round(x.ate).toLocaleString("pt-BR")}`
                                         : `${fmt(x.de,0)}–${fmt(x.ate,0)}%`;
   const max = 65;
@@ -302,19 +304,25 @@ const CORES = {lula:"var(--lula)", flavio:"var(--bolso)", bolsonaro:"var(--bolso
         <span class="rot">${fmt(x.lula,0)} / ${fmt(x.bolsonaro,0)}</span></div>`).join("") + `</div>`;
   }).join("") + `<div class="leg" style="grid-column:1/-1"><span><i style="background:var(--lula)"></i>Lula</span>
     <span><i style="background:var(--bolso)"></i>Bolsonaro</span><span class="ic">% dos votos válidos das urnas do quintil, do menor para o maior valor</span></div>`;
-  const C = D.rendaevang; if (!C) return;
-  const ev = Q.filter(x => x.variavel === "evangelicos");
-  const lin = r => C.filter(x => x.renda === r);
-  document.getElementById("br-cruz").innerHTML =
-    `<tr><th>renda do entorno</th><th>Lula, menos evangélicos</th><th>Lula, mais evangélicos</th><th>Bolsonaro, menos</th><th>Bolsonaro, mais</th></tr>` +
-    [1,2,3,4,5].map(r => { const m = lin(r).find(x => x.evangelicos==="menos"), M = lin(r).find(x => x.evangelicos==="mais");
-      return `<tr><td>${r === 1 ? "1º quintil (mais pobre)" : r === 5 ? "5º quintil (mais rico)" : r + "º quintil"}</td>
-        <td>${fmt(m.lula)}</td><td><b>${fmt(M.lula)}</b></td><td>${fmt(m.bolsonaro)}</td><td><b>${fmt(M.bolsonaro)}</b></td></tr>`; }).join("");
+  const C = D.rendarel; if (!C) return;
+  const REL = {catolicos:"Católicos", evangelicos:"Evangélicos"};
+  document.getElementById("br-cruz").innerHTML = Object.entries(REL).map(([rel, nome]) => {
+    const lin = r => C.filter(x => x.religiao === rel && x.renda === r);
+    return `<div><h4 style="margin:0 0 6px;font-size:13.5px">${nome}</h4><table>
+      <tr><th>renda</th><th>Lula, menos</th><th>Lula, mais</th><th>Bolsonaro, menos</th><th>Bolsonaro, mais</th></tr>` +
+      [1,2,3,4,5].map(r => { const m = lin(r).find(x => x.terco==="menos"), M = lin(r).find(x => x.terco==="mais");
+        return `<tr><td>${r === 1 ? "1º (pobre)" : r === 5 ? "5º (rico)" : r + "º"}</td>
+          <td>${fmt(m.lula)}</td><td><b>${fmt(M.lula)}</b></td><td>${fmt(m.bolsonaro)}</td><td><b>${fmt(M.bolsonaro)}</b></td></tr>`; }).join("") +
+      `</table></div>`; }).join("");
+  const q = v => Q.filter(x => x.variavel === v);
+  const ev = q("evangelicos"), ca = q("catolicos");
   document.getElementById("br-cruz-nota").innerHTML = `No quadro geral, as urnas do quintil com mais evangélicos deram
-    ${fmt(ev[4].lula)}% a Lula, contra ${fmt(ev[0].lula)}% no quintil com menos. Mas os lugares com mais evangélicos são também os
-    mais pobres, e os lugares mais pobres votaram em Lula. <b>Comparando lugares da mesma renda</b> (cada linha acima: o terço com
-    mais evangélicos contra o terço com menos), o sinal se inverte nos dois quintis mais pobres e no mais rico: mais evangélicos,
-    menos Lula e mais Bolsonaro. É o paradoxo de Simpson, e a razão de nenhum gráfico desta seção dizer como um grupo votou.`;
+    ${fmt(ev[4].lula)}% a Lula, contra ${fmt(ev[0].lula)}% no quintil com menos; e as do quintil mais católico,
+    ${fmt(ca[4].lula)}%, contra ${fmt(ca[0].lula)}% no menos católico. As duas religiões se misturam com renda: os lugares mais
+    evangélicos são os mais pobres, e os mais católicos, os mais ricos. <b>Comparando lugares da mesma renda</b>, os sinais mudam.
+    Mais evangélicos anda junto com menos Lula em três das cinco faixas — as duas mais pobres e a mais rica; nas duas do meio, o contrário. Mais católicos anda junto com <b>mais</b> Lula nas faixas
+    pobres e médias — onde mais católico quer dizer, em boa parte, menos evangélico — e com muito menos Lula nas ricas. É o paradoxo
+    de Simpson, e a razão de nenhum quadro desta seção dizer como votou um grupo: diz como votaram as urnas dos lugares.`;
 })();
 
 // --- curva de chegada -------------------------------------------------------

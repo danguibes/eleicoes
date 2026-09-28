@@ -80,7 +80,8 @@ def recortar(zip_path, membro, coluna, valor, saida):
             txt = io.TextIOWrapper(bruto, encoding="latin-1", newline="")
             for bloco in pd.read_csv(txt, sep=";", dtype=str, chunksize=1_000_000):
                 lidas += len(bloco)
-                bloco = bloco[bloco[coluna] == valor]
+                if coluna:
+                    bloco = bloco[bloco[coluna] == valor]
                 if bloco.empty:
                     continue
                 if escritor is None:
@@ -125,6 +126,8 @@ def main():
             if not zp.exists():
                 baixar(url, zp)
         col, valor = (col, a.municipio) if a.municipio else ("SG_UF", a.uf)
+        if a.uf == "BR":
+            col, valor = None, "BR"   # Brasil inteiro: sem filtro
         recortar(zp, membro, col, valor, out / f"{nome}_{valor}.parquet")
         if not a.pasta:
             zp.unlink()  # o runner tem ~14 GB; não acumula

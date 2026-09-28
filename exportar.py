@@ -72,7 +72,7 @@ def main(ao_vivo=None):
     ens = OUT / "ensaio_projecao_2018_2022.csv"
     if ens.exists():
         dados["ensaio"] = pd.read_csv(ens).round(3).to_dict(orient="records")
-    for nome, arq in [("quintis", "quintis_2022.csv"), ("rendaevang", "renda_x_evangelicos_2022.csv"),
+    for nome, arq in [("quintis", "quintis_2022.csv"), ("rendarel", "renda_x_religiao_2022.csv"),
                       ("regua", "busca_ei_comparecimento_2022.csv"), ("grupos", "voto_por_grupo_2022.csv")]:
         if (OUT / arq).exists():
             dados[nome] = pd.read_csv(OUT / arq).round(2).to_dict(orient="records")
