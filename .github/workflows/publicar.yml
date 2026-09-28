@@ -32,7 +32,7 @@ jobs:
           if grep -q '/\*__DADOS__\*/null' web/metodo.html; then
             echo "placeholder nao substituido: a pagina sairia vazia"; exit 1
           fi
-      - run: rm -f web/template.html
+      - run: rm -f web/template.html web/checagens_template.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

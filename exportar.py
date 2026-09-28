@@ -82,6 +82,12 @@ def main(ao_vivo=None):
     html = tpl.replace("/*__DADOS__*/null", json.dumps(dados, ensure_ascii=False))
     if "/*__DADOS__*/null" in html:
         sys.exit("placeholder não substituído")
+    # página de checagens: dado próprio, mesmo mecanismo de injeção
+    ck = OUT / "checagens_2022.json"
+    if ck.exists():
+        t2 = Path("web/checagens_template.html").read_text(encoding="utf-8")
+        h2 = t2.replace("/*__DADOS__*/null", ck.read_text(encoding="utf-8"))
+        Path("web/checagens.html").write_text(h2, encoding="utf-8")
     destino = Path("web/ensaio.html" if ao_vivo == "ensaio" else "web/metodo.html")
     destino.write_text(html, encoding="utf-8")
     print(f"{destino}: {len(html) // 1024} KB", flush=True)

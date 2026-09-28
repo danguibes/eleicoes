@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eleições — checagens dos dados</title>
+<style>
+  :root{--bg:#faf9f7;--card:#fff;--ink:#1c1b19;--mut:#56534e;--line:#e4e1db;--accent:#1f4f7a;--accent-soft:#dde8f2;--grid:#efece7;--c1:#b03a2e;--c2:#1f4f7a}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#17181a;--card:#1f2124;--ink:#e8e6e1;--mut:#b3aea5;--line:#32353a;--accent:#7fb4d4;--accent-soft:#22313f;--grid:#2a2d31;--c1:#e0705f;--c2:#7fb4d4}}
+  :root[data-theme="dark"]{--bg:#17181a;--card:#1f2124;--ink:#e8e6e1;--mut:#b3aea5;--line:#32353a;--accent:#7fb4d4;--accent-soft:#22313f;--grid:#2a2d31;--c1:#e0705f;--c2:#7fb4d4}
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+  header{padding:30px 0 16px}
+  h1{font-size:25px;margin:0 0 6px;letter-spacing:-.02em} h2{font-size:17px;margin:0 0 6px}
+  .sub{color:var(--mut);font-size:13.5px;margin:0} a{color:var(--accent)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:18px}
+  .aviso{border-left:4px solid var(--accent);background:var(--accent-soft)}
+  .note{color:var(--mut);font-size:13px;line-height:1.65;margin-top:12px} .note b{color:var(--ink)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{text-align:right;font-weight:600;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:0 8px 6px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:5px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums}
+  .scroll{overflow-x:auto}
+  .regua{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .regua div{flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .regua b{display:block;font-size:22px} .regua span{color:var(--mut);font-size:12px}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+  .quadro{border:1px solid var(--line);border-radius:9px;padding:10px}
+  .quadro h3{font-size:13.5px;margin:0 0 6px}
+  svg text{fill:var(--mut);font-size:10.5px}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
+</style>
+<body><div class="wrap">
+<header>
+  <h1>Checagens dos dados</h1>
+  <p class="sub">O que o dado aguenta, o que ele não diz, e onde ele surpreende o modelo. <a href="index.html">← painel</a> ·
+    <a href="metodo.html">método</a></p>
+</header>
+
+<section class="aviso">
+  <h2>Leia antes</h2>
+  <p class="note" style="margin-top:4px"><b>Desvio estatístico não é evidência de irregularidade.</b> Esta página existe para mostrar que os
+  números publicados pelo TSE são coerentes entre si, explicar por que alguns testes famosos não servem para urnas, e apontar onde o resultado
+  de uma seção foge do que o modelo esperava — com as causas comuns ao lado. Uma urna "atípica" aqui é uma urna que o modelo não previu
+  bem, e quase sempre o motivo é o lugar: uma aldeia, um presídio, uma seção no exterior, uma seção com poucos eleitores. A integridade de
+  cada boletim se verifica pela <b>assinatura digital</b> do TSE, não por estatística. Tudo abaixo é sobre o 1º turno de Presidente de 2022.</p>
+</section>
+
+<section>
+  <h2>1. Os números fecham? <span class="tag">DADO</span></h2>
+  <div class="regua" id="cons"></div>
+  <p class="note" id="cons-nota"></p>
+</section>
+
+<section>
+  <h2>2. Assinatura digital de cada boletim <span class="tag">EM 2026</span></h2>
+  <p class="note" style="margin-top:4px">Cada boletim de urna sai assinado digitalmente pela própria urna, e o TSE publica o código que confere a
+  assinatura. É a checagem de integridade que existe de fato. Para 2022 não dá mais para refazê-la aqui: a verificação precisa do arquivo de
+  assinaturas de cada urna, que não foi baixado, e o ambiente de resultados de 2022 saiu do ar em 28/09/2026. <b>Na noite de 2026</b>, o
+  coletor baixa esse arquivo para uma amostra das urnas e roda o verificador oficial; o resultado aparece aqui.</p>
+</section>
+
+<section>
+  <h2>3. Lei de Benford: por que ela não serve para urnas <span class="tag">LIÇÃO</span></h2>
+  <p class="sub">A lei diz que, em muitos conjuntos de números que se espalham por várias ordens de grandeza, o primeiro dígito é 1 em 30% das
+  vezes, 2 em 18%, e assim por diante. Ela virou "teste de fraude" em redes sociais. Os mesmos dados de 2022 — que conferem voto a voto com o
+  total oficial — em três recortes:</p>
+  <div class="grade" id="benford" style="margin-top:12px"></div>
+  <p class="note" id="benford-nota"></p>
+</section>
+
+<section>
+  <h2>4. Urnas que surpreendem o modelo <span class="tag">MEDIDO</span></h2>
+  <p class="sub">Para cada seção, o esperado vem do local de votação de 2018 mais próximo e da UF; a medida é quantos desvios a divisão
+  Lula × Bolsonaro da seção ficou do esperado (escala robusta). Acima de 4 desvios, a urna entra aqui.</p>
+  <div class="scroll"><table id="causas" style="margin-top:10px"></table></div>
+  <p class="note" id="causas-nota"></p>
+  <h3 style="font-size:14px;margin:16px 0 6px">As 40 seções mais afastadas do esperado</h3>
+  <div class="scroll" style="max-height:460px;overflow-y:auto"><table id="maiores"></table></div>
+</section>
+</div>
+<script>
+const C = /*__DADOS__*/null;
+const fmt = (x, d=1) => (x==null||isNaN(x)) ? "—" : Number(x).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const n0 = x => Number(x).toLocaleString("pt-BR");
+(function(){
+  const c = C.consistencia, s = C.consistencia_sp_bu;
+  document.getElementById("cons").innerHTML = [
+    [n0(c.secoes), "seções do Brasil, 1º turno de Presidente"],
+    [n0(c.soma_difere), "seções em que os votos não somam o comparecimento"],
+    [n0(c.comparecimento_acima_aptos), "seções com mais comparecimento que eleitores aptos"],
+    [n0(s.secoes), "boletins de SP decodificados e conferidos cargo a cargo"]].map(([b,t]) => `<div><b>${b}</b><span>${t}</span></div>`).join("");
+  document.getElementById("cons-nota").innerHTML = `Nos boletins de SP (Presidente, governador e senador), ${n0(s.soma_difere + s.senado_soma_difere)}
+    seções têm votos que não somam o comparecimento do cargo, e ${n0(s.comparecimento_acima_aptos)} têm comparecimento acima dos aptos. A soma de
+    todas as seções bate voto a voto com o total oficial do TSE — no Brasil (Presidente) e em SP (três cargos). Uma diferença que parece erro e
+    não é: o comparecimento de Presidente é maior que o de governador, porque quem vota em trânsito fora do seu estado vota só para Presidente.`;
+})();
+(function(){
+  const B = C.benford, esp = B.esperado;
+  const q = (k, tit, desc) => { const d = B[k], W = 300, H = 150, m = {l:22,r:6,t:8,b:22}, bw = (W-m.l-m.r)/9;
+    const ym = Math.max(...d.obs, ...esp) * 1.1, Y = v => H - m.b - v/ym*(H-m.t-m.b);
+    let s = "";
+    d.obs.forEach((v, i) => { s += `<rect x="${m.l+i*bw+3}" y="${Y(v)}" width="${bw-6}" height="${H-m.b-Y(v)}" fill="var(--accent)" opacity=".75"/>`;
+      s += `<text x="${m.l+i*bw+bw/2}" y="${H-7}" text-anchor="middle">${i+1}</text>`; });
+    s += `<polyline points="${esp.map((v,i) => `${m.l+i*bw+bw/2},${Y(v)}`).join(" ")}" fill="none" stroke="var(--c1)" stroke-width="2"/>`;
+    const veredito = d.mad > 0.015 ? "não segue Benford" : d.mad > 0.012 ? "segue mal" : "segue Benford";
+    return `<div class="quadro"><h3>${tit}</h3><svg viewBox="0 0 ${W} ${H}" style="width:100%">${s}</svg>
+      <p class="sub">${desc}<br>desvio médio ${fmt(d.mad,3)} → <b>${veredito}</b> · ${n0(d.n)} números, de ${n0(d.faixa[0])} a ${n0(d.faixa[1])} (5% a 95%)</p></div>`; };
+  document.getElementById("benford").innerHTML =
+    q("secao_lula", "Votos de Lula por seção", "Dado que confere voto a voto com o oficial.") +
+    q("municipio_lula", "Votos de Lula por município", "Os mesmos votos, somados por município.") +
+    q("municipio_aptos", "Eleitores aptos por município", "Nenhum voto aqui: só o tamanho das cidades.");
+  document.getElementById("benford-nota").innerHTML = `Barras: frequência observada de cada primeiro dígito; linha vermelha: o esperado pela lei.
+    Desvio médio acima de 0,015 é "não conformidade" na régua usual (Nigrini). <b>Por seção a lei falha</b> — uma seção tem de dezenas a poucas
+    centenas de votos, e números presos numa faixa estreita não seguem Benford, com fraude ou sem. <b>Por município ela funciona</b>, e o
+    terceiro quadro diz por quê: o número de eleitores por município já segue Benford antes de qualquer voto. O teste mede o tamanho das
+    cidades, não a lisura da apuração. Por isso a literatura acadêmica (Deckert, Myagkov e Ordeshook, 2011; Mebane) descarta Benford como
+    detector de fraude eleitoral: ele acusa eleições limpas e deixa passar manipulações que não mexam na escala.`;
+})();
+(function(){
+  const A = C.atipicas;
+  document.getElementById("causas").innerHTML = `<tr><th>tipo de seção</th><th>seções</th><th>acima de 4 desvios</th><th>por mil seções</th></tr>` +
+    A.por_causa.sort((a,b) => b.taxa_por_mil - a.taxa_por_mil).map(r => `<tr><td>${r.causa}</td><td>${n0(r.todas)}</td><td>${n0(r.atipicas)}</td>
+      <td><b>${fmt(r.taxa_por_mil,0)}</b></td></tr>`).join("");
+  const conv = A.por_causa.find(r => r.causa === "convencional");
+  document.getElementById("causas-nota").innerHTML = `${n0(A.n)} de ${n0(A.secoes)} seções passaram de 4 desvios. Entre as seções convencionais,
+    ${fmt(conv.taxa_por_mil,0)} em cada mil; nas de presídio (preso provisório), no exterior e nas seções com menos de 100 eleitores, dez a trinta vezes
+    mais. São lugares onde a eleição anterior no local mais próximo diz pouco sobre quem vota ali: o eleitorado de um presídio muda inteiro em quatro
+    anos, a seção no exterior não tem vizinhança no Brasil, numa seção pequena poucos votos movem muito a proporção, e aldeias e quilombos votam de
+    forma muito concentrada, diferente da vizinhança do município. Entre as convencionais que sobram, as causas mais comuns são local de votação que
+    mudou de endereço ou de público entre as eleições, e seções novas.`;
+  document.getElementById("maiores").innerHTML = `<tr><th>local</th><th>tipo</th><th>aptos</th><th>Lula</th><th>Bolsonaro</th><th>Lula × Bolsonaro</th><th>esperado</th><th>desvios</th></tr>` +
+    A.maiores.map(r => `<tr><td>${r.NM_MUNICIPIO || ""} (${r.uf}) — zona ${r.zona}, seção ${r.secao}<br><span class="sub">${r.NM_LOCAL_VOTACAO || ""}</span></td>
+      <td>${r.causa}</td><td>${n0(r.aptos)}</td><td>${n0(r.lula)}</td><td>${n0(r.bolsonaro)}</td><td>${fmt(r.lula_x_bolso,0)}%</td>
+      <td>${fmt(r.lula_2t_esperado,0)}%</td><td>${fmt(r.z,1)}</td></tr>`).join("");
+})();
+</script>
+</body></html>

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eleições — checagens dos dados</title>
+<style>
+  :root{--bg:#faf9f7;--card:#fff;--ink:#1c1b19;--mut:#56534e;--line:#e4e1db;--accent:#1f4f7a;--accent-soft:#dde8f2;--grid:#efece7;--c1:#b03a2e;--c2:#1f4f7a}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#17181a;--card:#1f2124;--ink:#e8e6e1;--mut:#b3aea5;--line:#32353a;--accent:#7fb4d4;--accent-soft:#22313f;--grid:#2a2d31;--c1:#e0705f;--c2:#7fb4d4}}
+  :root[data-theme="dark"]{--bg:#17181a;--card:#1f2124;--ink:#e8e6e1;--mut:#b3aea5;--line:#32353a;--accent:#7fb4d4;--accent-soft:#22313f;--grid:#2a2d31;--c1:#e0705f;--c2:#7fb4d4}
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+  header{padding:30px 0 16px}
+  h1{font-size:25px;margin:0 0 6px;letter-spacing:-.02em} h2{font-size:17px;margin:0 0 6px}
+  .sub{color:var(--mut);font-size:13.5px;margin:0} a{color:var(--accent)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:18px}
+  .aviso{border-left:4px solid var(--accent);background:var(--accent-soft)}
+  .note{color:var(--mut);font-size:13px;line-height:1.65;margin-top:12px} .note b{color:var(--ink)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{text-align:right;font-weight:600;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:0 8px 6px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:5px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums}
+  .scroll{overflow-x:auto}
+  .regua{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .regua div{flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .regua b{display:block;font-size:22px} .regua span{color:var(--mut);font-size:12px}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+  .quadro{border:1px solid var(--line);border-radius:9px;padding:10px}
+  .quadro h3{font-size:13.5px;margin:0 0 6px}
+  svg text{fill:var(--mut);font-size:10.5px}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
+</style>
+<body><div class="wrap">
+<header>
+  <h1>Checagens dos dados</h1>
+  <p class="sub">O que o dado aguenta, o que ele não diz, e onde ele surpreende o modelo. <a href="index.html">← painel</a> ·
+    <a href="metodo.html">método</a></p>
+</header>
+
+<section class="aviso">
+  <h2>Leia antes</h2>
+  <p class="note" style="margin-top:4px"><b>Desvio estatístico não é evidência de irregularidade.</b> Esta página existe para mostrar que os
+  números publicados pelo TSE são coerentes entre si, explicar por que alguns testes famosos não servem para urnas, e apontar onde o resultado
+  de uma seção foge do que o modelo esperava — com as causas comuns ao lado. Uma urna "atípica" aqui é uma urna que o modelo não previu
+  bem, e quase sempre o motivo é o lugar: uma aldeia, um presídio, uma seção no exterior, uma seção com poucos eleitores. A integridade de
+  cada boletim se verifica pela <b>assinatura digital</b> do TSE, não por estatística. Tudo abaixo é sobre o 1º turno de Presidente de 2022.</p>
+</section>
+
+<section>
+  <h2>1. Os números fecham? <span class="tag">DADO</span></h2>
+  <div class="regua" id="cons"></div>
+  <p class="note" id="cons-nota"></p>
+</section>
+
+<section>
+  <h2>2. Assinatura digital de cada boletim <span class="tag">EM 2026</span></h2>
+  <p class="note" style="margin-top:4px">Cada boletim de urna sai assinado digitalmente pela própria urna, e o TSE publica o código que confere a
+  assinatura. É a checagem de integridade que existe de fato. Para 2022 não dá mais para refazê-la aqui: a verificação precisa do arquivo de
+  assinaturas de cada urna, que não foi baixado, e o ambiente de resultados de 2022 saiu do ar em 28/09/2026. <b>Na noite de 2026</b>, o
+  coletor baixa esse arquivo para uma amostra das urnas e roda o verificador oficial; o resultado aparece aqui.</p>
+</section>
+
+<section>
+  <h2>3. Lei de Benford: por que ela não serve para urnas <span class="tag">LIÇÃO</span></h2>
+  <p class="sub">A lei diz que, em muitos conjuntos de números que se espalham por várias ordens de grandeza, o primeiro dígito é 1 em 30% das
+  vezes, 2 em 18%, e assim por diante. Ela virou "teste de fraude" em redes sociais. Os mesmos dados de 2022 — que conferem voto a voto com o
+  total oficial — em três recortes:</p>
+  <div class="grade" id="benford" style="margin-top:12px"></div>
+  <p class="note" id="benford-nota"></p>
+</section>
+
+<section>
+  <h2>4. Urnas que surpreendem o modelo <span class="tag">MEDIDO</span></h2>
+  <p class="sub">Para cada seção, o esperado vem do local de votação de 2018 mais próximo e da UF; a medida é quantos desvios a divisão
+  Lula × Bolsonaro da seção ficou do esperado (escala robusta). Acima de 4 desvios, a urna entra aqui.</p>
+  <div class="scroll"><table id="causas" style="margin-top:10px"></table></div>
+  <p class="note" id="causas-nota"></p>
+  <h3 style="font-size:14px;margin:16px 0 6px">As 40 seções mais afastadas do esperado</h3>
+  <div class="scroll" style="max-height:460px;overflow-y:auto"><table id="maiores"></table></div>
+</section>
+</div>
+<script>
+const C = {"consistencia": {"secoes": 472028, "soma_difere": 0, "comparecimento_acima_aptos": 0, "sem_comparecimento": 2, "exemplos_difere": []}, "consistencia_sp_bu": {"secoes": 101073, "cargos": ["governador", "presidente", "senador"], "soma_difere": 0, "comparecimento_acima_aptos": 0, "senado_soma_difere": 0}, "benford": {"esperado": [0.301, 0.1761, 0.1249, 0.0969, 0.0792, 0.0669, 0.058, 0.0512, 0.0458], "secao_lula": {"obs": [0.575, 0.0672, 0.0108, 0.0224, 0.038, 0.0532, 0.0684, 0.0794, 0.0855], "n": 472023, "mad": 0.0783, "faixa": [53, 206]}, "secao_bolsonaro": {"obs": [0.5752, 0.0584, 0.038, 0.0413, 0.0451, 0.0499, 0.0565, 0.0636, 0.072], "n": 471863, "mad": 0.0695, "faixa": [26, 187]}, "municipio_lula": {"obs": [0.3038, 0.1885, 0.1214, 0.0897, 0.0736, 0.068, 0.0568, 0.052, 0.0463], "n": 5708, "mad": 0.0039, "faixa": [679, 28664]}, "municipio_bolsonaro": {"obs": [0.3373, 0.1708, 0.1165, 0.0799, 0.0706, 0.0633, 0.0568, 0.0529, 0.0519], "n": 5707, "mad": 0.0098, "faixa": [475, 28942]}, "municipio_aptos": {"obs": [0.275, 0.1692, 0.1361, 0.1046, 0.0891, 0.0711, 0.0608, 0.0504, 0.0438], "n": 5710, "mad": 0.0079, "faixa": [2212, 77423]}}, "atipicas": {"limiar_z": 4, "secoes": 472024, "n": 10006, "por_causa": [{"causa": "convencional", "atipicas": 8766, "todas": 464751, "taxa_por_mil": 18.86}, {"causa": "seção pequena (<100 aptos)", "atipicas": 391, "todas": 2473, "taxa_por_mil": 158.11}, {"causa": "exterior", "atipicas": 310, "todas": 1014, "taxa_por_mil": 305.72}, {"causa": "escola indígena / aldeia / quilombo", "atipicas": 221, "todas": 588, "taxa_por_mil": 375.85}, {"causa": "temporário", "atipicas": 183, "todas": 2863, "taxa_por_mil": 63.92}, {"causa": "preso provisório", "atipicas": 132, "todas": 221, "taxa_por_mil": 597.29}, {"causa": "voto em trânsito", "atipicas": 3, "todas": 114, "taxa_por_mil": 26.32}], "maiores": [{"uf": "RR", "NM_MUNICIPIO": "UIRAMUTÃ", "zona": 7, "secao": 104, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL INDÍGENA DOM L. ZOLLER", "causa": "escola indígena / aldeia / quilombo", "aptos": 108, "comparecimento": 102, "lula": 98, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 22.43, "z": 21.11}, {"uf": "MT", "NM_MUNICIPIO": "GAÚCHA DO NORTE", "zona": 57, "secao": 78, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL KARIB", "causa": "convencional", "aptos": 156, "comparecimento": 123, "lula": 122, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 27.38, "z": 20.96}, {"uf": "RR", "NM_MUNICIPIO": "UIRAMUTÃ", "zona": 7, "secao": 61, "NM_LOCAL_VOTACAO": "SALES INGARICO E.E.", "causa": "convencional", "aptos": 263, "comparecimento": 242, "lula": 239, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 48.67, "z": 20.14}, {"uf": "MT", "NM_MUNICIPIO": "SANTA TEREZINHA", "zona": 16, "secao": 86, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL INDÍGENA IT'XALÁ", "causa": "escola indígena / aldeia / quilombo", "aptos": 291, "comparecimento": 253, "lula": 246, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 54.92, "z": 19.42}, {"uf": "RS", "NM_MUNICIPIO": "CHARRUA", "zona": 100, "secao": 126, "NM_LOCAL_VOTACAO": "GINASIO POLIESPORTIVO MUNICIPAL", "causa": "convencional", "aptos": 387, "comparecimento": 297, "lula": 285, "bolsonaro": 1, "lula_x_bolso": 99.65, "lula_2t_esperado": 39.36, "z": 18.38}, {"uf": "MA", "NM_MUNICIPIO": "MONTES ALTOS", "zona": 103, "secao": 80, "NM_LOCAL_VOTACAO": "ESCOLA MUNICIPAL SAO JOSE", "causa": "convencional", "aptos": 281, "comparecimento": 269, "lula": 268, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 65.97, "z": 18.2}, {"uf": "MA", "NM_MUNICIPIO": "MONTES ALTOS", "zona": 103, "secao": 28, "NM_LOCAL_VOTACAO": "ESCOLA MUNICIPAL SAO JOSE", "causa": "convencional", "aptos": 281, "comparecimento": 261, "lula": 261, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 65.97, "z": 18.11}, {"uf": "RR", "NM_MUNICIPIO": "UIRAMUTÃ", "zona": 7, "secao": 62, "NM_LOCAL_VOTACAO": "JOAQUIM JONES JOSÉ INGARICÓ E.E.I.", "causa": "convencional", "aptos": 277, "comparecimento": 245, "lula": 233, "bolsonaro": 1, "lula_x_bolso": 99.57, "lula_2t_esperado": 39.51, "z": 17.71}, {"uf": "MT", "NM_MUNICIPIO": "PORTO ALEGRE DO NORTE", "zona": 28, "secao": 191, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL TAPI ' ITAWA - ANEXO I", "causa": "seção pequena (<100 aptos)", "aptos": 57, "comparecimento": 52, "lula": 51, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 30.59, "z": 17.65}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 40, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL DOM AQUINO CORREA", "causa": "convencional", "aptos": 222, "comparecimento": 150, "lula": 13, "bolsonaro": 121, "lula_x_bolso": 9.7, "lula_2t_esperado": 96.11, "z": -17.49}, {"uf": "AM", "NM_MUNICIPIO": "SÃO PAULO DE OLIVENÇA", "zona": 22, "secao": 86, "NM_LOCAL_VOTACAO": "E. E. POGÜTA", "causa": "convencional", "aptos": 400, "comparecimento": 367, "lula": 357, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 78.51, "z": 17.07}, {"uf": "MA", "NM_MUNICIPIO": "MARANHÃOZINHO", "zona": 101, "secao": 78, "NM_LOCAL_VOTACAO": "ESCOLA INDÍGENA YWYTUHU", "causa": "escola indígena / aldeia / quilombo", "aptos": 327, "comparecimento": 304, "lula": 303, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 76.11, "z": 16.99}, {"uf": "MG", "NM_MUNICIPIO": "BERTÓPOLIS", "zona": 4, "secao": 178, "NM_LOCAL_VOTACAO": "UBS - PRADINHO", "causa": "convencional", "aptos": 182, "comparecimento": 164, "lula": 152, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 62.08, "z": 16.92}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 41, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL DOM AQUINO CORREA", "causa": "convencional", "aptos": 225, "comparecimento": 160, "lula": 17, "bolsonaro": 122, "lula_x_bolso": 12.23, "lula_2t_esperado": 96.11, "z": -16.68}, {"uf": "MT", "NM_MUNICIPIO": "ALTO BOA VISTA", "zona": 15, "secao": 249, "NM_LOCAL_VOTACAO": "E.E.I MARÃIWATSÉDÉ", "causa": "convencional", "aptos": 155, "comparecimento": 134, "lula": 123, "bolsonaro": 1, "lula_x_bolso": 99.19, "lula_2t_esperado": 32.99, "z": 16.57}, {"uf": "MG", "NM_MUNICIPIO": "CARMÉSIA", "zona": 113, "secao": 42, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL INDIGENA PATAXO BACUMUXA MODULO I", "causa": "escola indígena / aldeia / quilombo", "aptos": 110, "comparecimento": 83, "lula": 80, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 49.08, "z": 16.56}, {"uf": "RR", "NM_MUNICIPIO": "NORMANDIA", "zona": 5, "secao": 627, "NM_LOCAL_VOTACAO": "PAJÉ JOSÉ GALÉ - UNIDADE BÁSICA DE SAÚDE", "causa": "seção pequena (<100 aptos)", "aptos": 75, "comparecimento": 67, "lula": 64, "bolsonaro": 1, "lula_x_bolso": 98.46, "lula_2t_esperado": 21.06, "z": 16.45}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 23, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL LUIZA NUNES BEZERRA", "causa": "convencional", "aptos": 295, "comparecimento": 213, "lula": 27, "bolsonaro": 173, "lula_x_bolso": 13.5, "lula_2t_esperado": 96.11, "z": -16.34}, {"uf": "BA", "NM_MUNICIPIO": "ANDORINHA", "zona": 45, "secao": 250, "NM_LOCAL_VOTACAO": "ESCOLA MUNICIPAL DE PIMENTEL", "causa": "convencional", "aptos": 278, "comparecimento": 229, "lula": 213, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 73.66, "z": 16.27}, {"uf": "MT", "NM_MUNICIPIO": "TABAPORÃ", "zona": 27, "secao": 101, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL DE EDUCAÇÃO BÁSICA ALFREDO TREUHERZ", "causa": "convencional", "aptos": 372, "comparecimento": 276, "lula": 36, "bolsonaro": 224, "lula_x_bolso": 13.85, "lula_2t_esperado": 96.11, "z": -16.26}, {"uf": "AP", "NM_MUNICIPIO": "PEDRA BRANCA DO AMAPARI", "zona": 11, "secao": 26, "NM_LOCAL_VOTACAO": "ESCOLA MUNICIPAL DAS ALDEIAS WAIÃPI", "causa": "escola indígena / aldeia / quilombo", "aptos": 453, "comparecimento": 384, "lula": 376, "bolsonaro": 2, "lula_x_bolso": 99.47, "lula_2t_esperado": 50.04, "z": 16.22}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 28, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL OSCAR SOARES", "causa": "convencional", "aptos": 362, "comparecimento": 253, "lula": 34, "bolsonaro": 208, "lula_x_bolso": 14.05, "lula_2t_esperado": 96.11, "z": -16.2}, {"uf": "MT", "NM_MUNICIPIO": "TABAPORÃ", "zona": 27, "secao": 122, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL DE EDUCAÇÃO BÁSICA ALFREDO TREUHERZ", "causa": "convencional", "aptos": 376, "comparecimento": 265, "lula": 37, "bolsonaro": 214, "lula_x_bolso": 14.74, "lula_2t_esperado": 96.11, "z": -16.02}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 32, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL OSCAR SOARES", "causa": "convencional", "aptos": 352, "comparecimento": 233, "lula": 33, "bolsonaro": 182, "lula_x_bolso": 15.35, "lula_2t_esperado": 96.11, "z": -15.87}, {"uf": "MT", "NM_MUNICIPIO": "TABAPORÃ", "zona": 27, "secao": 99, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL DE EDUCAÇÃO BÁSICA ALFREDO TREUHERZ", "causa": "convencional", "aptos": 377, "comparecimento": 273, "lula": 42, "bolsonaro": 219, "lula_x_bolso": 16.09, "lula_2t_esperado": 96.11, "z": -15.69}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 58, "NM_LOCAL_VOTACAO": "ESCOLA MUNICIPAL RUI BARBOSA", "causa": "convencional", "aptos": 145, "comparecimento": 93, "lula": 14, "bolsonaro": 74, "lula_x_bolso": 15.91, "lula_2t_esperado": 96.11, "z": -15.68}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 36, "NM_LOCAL_VOTACAO": "ESCOLA MILITAR TIRADENTES CABO ISRAEL WESLEY PRADO DE ALMEIDA", "causa": "convencional", "aptos": 396, "comparecimento": 287, "lula": 42, "bolsonaro": 217, "lula_x_bolso": 16.22, "lula_2t_esperado": 96.11, "z": -15.66}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 19, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL LUIZA NUNES BEZERRA", "causa": "convencional", "aptos": 286, "comparecimento": 222, "lula": 35, "bolsonaro": 179, "lula_x_bolso": 16.36, "lula_2t_esperado": 96.11, "z": -15.63}, {"uf": "MT", "NM_MUNICIPIO": "TABAPORÃ", "zona": 27, "secao": 100, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL DE EDUCAÇÃO BÁSICA ALFREDO TREUHERZ", "causa": "convencional", "aptos": 375, "comparecimento": 280, "lula": 44, "bolsonaro": 224, "lula_x_bolso": 16.42, "lula_2t_esperado": 96.11, "z": -15.62}, {"uf": "RR", "NM_MUNICIPIO": "UIRAMUTÃ", "zona": 7, "secao": 63, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL INDÍGENA JOSÉ ALAMANO", "causa": "escola indígena / aldeia / quilombo", "aptos": 215, "comparecimento": 185, "lula": 181, "bolsonaro": 1, "lula_x_bolso": 99.45, "lula_2t_esperado": 49.85, "z": 15.54}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 16, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL COMENDADOR JOSE PEDRO DIAS", "causa": "convencional", "aptos": 361, "comparecimento": 260, "lula": 42, "bolsonaro": 206, "lula_x_bolso": 16.94, "lula_2t_esperado": 96.11, "z": -15.5}, {"uf": "MT", "NM_MUNICIPIO": "GAÚCHA DO NORTE", "zona": 57, "secao": 51, "NM_LOCAL_VOTACAO": "ESCOLA MUNICIPAL MEHINAKO", "causa": "convencional", "aptos": 104, "comparecimento": 96, "lula": 92, "bolsonaro": 2, "lula_x_bolso": 97.87, "lula_2t_esperado": 24.06, "z": 15.4}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 66, "NM_LOCAL_VOTACAO": "ESCOLA MILITAR TIRADENTES CABO ISRAEL WESLEY PRADO DE ALMEIDA", "causa": "convencional", "aptos": 316, "comparecimento": 249, "lula": 41, "bolsonaro": 195, "lula_x_bolso": 17.37, "lula_2t_esperado": 96.11, "z": -15.4}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 139, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL OSCAR SOARES", "causa": "convencional", "aptos": 366, "comparecimento": 302, "lula": 48, "bolsonaro": 227, "lula_x_bolso": 17.45, "lula_2t_esperado": 96.11, "z": -15.38}, {"uf": "AM", "NM_MUNICIPIO": "TABATINGA", "zona": 36, "secao": 98, "NM_LOCAL_VOTACAO": "E. M. INDÍGENA AICUNA I", "causa": "escola indígena / aldeia / quilombo", "aptos": 166, "comparecimento": 157, "lula": 142, "bolsonaro": 0, "lula_x_bolso": 100.0, "lula_2t_esperado": 71.31, "z": 15.34}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 57, "NM_LOCAL_VOTACAO": "ESCOLA MILITAR TIRADENTES CABO ISRAEL WESLEY PRADO DE ALMEIDA", "causa": "convencional", "aptos": 325, "comparecimento": 256, "lula": 42, "bolsonaro": 195, "lula_x_bolso": 17.72, "lula_2t_esperado": 96.11, "z": -15.32}, {"uf": "MT", "NM_MUNICIPIO": "TABAPORÃ", "zona": 27, "secao": 130, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL DE EDUCAÇÃO BÁSICA ALFREDO TREUHERZ", "causa": "convencional", "aptos": 377, "comparecimento": 263, "lula": 45, "bolsonaro": 208, "lula_x_bolso": 17.79, "lula_2t_esperado": 96.11, "z": -15.31}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 27, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL LUIZA NUNES BEZERRA", "causa": "convencional", "aptos": 289, "comparecimento": 222, "lula": 37, "bolsonaro": 171, "lula_x_bolso": 17.79, "lula_2t_esperado": 96.11, "z": -15.3}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 29, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL OSCAR SOARES", "causa": "convencional", "aptos": 357, "comparecimento": 252, "lula": 41, "bolsonaro": 189, "lula_x_bolso": 17.83, "lula_2t_esperado": 96.11, "z": -15.3}, {"uf": "MT", "NM_MUNICIPIO": "JUARA", "zona": 27, "secao": 15, "NM_LOCAL_VOTACAO": "ESCOLA ESTADUAL COMENDADOR JOSE PEDRO DIAS", "causa": "convencional", "aptos": 364, "comparecimento": 274, "lula": 46, "bolsonaro": 211, "lula_x_bolso": 17.9, "lula_2t_esperado": 96.11, "z": -15.28}], "hist_z": [128, 15, 34, 40, 61, 112, 184, 348, 511, 693, 971, 1333, 2064, 3252, 5132, 9514, 18013, 36113, 65763, 92918, 90804, 62862, 34657, 18260, 10102, 6258, 3858, 2448, 1602, 1155, 746, 529, 393, 305, 198, 145, 114, 94, 60, 235]}};
+const fmt = (x, d=1) => (x==null||isNaN(x)) ? "—" : Number(x).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const n0 = x => Number(x).toLocaleString("pt-BR");
+(function(){
+  const c = C.consistencia, s = C.consistencia_sp_bu;
+  document.getElementById("cons").innerHTML = [
+    [n0(c.secoes), "seções do Brasil, 1º turno de Presidente"],
+    [n0(c.soma_difere), "seções em que os votos não somam o comparecimento"],
+    [n0(c.comparecimento_acima_aptos), "seções com mais comparecimento que eleitores aptos"],
+    [n0(s.secoes), "boletins de SP decodificados e conferidos cargo a cargo"]].map(([b,t]) => `<div><b>${b}</b><span>${t}</span></div>`).join("");
+  document.getElementById("cons-nota").innerHTML = `Nos boletins de SP (Presidente, governador e senador), ${n0(s.soma_difere + s.senado_soma_difere)}
+    seções têm votos que não somam o comparecimento do cargo, e ${n0(s.comparecimento_acima_aptos)} têm comparecimento acima dos aptos. A soma de
+    todas as seções bate voto a voto com o total oficial do TSE — no Brasil (Presidente) e em SP (três cargos). Uma diferença que parece erro e
+    não é: o comparecimento de Presidente é maior que o de governador, porque quem vota em trânsito fora do seu estado vota só para Presidente.`;
+})();
+(function(){
+  const B = C.benford, esp = B.esperado;
+  const q = (k, tit, desc) => { const d = B[k], W = 300, H = 150, m = {l:22,r:6,t:8,b:22}, bw = (W-m.l-m.r)/9;
+    const ym = Math.max(...d.obs, ...esp) * 1.1, Y = v => H - m.b - v/ym*(H-m.t-m.b);
+    let s = "";
+    d.obs.forEach((v, i) => { s += `<rect x="${m.l+i*bw+3}" y="${Y(v)}" width="${bw-6}" height="${H-m.b-Y(v)}" fill="var(--accent)" opacity=".75"/>`;
+      s += `<text x="${m.l+i*bw+bw/2}" y="${H-7}" text-anchor="middle">${i+1}</text>`; });
+    s += `<polyline points="${esp.map((v,i) => `${m.l+i*bw+bw/2},${Y(v)}`).join(" ")}" fill="none" stroke="var(--c1)" stroke-width="2"/>`;
+    const veredito = d.mad > 0.015 ? "não segue Benford" : d.mad > 0.012 ? "segue mal" : "segue Benford";
+    return `<div class="quadro"><h3>${tit}</h3><svg viewBox="0 0 ${W} ${H}" style="width:100%">${s}</svg>
+      <p class="sub">${desc}<br>desvio médio ${fmt(d.mad,3)} → <b>${veredito}</b> · ${n0(d.n)} números, de ${n0(d.faixa[0])} a ${n0(d.faixa[1])} (5% a 95%)</p></div>`; };
+  document.getElementById("benford").innerHTML =
+    q("secao_lula", "Votos de Lula por seção", "Dado que confere voto a voto com o oficial.") +
+    q("municipio_lula", "Votos de Lula por município", "Os mesmos votos, somados por município.") +
+    q("municipio_aptos", "Eleitores aptos por município", "Nenhum voto aqui: só o tamanho das cidades.");
+  document.getElementById("benford-nota").innerHTML = `Barras: frequência observada de cada primeiro dígito; linha vermelha: o esperado pela lei.
+    Desvio médio acima de 0,015 é "não conformidade" na régua usual (Nigrini). <b>Por seção a lei falha</b> — uma seção tem de dezenas a poucas
+    centenas de votos, e números presos numa faixa estreita não seguem Benford, com fraude ou sem. <b>Por município ela funciona</b>, e o
+    terceiro quadro diz por quê: o número de eleitores por município já segue Benford antes de qualquer voto. O teste mede o tamanho das
+    cidades, não a lisura da apuração. Por isso a literatura acadêmica (Deckert, Myagkov e Ordeshook, 2011; Mebane) descarta Benford como
+    detector de fraude eleitoral: ele acusa eleições limpas e deixa passar manipulações que não mexam na escala.`;
+})();
+(function(){
+  const A = C.atipicas;
+  document.getElementById("causas").innerHTML = `<tr><th>tipo de seção</th><th>seções</th><th>acima de 4 desvios</th><th>por mil seções</th></tr>` +
+    A.por_causa.sort((a,b) => b.taxa_por_mil - a.taxa_por_mil).map(r => `<tr><td>${r.causa}</td><td>${n0(r.todas)}</td><td>${n0(r.atipicas)}</td>
+      <td><b>${fmt(r.taxa_por_mil,0)}</b></td></tr>`).join("");
+  const conv = A.por_causa.find(r => r.causa === "convencional");
+  document.getElementById("causas-nota").innerHTML = `${n0(A.n)} de ${n0(A.secoes)} seções passaram de 4 desvios. Entre as seções convencionais,
+    ${fmt(conv.taxa_por_mil,0)} em cada mil; nas de presídio (preso provisório), no exterior e nas seções com menos de 100 eleitores, dez a trinta vezes
+    mais. São lugares onde a eleição anterior no local mais próximo diz pouco sobre quem vota ali: o eleitorado de um presídio muda inteiro em quatro
+    anos, a seção no exterior não tem vizinhança no Brasil, numa seção pequena poucos votos movem muito a proporção, e aldeias e quilombos votam de
+    forma muito concentrada, diferente da vizinhança do município. Entre as convencionais que sobram, as causas mais comuns são local de votação que
+    mudou de endereço ou de público entre as eleições, e seções novas.`;
+  document.getElementById("maiores").innerHTML = `<tr><th>local</th><th>tipo</th><th>aptos</th><th>Lula</th><th>Bolsonaro</th><th>Lula × Bolsonaro</th><th>esperado</th><th>desvios</th></tr>` +
+    A.maiores.map(r => `<tr><td>${r.NM_MUNICIPIO || ""} (${r.uf}) — zona ${r.zona}, seção ${r.secao}<br><span class="sub">${r.NM_LOCAL_VOTACAO || ""}</span></td>
+      <td>${r.causa}</td><td>${n0(r.aptos)}</td><td>${n0(r.lula)}</td><td>${n0(r.bolsonaro)}</td><td>${fmt(r.lula_x_bolso,0)}%</td>
+      <td>${fmt(r.lula_2t_esperado,0)}%</td><td>${fmt(r.z,1)}</td></tr>`).join("");
+})();
+</script>
+</body></html>
