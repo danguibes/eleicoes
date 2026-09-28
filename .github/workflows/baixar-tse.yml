@@ -1,0 +1,38 @@
+name: baixar arquivos-base do TSE
+
+# O cdn.tse.jus.br recusa script a partir da máquina de casa (403, medido em
+# 28/09/2026). Daqui sai por outro IP; o recorte do município volta como
+# artefato, e os zips inteiros nunca entram no repositório.
+on:
+  workflow_dispatch:
+    inputs:
+      so:
+        description: "nomes separados por espaço (vazio = todos)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  baixar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet pandas pyarrow requests
+
+      - name: o CDN responde daqui?
+        run: curl -sI https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2026.zip | head -5
+
+      - name: baixar e recortar
+        run: python baixar_tse.py ${{ inputs.so && format('--so {0}', inputs.so) || '' }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tse-recortes
+          path: data/raw/tse/
+          retention-days: 30

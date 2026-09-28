@@ -1,0 +1,198 @@
+"""Robô da noite da eleição: acompanha as seções que chegam e baixa o BU de cada uma.
+
+O caminho, de uma requisição barata para muitas caras:
+
+  1. o índice de seções da UF (`cs`, EA16) — um GET, condicional, por rodada.
+     Cada seção cujo auxiliar já foi gerado vem com data e hora (`da`/`ha`).
+  2. para cada seção nova ou alterada, o auxiliar dela (`aux`, EA18), que diz o
+     hash da transmissão válida e os nomes dos arquivos;
+  3. o `.bu` daquele hash, decodificado na hora (2,4 ms por boletim).
+
+Nunca se pede um endereço que um arquivo do TSE não tenha listado antes — 404 em
+excesso bloqueia o IP.
+
+Tudo que vem do TSE fica em data/raw/<pleito>/ (fora do git). O que o resto do
+projeto lê é `secoes.jsonl` (uma linha por seção decodificada) e
+`chegadas.csv` (quando cada seção apareceu no índice, e quando nós a vimos) — o
+segundo é o que permite ensaiar a projeção na ordem em que as urnas chegaram de
+verdade, e não numa ordem aleatória.
+
+    python coletor.py --pleito 2022 --uf sp --mun 71072 --uma-vez
+    python coletor.py --pleito simulado --uf sp --mun 71072 --intervalo 60
+    python coletor.py --pleito 2026 --uf sp --mun 71072
+"""
+import argparse
+import csv
+import json
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from pathlib import Path
+
+import bu
+from tse import PLEITOS, Bloqueado, Cliente
+
+VALIDOS = {"Recebido", "Totalizado"}  # descarta Rejeitado, Excluído, Sem arquivo
+
+
+def agora():
+    return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+
+class Coletor:
+    def __init__(self, pleito, uf, municipios, taxa, trabalhadores):
+        self.p = PLEITOS[pleito]
+        self.uf = uf
+        self.municipios = set(municipios) if municipios else None
+        self.cli = Cliente(taxa=taxa)
+        self.trab = trabalhadores
+        self.dir = Path("data/raw") / pleito / uf
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.arq_estado = self.dir / "estado.json"
+        self.estado = (json.loads(self.arq_estado.read_text())
+                       if self.arq_estado.exists() else
+                       {"cs_etag": None, "secoes": {}})
+
+    # -- índice ---------------------------------------------------------------
+    def ler_indice(self):
+        """Devolve {(mun, zona, secao): 'dd/mm/aaaa hh:mm:ss'} das seções com auxiliar.
+
+        Com 304 relê a última versão guardada em vez de devolver "nada mudou": o
+        índice parado não quer dizer que as seções dele já foram todas baixadas
+        (uma rodada interrompida no meio deixa pendentes — foi assim que o
+        primeiro ensaio parou em 30 de 26.288)."""
+        st, corpo, etag = self.cli.get(self.p.url_cs(self.uf), self.estado["cs_etag"])
+        if st == 304 and self.estado.get("cs_arquivo"):
+            corpo = Path(self.estado["cs_arquivo"]).read_bytes()
+        elif st != 200:
+            raise RuntimeError(f"índice de seções respondeu {st}")
+        cs = json.loads(corpo)
+        if st == 200:
+            # guarda cada versão do índice: é a série temporal da apuração
+            (self.dir / "cs").mkdir(exist_ok=True)
+            arq = self.dir / "cs" / f"{cs.get('idg', agora().replace(':', ''))}.json"
+            arq.write_bytes(corpo)
+            self.estado["cs_etag"] = etag
+            self.estado["cs_arquivo"] = str(arq)
+        prontas, total = {}, 0
+        for abr in cs["abr"]:
+            for mu in abr["mu"]:
+                if self.municipios and mu["cd"] not in self.municipios:
+                    continue
+                for z in mu["zon"]:
+                    for s in z["sec"]:
+                        if "nsp" in s:
+                            continue  # agregada: os votos vêm no BU da principal
+                        total += 1
+                        if s.get("da"):
+                            prontas[(mu["cd"], z["cd"], s["ns"])] = f"{s['da']} {s['ha']}"
+                        elif self.p.encerrado:
+                            prontas[(mu["cd"], z["cd"], s["ns"])] = "encerrado"
+        return prontas, total, cs.get("dg"), cs.get("hg")
+
+    # -- uma seção ------------------------------------------------------------
+    def buscar_secao(self, mun, zona, secao):
+        st, corpo, _ = self.cli.get(self.p.url_aux(self.uf, mun, zona, secao))
+        if st != 200:
+            return {"erro": f"aux {st}"}
+        aux = json.loads(corpo)
+        hashes = [h for h in aux.get("hashes", []) if h.get("st") in VALIDOS]
+        if not hashes:
+            return {"situacao": aux.get("st"), "sem_bu": True}
+        h = hashes[-1]
+        # 2022 lista nomes em `nmarq`; 2026 em `arq: [{nm, tp}]`
+        nomes = h.get("nmarq") or [a["nm"] for a in h.get("arq", [])]
+        nome_bu = next((n for n in nomes if n.endswith(".bu")), None)
+        if not nome_bu:
+            return {"situacao": aux.get("st"), "sem_bu": True, "hash": h["hash"]}
+        st, conteudo, _ = self.cli.get(
+            self.p.url_arquivo(self.uf, mun, zona, secao, h["hash"], nome_bu))
+        if st != 200:
+            return {"erro": f"bu {st}"}
+        d = self.dir / "bu" / mun / zona
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{secao}.bu").write_bytes(conteudo)
+        lido = bu.ler(conteudo, self.p.spec)
+        lido.update({"hash": h["hash"], "recebido": f"{h.get('dr')} {h.get('hr')}",
+                     "situacao": aux.get("st")})
+        return lido
+
+    # -- rodada ---------------------------------------------------------------
+    def rodada(self, limite=None):
+        prontas, total, dg, hg = self.ler_indice()
+        vistas = self.estado["secoes"]
+        novas = [k for k, quando in prontas.items()
+                 if vistas.get("/".join(k), {}).get("indice") != quando]
+        novas.sort()
+        if limite:
+            novas = novas[:limite]
+        print(f"{agora()}  índice gerado {dg} {hg}: {len(prontas)}/{total} seções "
+              f"com auxiliar, {len(novas)} novas ou alteradas", flush=True)
+        if not novas:
+            self.salvar()
+            return 0
+        f_sec = open(self.dir / "secoes.jsonl", "a", encoding="utf-8")
+        f_che = open(self.dir / "chegadas.csv", "a", newline="", encoding="utf-8")
+        w = csv.writer(f_che)
+        if f_che.tell() == 0:
+            w.writerow(["municipio", "zona", "secao", "indice", "recebido", "visto", "situacao"])
+        feitas = erros = 0
+        t0 = time.time()
+        try:
+            with ThreadPoolExecutor(self.trab) as ex:
+                fut = {ex.submit(self.buscar_secao, *k): k for k in novas}
+                for f in as_completed(fut):
+                    k = fut[f]
+                    res = f.result()  # Bloqueado sobe daqui e para tudo
+                    chave = "/".join(k)
+                    if "erro" in res:
+                        erros += 1
+                        continue
+                    vistas[chave] = {"indice": prontas[k], "hash": res.get("hash")}
+                    w.writerow([*k, prontas[k], res.get("recebido"), agora(), res.get("situacao")])
+                    if "eleicoes" in res:
+                        f_sec.write(json.dumps(res, ensure_ascii=False, default=str) + "\n")
+                    feitas += 1
+                    if feitas % 500 == 0:
+                        dt = time.time() - t0
+                        print(f"   {feitas}/{len(novas)}  {feitas / dt:.1f} seções/s  "
+                              f"{self.cli.contagem}", flush=True)
+                        f_sec.flush(); f_che.flush(); self.salvar()
+        finally:
+            f_sec.close(); f_che.close(); self.salvar()
+        print(f"{agora()}  {feitas} seções gravadas, {erros} com erro, "
+              f"{time.time() - t0:.0f} s, {self.cli.contagem}", flush=True)
+        return feitas
+
+    def salvar(self):
+        tmp = self.arq_estado.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.estado))
+        tmp.replace(self.arq_estado)
+
+
+def main():
+    sys.stdout.reconfigure(encoding="utf-8")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--pleito", choices=sorted(PLEITOS), required=True)
+    ap.add_argument("--uf", default="sp")
+    ap.add_argument("--mun", nargs="*", help="códigos TSE de 5 dígitos; vazio = UF inteira")
+    ap.add_argument("--taxa", type=float, default=20, help="requisições por segundo (TSE: máx. 100)")
+    ap.add_argument("--trabalhadores", type=int, default=8)
+    ap.add_argument("--intervalo", type=int, default=60, help="segundos entre rodadas")
+    ap.add_argument("--uma-vez", action="store_true")
+    ap.add_argument("--limite", type=int, help="no máximo N seções por rodada (ensaio)")
+    a = ap.parse_args()
+    c = Coletor(a.pleito, a.uf, a.mun, a.taxa, a.trabalhadores)
+    try:
+        while True:
+            c.rodada(a.limite)
+            if a.uma_vez:
+                break
+            time.sleep(a.intervalo)
+    except Bloqueado as e:
+        sys.exit(f"PARADO: {e}. Espere 10 minutos antes de tentar de novo.")
+
+
+if __name__ == "__main__":
+    main()

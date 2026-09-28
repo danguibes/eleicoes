@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# tudo que vem do TSE e do IBGE: baixado por script, grande, regenerável
+data/raw/
