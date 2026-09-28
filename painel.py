@@ -122,6 +122,32 @@ def quintil(x, cortes):
     return np.where(np.isnan(x), 0, 1 + np.searchsorted(cortes, x, side="right")).astype(int)
 
 
+# ---------------------------------------------------------------- nomes
+DOWNLOADS = Path.home() / "Downloads"
+
+
+def nomes_candidatos(ano, cargo):
+    """Nome de urna por número, do consulta_cand_<ano>.zip do TSE (baixado no navegador:
+    o CDN recusa script). Sem o arquivo, o painel mostra "nº 10" — nunca um nome suposto."""
+    import io
+    import zipfile
+    for pasta in (RAW / "tse", DOWNLOADS):
+        z = pasta / f"consulta_cand_{ano}.zip"
+        if z.exists():
+            break
+    else:
+        return {}
+    uf = "BR" if cargo == "presidente" else "SP"
+    with zipfile.ZipFile(z) as zz:
+        m = next((n for n in zz.namelist() if n.endswith(f"_{uf}.csv")), None)
+        if not m:
+            return {}
+        d = pd.read_csv(io.TextIOWrapper(zz.open(m), encoding="latin-1"), sep=";", dtype=str)
+    d = d[d.DS_CARGO.str.upper().str.normalize("NFKD").str.encode("ascii", "ignore").str.decode("ascii")
+          == {"presidente": "PRESIDENTE", "governador": "GOVERNADOR", "senador": "SENADOR"}[cargo]]
+    return {f"n{int(r.NR_CANDIDATO)}": r.NM_URNA_CANDIDATO.title() for r in d.itertuples()}
+
+
 # ---------------------------------------------------------------- montagem
 _CACHE = {}
 
@@ -238,6 +264,8 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
                  "secoes": int(len(u)), "apuradas": int(u.apurada.sum()),
                  "cats": cats, "cats_anterior": cats_ant, "pares": PARES["ensaio" if modo == "ensaio" else "2026"],
                  "cortes": cortes, "fator_ic": pj.FATOR_UF,
+                 "nomes": {**nomes_candidatos(ano_ant, cargo), **nomes_candidatos(ano_at, cargo)}
+                          if cargo != "presidente" else {},
                  "municipios": {int(r.CD_MUNICIPIO): r.NM_MUNICIPIO for r in nomes.itertuples()}},
         "atual": col(at, chave + ["secoes"] + num + [f"q_{v}" for v in VARS]),
         "anterior": col(an, chave + cats_ant + ["comparecimento", "aptos"] + [f"q_{v}" for v in VARS]),

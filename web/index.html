@@ -133,7 +133,11 @@ let D = null, modo = null;
 const F = {cargo:"presidente", mun:null, zona:null, q:{}};   // o estado inteiro da tela
 let escondidos = new Set();
 
-function nomeCat(c){ return NOMES[c] || c; }
+function nomeCat(c){
+  if (D && D.meta.nomes && D.meta.nomes[c]) return D.meta.nomes[c];
+  if (NOMES[c]) return NOMES[c];
+  const n = /^n(\d+)$/.exec(c); return n ? "nº " + n[1] : c;
+}
 
 async function carregar(m){
   modo = m;
@@ -235,6 +239,13 @@ function desenharPrincipal(){
   const cedo = temAp && s.apurada/s.secoes < 0.01;
   const ord = cats.filter(c=>c!=="bn").sort((a,b) => (temAp ? (pj[b]-pj[a]) : 0));
   const par = Object.fromEntries(Object.entries(m.pares));
+  if (!ord.length) {   // governador/senador antes da apuração: os candidatos de 2026 saem das urnas
+    const oa = catsA.filter(c=>c!=="bn").sort((a,b)=>pa[b]-pa[a]);
+    tab.innerHTML = `<tr><th>${m.anterior}, completo</th><th>% dos válidos</th></tr>` +
+      oa.map((c,i) => `<tr><td><b style="color:${CORES[i%7]}">${nomeCat(c)}</b></td><td>${fmt(pa[c])}%</td></tr>`).join("");
+    document.getElementById("nota-ic").textContent = `Os candidatos de ${m.atual} entram aqui pelos votos, à medida que as urnas chegam.`;
+    return {pj:{}, ap:{}, pa, ord: [], ordA: oa};
+  }
   tab.innerHTML = `<tr><th>candidatura</th><th>${m.atual} projetado</th><th>${m.atual} apurado</th><th>${m.anterior} completo</th></tr>` +
     ord.map((c,i) => `<tr><td><b style="color:${CORES[i%7]}">${nomeCat(c)}</b></td>
       <td>${temAp && !cedo ? `<span class="big">${fmt(pj[c])}%</span>${faixa && faixa[c] ? `<span class="ic">${fmt(faixa[c][0])} – ${fmt(faixa[c][1])}</span>` : ""}` : "—"}</td>
@@ -253,8 +264,13 @@ function desenharAberturas(res){
   const box = document.getElementById("aberturas");
   if (!D) { box.innerHTML = ""; return; }
   const m = D.meta, cats = m.cats, catsA = m.cats_anterior, temAp = m.apuradas > 0;
-  const par = m.pares, alvo = (res && res.ord ? res.ord : cats.filter(c=>c!=="bn")).slice(0, 2).filter(c => !escondidos.has(c));
-  document.getElementById("leg-ab").innerHTML = (res && res.ord ? res.ord : []).slice(0,2).map((c,i) =>
+  // antes de o cargo ter candidatos de 2026 (governador, senador), os quadros mostram os de 2022
+  const semAtual = !(res && res.ord && res.ord.length);
+  const lista = semAtual ? (res.ordA || []) : res.ord;
+  const par = semAtual ? Object.fromEntries(lista.map(c=>[c,c])) : m.pares;
+  const alvo = lista.slice(0, 2).filter(c => !escondidos.has(c));
+  res = {...res, ord: lista};
+  document.getElementById("leg-ab").innerHTML = lista.slice(0,2).map((c,i) =>
     `<span data-c="${c}" class="${escondidos.has(c)?"off":""}"><i style="background:${CORES[i]}"></i>${nomeCat(c)}</span>`).join("") +
     `<span class="sub">barras de cima para baixo: ${m.anterior} completo · ${m.atual} apurado · ${m.atual} projetado; número à direita: ${m.apuradas ? "projetado" : m.anterior} — clique no nome para esconder</span>`;
   document.querySelectorAll("#leg-ab span[data-c]").forEach(sp => sp.onclick = () => {
@@ -294,6 +310,13 @@ function desenharLugares(res){
   if (!D) { tab.innerHTML = ""; return; }
   const m = D.meta, cats = m.cats, temAp = m.apuradas > 0, porZona = F.mun != null;
   document.getElementById("t-lugares").textContent = porZona ? "Zonas eleitorais do município" : "Municípios";
+  const catsA = m.cats_anterior, A = D.anterior, gA = new Map();
+  for (let i = 0; i < A.zona.length; i++) {
+    if (!passa(A, i, porZona ? "zona" : "mun")) continue;
+    const k = porZona ? A.zona[i] : A.municipio[i];
+    if (!gA.has(k)) gA.set(k, Object.fromEntries(catsA.map(c=>[c,0])));
+    const g = gA.get(k); for (const c of catsA) g[c] += A[c][i] || 0;
+  }
   const t = D.atual, grupos = new Map(), chave = i => porZona ? t.zona[i] : t.municipio[i];
   const cols = ["aptos","secoes","apurada", ...(temAp ? [...cats.map(c=>"pj_"+c), ...cats.map(c=>"ap_"+c)] : [])];
   for (let i = 0; i < t.zona.length; i++) {
@@ -302,16 +325,20 @@ function desenharLugares(res){
     const g = grupos.get(k); for (const c of cols) g[c] += t[c][i] || 0;
   }
   const top = [...grupos.entries()].sort((a,b) => b[1].aptos - a[1].aptos).slice(0, 25);
-  const [c1, c2] = (res.ord || cats).slice(0, 2);
+  const [c1, c2] = (res.ord && res.ord.length ? res.ord : cats).slice(0, 2);
+  const [a1, a2] = c1 && m.pares[c1] ? [m.pares[c1], m.pares[c2]] : (res.ordA || catsA).slice(0, 2);
+  const pA = k => pct(gA.get(k) || Object.fromEntries(catsA.map(c=>[c,0])), catsA);
   tab.innerHTML = `<tr><th>${porZona ? "zona" : "município"}</th><th>eleitores</th><th>apuradas</th>
-      <th>${nomeCat(c1)} proj.</th><th>${nomeCat(c2)} proj.</th><th>${nomeCat(c1)} apur.</th><th>${nomeCat(c2)} apur.</th></tr>` +
+      ${c1 ? `<th>${nomeCat(c1)} proj.</th><th>${nomeCat(c2)} proj.</th><th>${nomeCat(c1)} apur.</th><th>${nomeCat(c2)} apur.</th>` : ""}
+      <th>${nomeCat(a1)} ${m.anterior}</th><th>${nomeCat(a2)} ${m.anterior}</th></tr>` +
     top.map(([k, g]) => { const pj = pct(Object.fromEntries(cats.map(c=>[c,g["pj_"+c]])), cats),
                                  ap = pct(Object.fromEntries(cats.map(c=>[c,g["ap_"+c]])), cats);
       const sel = porZona ? F.zona === k : F.mun === k;
       return `<tr class="clic" data-k="${k}" style="${sel ? "background:var(--accent-soft)" : ""}"><td>${porZona ? "zona " + k : m.municipios[k]}</td>
         <td>${g.aptos.toLocaleString("pt-BR")}</td><td>${fmt(100*g.apurada/g.secoes,0)}%</td>
-        <td><b>${temAp && g.apurada ? fmt(pj[c1]) : "—"}</b></td><td><b>${temAp && g.apurada ? fmt(pj[c2]) : "—"}</b></td>
-        <td>${temAp && g.apurada ? fmt(ap[c1]) : "—"}</td><td>${temAp && g.apurada ? fmt(ap[c2]) : "—"}</td></tr>`; }).join("");
+        ${c1 ? `<td><b>${temAp && g.apurada ? fmt(pj[c1]) : "—"}</b></td><td><b>${temAp && g.apurada ? fmt(pj[c2]) : "—"}</b></td>
+        <td>${temAp && g.apurada ? fmt(ap[c1]) : "—"}</td><td>${temAp && g.apurada ? fmt(ap[c2]) : "—"}</td>` : ""}
+        <td class="sub">${fmt(pA(k)[a1])}</td><td class="sub">${fmt(pA(k)[a2])}</td></tr>`; }).join("");
   tab.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => {
     const k = +tr.dataset.k;
     if (porZona) F.zona = F.zona === k ? null : k; else { F.mun = F.mun === k ? null : k; F.zona = null; }
