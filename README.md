@@ -41,10 +41,18 @@ verdade em 2022.
 
 ## Arquivos-base
 
-O `cdn.tse.jus.br` recusa script a partir da máquina de casa (403; do navegador
-baixa). O `baixar_tse.py` roda no GitHub Actions (workflow **baixar arquivos-base
-do TSE**, botão *Run workflow*) e devolve só o recorte do município, em Parquet,
-como artefato.
+O `cdn.tse.jus.br` recusa script em qualquer IP — medido daqui e do GitHub
+Actions, 403 nos dois; do navegador baixa. Então os zips são baixados no
+navegador para a pasta Downloads, e o `baixar_tse.py --pasta` recorta o estado de
+SP de dentro deles, em Parquet, sem extrair (o perfil de 2026 tem 4,7 GB). A
+lista de arquivos e os links estão no próprio script.
+
+```bash
+python baixar_tse.py --pasta "C:/Users/Danilo Bessa/Downloads"
+python baixar_ibge.py      # o FTP do IBGE aceita script
+```
+
+O workflow **baixar arquivos-base do TSE** ficou como registro da tentativa.
 
 ## O que foi medido (28/09/2026)
 
