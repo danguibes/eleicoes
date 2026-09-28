@@ -83,14 +83,16 @@ def base_2018(mun="71072"):
     v = pd.read_parquet(RAW / "tse" / "votacao_2018_SP.parquet",
                         columns=["CD_MUNICIPIO", "NR_TURNO", "NR_ZONA", "NR_LOCAL_VOTACAO",
                                  "NR_VOTAVEL", "QT_VOTOS"])
-    v = v[(v.CD_MUNICIPIO == mun) & (v.NR_TURNO == "1")]
+    v = v[v.NR_TURNO == "1"]
+    if mun and mun != "None":
+        v = v[v.CD_MUNICIPIO == str(mun)]
     v = v.assign(zona=v.NR_ZONA.astype(int), local=v.NR_LOCAL_VOTACAO.astype(int),
                  cod=v.NR_VOTAVEL.astype(int), votos=v.QT_VOTOS.astype(int))
     cats = {17: "bolsonaro18", 13: "haddad18", 12: "ciro18", 45: "alckmin18", 30: "amoedo18"}
     v["cat"] = v.cod.map(cats).fillna(v.cod.map({95: "bn", 96: "bn"})).fillna("outros")
     t = v.pivot_table(index=["zona", "local"], columns="cat", values="votos",
                       aggfunc="sum").fillna(0)
-    e = principal_de("2018", mun).groupby(["zona", "local"]).eleitores.sum()
+    e = principal_de("2018", mun if mun != "None" else None).groupby(["zona", "local"]).eleitores.sum()
     t["comparecimento"] = t.sum(axis=1)
     t["aptos"] = e.reindex(t.index)
     return t.reset_index(), list(cats.values()) + ["outros", "bn"]
@@ -356,7 +358,7 @@ class Noite:
         self.pleito, self.mun, self.cargo = pleito, mun, cargo
         self.univ = universo_cadastro(ano_cadastro, mun)
         if base == "2018":
-            b, self.cats_base = base_2018(str(mun))
+            b, self.cats_base = base_2018(mun)
         else:
             b, self.cats_base = base_bu(base, BASE_2022 if cargo == "presidente" else "auto",
                                         mun, cargo)
@@ -404,10 +406,47 @@ class Noite:
         }
 
 
+def ensaio_noite(mun=None, pontos=(0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90), n_boot=100):
+    """O mesmo ensaio, pela classe da noite — serve para a UF inteira (mun=None)."""
+    noite = Noite(pleito="2022", ano_cadastro="2022", base="2018", mun=mun)
+    print(f"seções {len(noite.univ):,}; local-base a >1 km: {(noite.dist > 1000).mean():.1%}", flush=True)
+    ch = pd.read_csv(RAW / "2022" / "sp" / "chegadas.csv", dtype=str)
+    if mun:
+        ch = ch[ch.municipio == f"{int(mun):05d}"]
+    ch["t"] = pd.to_datetime(ch.recebido, format="%d/%m/%Y %H:%M:%S")
+    ch = ch.sort_values("t")
+    fim = noite.rodada(n_boot=2)
+    real = {c["cat"]: c["contagem"] for c in fim["candidatos"]}
+    linhas = []
+    for q in pontos:
+        k = int(q * len(ch))
+        apenas = set(zip(ch.zona.iloc[:k].astype(int), ch.secao.iloc[:k].astype(int)))
+        r = noite.rodada(n_boot=n_boot, apenas=apenas)
+        hora = ch.t.iloc[k - 1].strftime("%H:%M")
+        for c in r["candidatos"]:
+            linhas.append({"frac": q, "hora": hora, "cat": c["cat"], "real": real[c["cat"]],
+                           "contagem": c["contagem"], "projecao": c["projecao"],
+                           "lo90": c["lo90"], "hi90": c["hi90"]})
+        L = {c["cat"]: c for c in r["candidatos"]}
+        print(f"{q:4.0%} {hora}  contagem L−B {L['lula']['contagem'] - L['bolsonaro']['contagem']:+6.2f}  "
+              f"projeção {L['lula']['projecao'] - L['bolsonaro']['projecao']:+6.2f}  "
+              f"final {real['lula'] - real['bolsonaro']:+6.2f}", flush=True)
+    r = pd.DataFrame(linhas)
+    r["cobre"] = (r.real >= r.lo90) & (r.real <= r.hi90)
+    nome = f"ensaio_projecao_2018_2022_{mun or 'SP'}.csv"
+    r.to_csv(OUT / nome, index=False, float_format="%.3f")
+    print(f"erro médio: contagem {np.abs(r.contagem - r.real).mean():.2f} pt, projeção "
+          f"{np.abs(r.projecao - r.real).mean():.2f} pt; IC90 cobre {r.cobre.mean():.0%}")
+    return r
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
     ap.add_argument("--ensaio", action="store_true")
+    ap.add_argument("--ensaio-estado", action="store_true")
     a = ap.parse_args()
     if a.ensaio:
         ensaio()
+    if a.ensaio_estado:
+        ensaio_noite(mun=None)

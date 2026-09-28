@@ -1,0 +1,37 @@
+variavel,nivel,grupos,grupo,real,estimado,erro
+escolaridade,zona,finos,até fund. incompleto,66.46,58.61,-7.84
+escolaridade,zona,finos,fund. completo / médio incompleto,77.31,84.08,6.78
+escolaridade,zona,finos,médio completo / sup. incompleto,83.86,88.37,4.51
+escolaridade,zona,finos,superior completo,86.68,76.20,-10.47
+escolaridade,zona,juntos,até fund. incompleto,66.46,57.47,-8.98
+escolaridade,zona,juntos,fund. completo a sup. incompleto,81.10,86.51,5.41
+escolaridade,zona,juntos,superior completo,86.68,77.27,-9.40
+escolaridade,local,finos,até fund. incompleto,66.46,61.76,-4.70
+escolaridade,local,finos,fund. completo / médio incompleto,77.31,78.62,1.32
+escolaridade,local,finos,médio completo / sup. incompleto,83.86,95.11,11.25
+escolaridade,local,finos,superior completo,86.68,67.91,-18.77
+escolaridade,local,juntos,até fund. incompleto,66.46,61.21,-5.25
+escolaridade,local,juntos,fund. completo a sup. incompleto,81.10,86.87,5.77
+escolaridade,local,juntos,superior completo,86.68,71.42,-15.26
+idade,zona,finos,16-24,80.25,76.39,-3.86
+idade,zona,finos,25-34,80.09,81.07,0.98
+idade,zona,finos,35-44,83.51,83.51,-0.00
+idade,zona,finos,45-59,87.12,85.42,-1.70
+idade,zona,finos,60-69,87.05,99.59,12.53
+idade,zona,finos,70+,37.45,31.30,-6.15
+idade,zona,juntos,16-24,80.25,77.65,-2.61
+idade,zona,juntos,25-34,80.09,84.48,4.38
+idade,zona,juntos,35-44,83.51,85.34,1.83
+idade,zona,juntos,45-59,87.12,87.98,0.86
+idade,zona,juntos,60+,63.31,58.97,-4.34
+idade,local,finos,16-24,80.25,75.73,-4.52
+idade,local,finos,25-34,80.09,80.94,0.85
+idade,local,finos,35-44,83.51,83.51,0.00
+idade,local,finos,45-59,87.12,85.06,-2.06
+idade,local,finos,60-69,87.05,99.13,12.08
+idade,local,finos,70+,37.45,32.71,-4.74
+idade,local,juntos,16-24,80.25,77.20,-3.06
+idade,local,juntos,25-34,80.09,83.79,3.70
+idade,local,juntos,35-44,83.51,84.94,1.43
+idade,local,juntos,45-59,87.12,88.37,1.25
+idade,local,juntos,60+,63.31,58.74,-4.57

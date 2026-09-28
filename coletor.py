@@ -103,7 +103,11 @@ class Coletor:
         h = hashes[-1]
         # 2022 lista nomes em `nmarq`; 2026 em `arq: [{nm, tp}]`
         nomes = h.get("nmarq") or [a["nm"] for a in h.get("arq", [])]
-        nome_bu = next((n for n in nomes if n.endswith(".bu")), None)
+        # .busa: BU do Sistema de Apuração, a contingência quando a urna falha.
+        # Mesmo formato ASN.1. Em 2022 foram 2 das 101.073 seções de SP — e sem
+        # isto elas sumiam caladas (a soma do estado ficava 400 votos curta).
+        nome_bu = (next((n for n in nomes if n.endswith(".bu")), None)
+                   or next((n for n in nomes if n.endswith(".busa")), None))
         if not nome_bu:
             return {"situacao": aux.get("st"), "sem_bu": True, "hash": h["hash"]}
         st, conteudo, _ = self.cli.get(
@@ -149,7 +153,10 @@ class Coletor:
                     if "erro" in res:
                         erros += 1
                         continue
-                    vistas[chave] = {"indice": prontas[k], "hash": res.get("hash")}
+                    vistas[chave] = {"indice": prontas[k], "hash": res.get("hash"),
+                                     "bu": "eleicoes" in res}
+                    if "eleicoes" not in res:
+                        print(f"   AVISO {chave}: sem boletim legível ({res.get('situacao')})", flush=True)
                     w.writerow([*k, prontas[k], res.get("recebido"), agora(), res.get("situacao")])
                     if "eleicoes" in res:
                         f_sec.write(json.dumps(res, ensure_ascii=False, default=str) + "\n")
