@@ -134,7 +134,7 @@ def montar(modo, frac=0.25, n_boot=200):
         M[c] = M[c].fillna(0)
     M["regiao"] = M.uf.map(REGIAO)
     temAp = M[[f"ap_{c}" for c in cats]].to_numpy().sum() > 0
-    ic, validos, amostras_q = {}, [c for c in cats if c != "bn"], {}
+    ic, validos, amostras_q, amostras_pct = {}, [c for c in cats if c != "bn"], {}, {}
     if temAp:
         linha, por, por_nomes = projetar_grupos(M, cats, n_boot)
         for j, c in enumerate(cats):
@@ -142,6 +142,15 @@ def montar(modo, frac=0.25, n_boot=200):
         # intervalo por Brasil, região e UF; amostras por quintil para qualquer faixa
         iv = [cats.index(c) for c in validos]
         amostras_q = {v: np.rint(por[f"q_{v}"][1:][:, :, iv]).astype(int).tolist() for v in VARS}
+        # reamostragens em % dos válidos, alargadas pelo fator em torno da projeção central —
+        # é delas que saem as chances e as curvas da página
+        amostras_pct = {}
+        for k in ("total", "regiao", "uf"):
+            s_ = por[k][:, :, iv]
+            pv = s_ / np.maximum(s_.sum(2, keepdims=True), 1e-9) * 100          # B,G,C
+            centro = pv[0]
+            larg = centro + mu.FATOR_MUN * (pv[1:] - np.median(pv[1:], axis=0))
+            amostras_pct[k] = {por_nomes[k][g]: np.round(larg[:, g, :], 2).tolist() for g in range(pv.shape[1])}
         for k, s_ in por.items():
             if k.startswith("q_"):
                 continue
@@ -165,6 +174,7 @@ def montar(modo, frac=0.25, n_boot=200):
         "mun": col(cols),
         "ic": ic,
         "amostras_q": amostras_q,
+        "amostras_pct": amostras_pct,
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = WEB / f"{modo}_brasil_presidente.json"

@@ -246,6 +246,9 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
         # amostras por quintil (votos, sem a projeção central): o navegador soma as de
         # uma faixa de quintis — 2º ao 4º, por exemplo — e tira o intervalo dela
         amostras_q = {v: np.rint(pg[f"q_{v}"][1:][:, :, iv]).astype(int).tolist() for v in VARS}
+        tv = pg["total"][:, 0, iv]
+        pvt = tv / tv.sum(1, keepdims=True) * 100
+        amostras_pct = {"total": {"total": np.round(pvt[0] + fator * (pvt[1:] - np.median(pvt[1:], axis=0)), 2).tolist()}}
         for j, c in enumerate(cats):
             u[f"pj_{c}"] = linha[:, j]
             u[f"ap_{c}"] = np.where(m, u[c], 0)
@@ -254,7 +257,7 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
         u["comp_ap"] = np.where(m, u.comparecimento, 0)
     else:
         cats, ic = list(noite.cats_alvo.values()) + ["outros", "bn"] if isinstance(noite.cats_alvo, dict) else [], {}
-        amostras_q = {}
+        amostras_q, amostras_pct = {}, {}
         u["apurada"] = 0
 
     # --- por local de votação
@@ -309,6 +312,7 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
         "anterior": col(an, chave + cats_ant + cats_2t + ["comparecimento", "aptos"] + [f"q_{v}" for v in VARS]),
         "ic": ic,
         "amostras_q": amostras_q,
+        "amostras_pct": amostras_pct,
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = f"{modo}_{cargo}.json"

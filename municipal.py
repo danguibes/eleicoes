@@ -40,6 +40,10 @@ REAMOSTRA = "uf"
 # é o mesmo do modelo por seção: as urnas tardias de 2022 foram mais Lula do que a
 # eleição anterior e a UF explicam.
 FATOR_MUN = 1.25
+# 2º turno da eleição anterior como covariável: medido no ensaio 2018→2022, PIOROU
+# (erro médio 0,282 contra 0,260 sem ele). 2026 pode ter cara de 2º turno, mas não
+# há evidência a favor; fica desligado, e o painel usa o 2º turno só para comparar.
+USAR_2T = False
 
 
 def por_municipio(ano, cats, turno="1"):
@@ -70,6 +74,10 @@ def projetar_mun(M, cats, n_boot=200, seed=0, guardar_linhas=False):
     ap = M[[f"ap_{c}" for c in cats]].to_numpy(float)
     tem = ap.sum(1) > 0
     Xb = np.c_[pj.clr(M[[f"b_{c}" for c in cats]].to_numpy(float) * 1000), pj.logit(M.b_comp.to_numpy(float))]
+    if USAR_2T and "b2_a" in M:
+        # 2º turno da eleição anterior: a parcela do primeiro contra o segundo
+        s2 = (M.b2_a / (M.b2_a + M.b2_b)).clip(0.02, 0.98).fillna(0.5).to_numpy(float)
+        Xb = np.c_[Xb, pj.logit(s2)]
     mu, sd = Xb[tem].mean(0), Xb[tem].std(0) + 1e-9
     Xb = (Xb - mu) / sd
     Y = np.c_[pj.clr(ap), pj.logit((M.comp_ap / M.aptos_ap.replace(0, np.nan)).fillna(0.8).to_numpy(float))]
@@ -133,6 +141,7 @@ def ensaio(pontos=(0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90), n_boot=200):
     for c in cb:
         total[c] = total[c].fillna(total[c].mean())
     total["b_comp"] = (total[cb].sum(axis=1) / total.aptos).clip(0.3, 0.98)
+    t2 = por_municipio("2018", {13: "b2_a", 17: "b2_b"}, turno="2")[["municipio", "b2_a", "b2_b"]]
     validos = [c for c in cats if c != "bn"]
     real = s[validos].sum(); real = real / real.sum() * 100
     s = s.sort_values("t")
@@ -147,6 +156,7 @@ def ensaio(pontos=(0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90), n_boot=200):
         # é o vetor, não o nome
         for cb_, ca in zip(["haddad18", "bolsonaro18", "alckmin18", "ciro18", "amoedo18", "bn"], cats):
             M[f"b_{ca}"] = M[cb_]
+        M = M.merge(t2, on="municipio", how="left")
         amostras, _ = projetar_mun(M, cats, n_boot=n_boot)
         av = amostras[:, [cats.index(c) for c in validos]]
         pv = av / av.sum(1, keepdims=True) * 100

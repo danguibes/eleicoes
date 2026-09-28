@@ -31,7 +31,9 @@
   .sub{color:var(--mut);font-size:13px;margin:0}
   a{color:var(--accent)}
   section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
-  .filtros{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .filtros{padding:10px 0;margin-bottom:6px}
+  /* fixa só a barra de recorte, como no Aquinas: os filtros com sliders ocupavam meia tela */
+  .foco{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:12px}
   .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   label.f{display:flex;flex-direction:column;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;gap:2px}
   select,input{font:inherit;font-size:13.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 8px;max-width:190px}
@@ -68,6 +70,12 @@
   .ab .q{display:grid;grid-template-columns:118px 1fr 64px;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;cursor:pointer;font-size:12px}
   .ab .q:hover{background:var(--grid)}
   .rolagem{max-height:430px;overflow-y:auto;padding-right:4px}
+  .regua{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .regua div{flex:1;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .regua b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+  .regua span{color:var(--mut);font-size:12px}
+  .ch-h{font-size:13.5px;margin:0 0 6px}
+  svg text{fill:var(--mut);font-size:11px}
   .ab .q.sel{background:var(--accent-soft);outline:1px solid var(--accent)}
   .ab .q .rot{color:var(--mut);font-variant-numeric:tabular-nums}
   .ab .q .val{text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;line-height:1.35}
@@ -98,8 +106,8 @@
 
 <div class="filtros">
   <div class="linha" id="barra-filtros"></div>
-  <div class="foco" id="foco"></div>
 </div>
+<div class="foco" id="foco"></div>
 
 <section id="aviso-ensaio" class="aviso-ensaio" hidden>
   <p class="sub"><b>Modo ensaio.</b> A eleição de 2022 reproduzida urna a urna, parada no momento em que uma parte das
@@ -113,6 +121,19 @@
   <div class="barra"><i id="barra-ap"></i></div>
   <div class="scroll"><table id="principal"></table></div>
   <p class="sub" id="nota-ic" style="margin-top:8px"></p>
+</section>
+
+<section id="chances" hidden>
+  <h2>Chances</h2>
+  <p class="sub" id="ch-sub"></p>
+  <div class="regua" id="ch-cards"></div>
+  <div class="grade" style="margin-top:14px">
+    <div><h3 class="ch-h">Onde os dois primeiros podem terminar <span class="sub">(% dos válidos)</span></h3>
+      <svg id="ch-curvas" viewBox="0 0 520 230" style="width:100%"></svg><div class="leg" id="ch-leg"></div></div>
+    <div><h3 class="ch-h" id="ch-dif-t">Diferença entre os dois primeiros</h3>
+      <svg id="ch-dif" viewBox="0 0 520 230" style="width:100%"></svg></div>
+  </div>
+  <p class="note" id="ch-nota"></p>
 </section>
 
 <section>
@@ -259,6 +280,91 @@ function icFaixa(v, lo, hi, ponto){
   return out;
 }
 
+
+// ---------- chances: as reamostragens do modelo, alargadas pelo fator calibrado ----------
+function amostrasDoRecorte(pj){
+  const k = chaveIC(); if (!k || !D.amostras_pct) return null;
+  const validos = D.meta.cats.filter(c => !c.startsWith("bn"));
+  if (k[0] === "faixa") {
+    const A = D.amostras_q && D.amostras_q[k[1]]; if (!A || !A.length) return null;
+    const bruto = A.map(a => { const s = validos.map((_, j) => { let x = 0; for (let q = k[2]; q <= k[3]; q++) x += a[q][j]; return x; });
+      const t = s.reduce((x,y)=>x+y,0); return s.map(x => 100*x/t); });
+    const med = validos.map((_, j) => { const c = bruto.map(r => r[j]).sort((a,b)=>a-b); return c[Math.floor(c.length/2)]; });
+    return {validos, S: bruto.map(r => r.map((x, j) => pj[validos[j]] + D.meta.fator_ic * (x - med[j])))};
+  }
+  const g = D.amostras_pct[k[0]]; if (!g || !g[k[1]]) return null;
+  return {validos, S: g[k[1]]};
+}
+function kde(xs, grade){
+  const n = xs.length, m = xs.reduce((a,b)=>a+b,0)/n, sd = Math.sqrt(xs.reduce((a,b)=>a+(b-m)**2,0)/(n-1)) || 0.1;
+  const bw = 1.06 * sd * Math.pow(n, -0.2);
+  return {m, sd, y: grade.map(x => xs.reduce((a, v) => a + Math.exp(-0.5*((x-v)/bw)**2), 0) / (n*bw*Math.sqrt(2*Math.PI)))};
+}
+function curva(svg, series, rotX){
+  const W = 520, H = 230, mg = {l:10, r:10, t:10, b:28};
+  const todos = series.flatMap(s => s.xs);
+  let x0 = Math.floor(Math.min(...todos) - 1), x1 = Math.ceil(Math.max(...todos) + 1);
+  for (const v of (series.marcas || [])) { if (v > x1 && v - x1 < 8) x1 = v + 1; if (v < x0 && x0 - v < 8) x0 = v - 1; }
+  const grade = Array.from({length: 160}, (_, i) => x0 + (x1-x0)*i/159);
+  const dens = series.map(s => ({...s, ...kde(s.xs, grade)}));
+  const ymax = Math.max(...dens.flatMap(d => d.y), ...dens.map(d => 1/(d.sd*Math.sqrt(2*Math.PI))));
+  const X = x => mg.l + (x-x0)/(x1-x0)*(W-mg.l-mg.r), Y = y => H - mg.b - y/ymax*(H-mg.t-mg.b);
+  let s = `<line x1="${mg.l}" x2="${W-mg.r}" y1="${H-mg.b}" y2="${H-mg.b}" stroke="var(--line)"/>`;
+  const passo = Math.max(1, Math.round((x1-x0)/8));
+  for (let v = Math.ceil(x0); v <= x1; v += passo) s += `<text x="${X(v)}" y="${H-10}" text-anchor="middle">${rotX(v)}</text>`;
+  for (const d of dens) {
+    s += `<path d="M${grade.map((x,i)=>`${X(x).toFixed(1)},${Y(d.y[i]).toFixed(1)}`).join("L")}" fill="${d.cor}" fill-opacity=".18" stroke="${d.cor}" stroke-width="2"/>`;
+    const nrm = grade.map(x => Math.exp(-0.5*((x-d.m)/d.sd)**2)/(d.sd*Math.sqrt(2*Math.PI)));
+    s += `<path d="M${grade.map((x,i)=>`${X(x).toFixed(1)},${Y(nrm[i]).toFixed(1)}`).join("L")}" fill="none" stroke="${d.cor}" stroke-width="1" stroke-dasharray="3 3"/>`;
+  }
+  (series.marcas || []).forEach(v => { if (v > x0 && v < x1) s += `<line x1="${X(v)}" x2="${X(v)}" y1="${mg.t}" y2="${H-mg.b}" stroke="var(--ink)" stroke-dasharray="2 3" opacity=".5"/>`; });
+  svg.innerHTML = s;
+}
+function desenharChances(res){
+  const sec = document.getElementById("chances");
+  if (!D || !D.meta.apuradas || !res || !res.ord || !res.ord.length || D.meta.cargo !== "presidente") { sec.hidden = true; return; }
+  const cedo = res.cedo; const A = amostrasDoRecorte(res.pj);
+  sec.hidden = false;
+  if (cedo || !A) {
+    document.getElementById("ch-sub").textContent = cedo ? "A partir de 1% das seções do recorte."
+      : "Há chance calculada para o Brasil, cada região, cada UF, o estado de SP e uma faixa de quintis de uma variável — não para combinações de filtros.";
+    ["ch-cards","ch-curvas","ch-dif","ch-leg","ch-nota"].forEach(id => document.getElementById(id).innerHTML = ""); return;
+  }
+  const {validos, S} = A, n = S.length;
+  const idx = c => validos.indexOf(c);
+  const ord = res.ord.filter(c => validos.includes(c) && c !== "outros");
+  const [c1, c2] = ord;
+  const primeiro = Object.fromEntries(ord.map(c => [c, 0])), segundoTurno = {v: 0};
+  let passa50 = Object.fromEntries(ord.map(c => [c, 0]));
+  for (const s of S) {
+    const topo = ord.reduce((a, c) => s[idx(c)] > s[idx(a)] ? c : a, ord[0]);
+    primeiro[topo]++;
+    if (Math.max(...ord.map(c => s[idx(c)])) <= 50) segundoTurno.v++; else passa50[topo]++;
+  }
+  const p = x => { const v = 100*x/n; return v >= 99.5 ? "> 99%" : v <= 0.5 ? "< 1%" : fmt(v,0) + "%"; };
+  const brasil = !detalhado() && !F.uf && !F.regiao && !Object.keys(F.q).length;
+  document.getElementById("ch-sub").innerHTML = `${n} reamostragens do modelo, alargadas pelo fator calibrado no ensaio de 2022. `
+    + (brasil ? "" : "<b>Recorte, não eleição:</b> o 2º turno só existe no Brasil inteiro; aqui a chance é de ultrapassar 50% dos válidos neste recorte.");
+  document.getElementById("ch-cards").innerHTML =
+    `<div><b>${p(segundoTurno.v)}</b><span>${brasil ? "de haver 2º turno" : "de ninguém passar de 50% aqui"}</span></div>` +
+    ord.slice(0, 3).map(c => `<div><b style="color:${corDe(c, ord)}">${p(primeiro[c])}</b><span>de ${nomeCat(c)} terminar em 1º</span></div>`).join("") +
+    `<div><b style="color:${corDe(c1, ord)}">${p(passa50[c1])}</b><span>de ${nomeCat(c1)} passar de 50%${brasil ? " (vencer no 1º turno)" : ""}</span></div>`;
+  // só os dois primeiros: com os pequenos (picos altos e estreitos perto de 4%) a escala esmagava os que importam
+  const series = ord.slice(0, 2).map(c => ({c, cor: corDe(c, ord), xs: S.map(s => s[idx(c)])}));
+  series.marcas = [50];
+  curva(document.getElementById("ch-curvas"), series, v => v + "%");
+  document.getElementById("ch-leg").innerHTML = series.map(s => `<span><i style="background:${s.cor}"></i>${nomeCat(s.c)}</span>`).join("") +
+    `<span class="sub">cheia: distribuição do modelo · tracejada: normal com a mesma média e desvio · vertical: 50%</span>`;
+  const dif = S.map(s => s[idx(c1)] - s[idx(c2)]);
+  const ds = [{c: c1, cor: corDe(c1, ord), xs: dif}]; ds.marcas = [0];
+  document.getElementById("ch-dif-t").textContent = `${nomeCat(c1)} − ${nomeCat(c2)} (pontos)`;
+  curva(document.getElementById("ch-dif"), ds, v => (v > 0 ? "+" : "") + v);
+  document.getElementById("ch-nota").innerHTML = `Chances <b>segundo o modelo</b>. No ensaio de 2022 o intervalo de 90% do Brasil cobriu o
+    resultado real em 91% das conferências, e a projeção ficou ~0,9 ponto abaixo de Lula até a metade da noite: "85%" quer dizer que um
+    modelo tão bom quanto este foi em 2022 erraria mais ou menos 1 vez em 7. A curva tracejada é a normal equivalente; quando as duas
+    divergem, a distribuição do modelo é assimétrica e a normal subestima um dos lados.`;
+}
+
 // ---------- quadros ---------------------------------------------------------------
 function desenharTurno(){
   const el = document.getElementById("turno"); if (!D) { el.innerHTML = ""; return; }
@@ -386,7 +492,7 @@ function desenharPrincipal(){
     ? "Projeção só a partir de 1% das seções do recorte: antes disso não há de onde medir o deslocamento."
     : faixa ? `Intervalo de 90%, calibrado no ensaio de 2022 (largura do bootstrap × ${fmt(m.fator_ic,2)}).`
     : "Recorte com mais de um filtro: a projeção aparece sem intervalo — ele existe para o total, para um município, uma zona ou uma faixa de quintis de uma variável.";
-  return {pj, ap, pa, ord};
+  return {pj, ap, pa, ord, cedo};
 }
 
 function desenharAberturas(res){
@@ -520,6 +626,7 @@ function desenhar(){
   desenharFiltros();
   desenharFoco();
   const res = desenharPrincipal() || {};
+  desenharChances(res);
   desenharAberturas(res);
   desenharLugares(res);
 }
