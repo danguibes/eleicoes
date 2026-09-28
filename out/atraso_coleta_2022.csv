@@ -1,0 +1,4 @@
+req_s,atraso_mediano_min,atraso_max_min,metade_processada,metade_tse,p90_processado,p90_tse
+50,66.2,140.3,20:42,19:34,22:48,20:29
+70,24.8,63.3,20:02,19:34,21:32,20:29
+90,7.5,24.6,19:43,19:34,20:53,20:29

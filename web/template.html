@@ -97,8 +97,33 @@
   duas colunas discordam no começo da noite.</p>
 </section>
 
+<section id="brasil" hidden>
+  <h2>O Brasil inteiro: duas camadas <span class="tag">MEDIDO</span></h2>
+  <p class="sub">A mesma projeção, do município de São Paulo ao país, ensaiada na noite de 2022 com 2018 como eleição anterior e as urnas
+  entrando na ordem real em que chegaram ao TSE (a hora de cada uma está no <i>detalhe da votação por seção</i> do Portal de Dados Abertos).</p>
+  <div class="scroll"><table id="br-ensaios"></table></div>
+  <p class="note" id="br-ensaios-nota"></p>
+  <h3 style="font-size:14px;margin:18px 0 6px">Por que duas camadas: quanto a coleta urna a urna atrasaria</h3>
+  <p class="sub">Baixar uma urna exige dois arquivos (o índice da seção e o boletim). Simulado contra a chegada real das 472.075 urnas de 2022:</p>
+  <div class="scroll"><table id="br-atraso"></table></div>
+  <p class="note">O TSE bloqueia acima de 100 requisições por segundo, e um bloqueio de 10 minutos no pico custa mais que o ritmo ganho. Por isso
+  a noite tem duas camadas: <b>o estado de SP urna a urna</b> (50 req/s), e <b>o resto do Brasil pelos totais parciais de cada município</b>
+  (~5.700 arquivos, varridos em ~6 minutos a 15 req/s). A camada municipal projeta o país com as mesmas ideias — o parcial de cada município
+  contra a eleição anterior dele, com efeito de UF — e a incerteza vem de reamostrar <b>UFs inteiras</b>: reamostrando municípios dentro da
+  UF, o intervalo de 90% cobria o real em 23% das vezes; reamostrando UFs, em 77%, e com o fator 1,25, em 91%.</p>
+  <h3 style="font-size:14px;margin:18px 0 6px">Descartado por medição</h3>
+  <ul class="emobra">
+    <li><b>O 2º turno da eleição anterior como variável do modelo.</b> A ideia era boa — 2026 tem cara de 2º turno já no 1º —, mas no ensaio
+      piorou a projeção (erro médio de 0,26 para 0,28 ponto). Fica só como comparação, no botão do painel.</li>
+    <li><b>Confiar mais ou menos no parcial do próprio município.</b> Por volume de votos, pela fração apurada ou nada: o viés que sobra é o
+      mesmo. Ele não vem de dentro do município.</li>
+    <li><b>O perfil do eleitorado fora de SP.</b> Seriam 27 downloads grandes; medido na capital, tirar o perfil do modelo sobe o erro de
+      0,33 para 0,38 ponto. O resto do país roda sem ele.</li>
+  </ul>
+</section>
+
 <section id="ensaio" hidden>
-  <h2>O ensaio da projeção: 2022, prevista a partir de 2018 <span class="tag">MEDIDO</span></h2>
+  <h2>O ensaio da projeção na capital: 2022, prevista a partir de 2018 <span class="tag">MEDIDO</span></h2>
   <p class="sub">Capital, Presidente. As urnas de 2022 entram na ordem real em que chegaram ao TSE; cada uma é comparada
   com o local de votação de 2018 mais próximo. Candidatos diferentes, locais remexidos — o mais parecido com domingo
   que dá para fazer antes de domingo.</p>
@@ -168,11 +193,13 @@
 </section>
 
 <section>
-  <h2>Em construção</h2>
+  <h2>O que ainda não foi feito</h2>
   <ul class="emobra">
-    <li>Projeção do resultado da capital na noite de domingo, urna a urna contra 2022, com intervalo.</li>
-    <li>Os mesmos quadros para 2026, na noite da apuração.</li>
-    <li>Estado de São Paulo: Presidente, governador e senador.</li>
+    <li>Governador e senador sem ensaio próprio (2018 desses cargos não foi baixado): o intervalo e as chances usam o fator do Presidente.</li>
+    <li>O 2º turno de 2022 para governador de SP (arquivo estadual de 900 MB, não baixado).</li>
+    <li>Perfil do eleitorado (TSE) fora de SP: fora do estado, os quintis de perfil são do Censo, por município.</li>
+    <li>A correção do viés das urnas tardias (~0,9 ponto em 2022): exigiria saber a hora típica de chegada de cada lugar, que para 2026 existe
+      (a de 2022) mas não dá para validar — 2018 não tem hora de chegada nos arquivos.</li>
   </ul>
 </section>
 
@@ -323,6 +350,32 @@ const CORES = {lula:"var(--lula)", flavio:"var(--bolso)", bolsonaro:"var(--bolso
     Mais evangélicos anda junto com menos Lula em três das cinco faixas — as duas mais pobres e a mais rica; nas duas do meio, o contrário. Mais católicos anda junto com <b>mais</b> Lula nas faixas
     pobres e médias — onde mais católico quer dizer, em boa parte, menos evangélico — e com muito menos Lula nas ricas. É o paradoxo
     de Simpson, e a razão de nenhum quadro desta seção dizer como votou um grupo: diz como votaram as urnas dos lugares.`;
+})();
+
+// --- Brasil: ensaios e atraso ---------------------------------------------------------
+(function(){
+  if (!D.ens_br && !D.ens_mun) return;
+  document.getElementById("brasil").hidden = false;
+  const pega = (E, f) => { if (!E) return null; const L = E.find(e => e.frac===f && e.cat==="lula"), B = E.find(e => e.frac===f && e.cat==="bolsonaro");
+    return L && B ? {cont: L.contagem - B.contagem, proj: L.projecao - B.projecao, fim: L.real - B.real} : null; };
+  const erro = E => E ? fmt(E.reduce((a, e) => a + Math.abs(e.projecao - e.real), 0) / E.length, 2) : "—";
+  const erroC = E => E ? fmt(E.reduce((a, e) => a + Math.abs(e.contagem - e.real), 0) / E.length, 2) : "—";
+  const lin = [["Capital, por seção", D.ensaio], ["Estado de SP, por seção", D.ens_sp], ["Brasil, por seção", D.ens_br], ["Brasil, por município", D.ens_mun]];
+  const sg = x => x == null ? "—" : (x > 0 ? "+" : "") + fmt(x);
+  document.getElementById("br-ensaios").innerHTML =
+    `<tr><th>escopo</th><th>contagem L−B, 10%</th><th>projeção, 10%</th><th>contagem, 25%</th><th>projeção, 25%</th><th>final</th><th>erro médio contagem → projeção</th></tr>` +
+    lin.filter(([, E]) => E).map(([n, E]) => { const a = pega(E, 0.10), b = pega(E, 0.25);
+      return `<tr><td>${n}</td><td>${sg(a && a.cont)}</td><td><b>${sg(a && a.proj)}</b></td><td>${sg(b && b.cont)}</td><td><b>${sg(b && b.proj)}</b></td>
+        <td>${sg(b && b.fim)}</td><td>${erroC(E)} → <b>${erro(E)}</b> pt</td></tr>`; }).join("");
+  const b = pega(D.ens_br, 0.10);
+  document.getElementById("br-ensaios-nota").innerHTML = `No Brasil, a contagem mostrou Bolsonaro à frente até perto das 20h de 2022. A projeção
+    apontava Lula à frente desde 10% das urnas${b ? ` (${sg(b.proj)} para um final de ${sg(b.fim)})` : ""}. O que sobra, nas duas camadas, é um viés
+    de ~0,9 ponto a menos para Lula até a metade da noite: as urnas tardias de 2022 foram mais Lula do que a eleição anterior e a UF explicam.
+    O intervalo foi alargado para cobri-lo — e isso foi calibrado numa eleição só.`;
+  const A = D.atraso; if (!A) return;
+  document.getElementById("br-atraso").innerHTML = `<tr><th>ritmo</th><th>atraso típico</th><th>atraso máximo</th><th>metade do país processada</th><th>90% processado</th></tr>` +
+    A.map(a => `<tr><td>${a.req_s} req/s</td><td>${fmt(a.atraso_mediano_min,0)} min</td><td>${fmt(a.atraso_max_min,0)} min</td>
+      <td>${a.metade_processada} <span class="ic">(TSE: ${a.metade_tse})</span></td><td>${a.p90_processado} <span class="ic">(TSE: ${a.p90_tse})</span></td></tr>`).join("");
 })();
 
 // --- curva de chegada -------------------------------------------------------
