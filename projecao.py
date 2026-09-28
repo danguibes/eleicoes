@@ -40,6 +40,30 @@ EPS = 0.5  # voto somado antes do log, para urna com zero numa categoria
 
 
 # ---------------------------------------------------------------- coordenadas
+def _sem_acento(s):
+    import unicodedata
+    return "".join(ch for ch in unicodedata.normalize("NFKD", str(s).upper()) if not unicodedata.combining(ch))
+
+
+def centros_municipios():
+    """Centro de cada município de SP pelo Censo 2022 (média dos centroides dos setores,
+    ponderada por moradores), por nome sem acento. Cacheado: ler a malha leva ~1 min."""
+    arq = RAW / "ibge" / "centros_municipios_35.parquet"
+    if not arq.exists():
+        import geopandas as gpd
+        g = gpd.read_file(RAW / "ibge" / "setores_SP.gpkg", columns=["CD_SETOR", "NM_MUN"])
+        c = g.geometry.to_crs(4674).centroid
+        st = pd.read_parquet(RAW / "ibge" / "setores_35.parquet", columns=["CD_SETOR", "pessoas"])
+        d = pd.DataFrame({"CD_SETOR": g.CD_SETOR, "nome": g.NM_MUN.map(_sem_acento),
+                          "lon": c.x, "lat": c.y}).merge(st, on="CD_SETOR", how="left")
+        d["w"] = d.pessoas.fillna(0) + 1e-3
+        out = d.groupby("nome").apply(lambda x: pd.Series({
+            "lat": np.average(x.lat, weights=x.w), "lon": np.average(x.lon, weights=x.w)}),
+            include_groups=False).reset_index()
+        out.to_parquet(arq, index=False)
+    return pd.read_parquet(arq).set_index("nome")
+
+
 def locais_coord(ano, mun="71072"):
     """(zona, local) -> x, y em metros (projeção plana; basta para vizinhança).
     mun=None: a UF inteira — número de zona é único na UF, e local é único na zona."""
@@ -50,7 +74,19 @@ def locais_coord(ano, mun="71072"):
         l = l[l.NR_TURNO == "1"]
     for c in ("NR_LATITUDE", "NR_LONGITUDE"):
         l[c] = pd.to_numeric(l[c].str.replace(",", ".", regex=False), errors="coerce")
-    l = l[(l.NR_LATITUDE != -1) & l.NR_LATITUDE.notna()]
+    # Local sem coordenada (-1/-1): centro do município pelo Censo. Em 2022, 27 dos
+    # 645 municípios de SP (1.655 seções, Itapevi entre eles) não tinham NENHUM
+    # local com coordenada; sem isto essas urnas eram comparadas com outra cidade.
+    ruim = (l.NR_LATITUDE == -1) | l.NR_LATITUDE.isna()
+    if ruim.any():
+        cm = centros_municipios()
+        nomes = l.loc[ruim, "NM_MUNICIPIO"].map(_sem_acento)
+        l.loc[ruim, "NR_LATITUDE"] = nomes.map(cm.lat).to_numpy()
+        l.loc[ruim, "NR_LONGITUDE"] = nomes.map(cm.lon).to_numpy()
+        faltou = l.loc[ruim, "NR_LATITUDE"].isna().sum()
+        if faltou:
+            print(f"   {faltou} linhas de local sem coordenada nem município casado pelo nome", flush=True)
+    l = l[l.NR_LATITUDE.notna()]
     g = (l.groupby(["NR_ZONA", "NR_LOCAL_VOTACAO"])
          .agg(lat=("NR_LATITUDE", "first"), lon=("NR_LONGITUDE", "first"),
               municipio=("CD_MUNICIPIO", "first")).reset_index())
@@ -262,11 +298,17 @@ def projetar(univ, X, obs_mask, cats, n_boot=200, seed=0):
 # 100% (35 conferências, 7 momentos × 5 categorias). Calibrado numa eleição
 # só — e 2026 muda mais que 2022 (dois dos três primeiros são estreantes).
 FATOR = 1.25
+# No estado inteiro o mesmo ensaio pediu muito mais: cobertura 46% com 1,25;
+# 86% com 3; 97% com 4 (35 conferências). Sobra um viés de ~0,5 ponto a favor de
+# Bolsonaro até metade da noite que o modelo não explica — zonas do interior que
+# chegam cedo não representam as que chegam tarde. O fator largo é o remendo
+# honesto; o conserto (efeito regional hierárquico) ficou para depois.
+FATOR_UF = 3.5
 
 
-def intervalo(amostras, ponto):
+def intervalo(amostras, ponto, fator=FATOR):
     lo, hi = np.percentile(amostras, [5, 95], axis=0)
-    meia = (hi - lo) / 2 * FATOR
+    meia = (hi - lo) / 2 * fator
     return ponto - meia, ponto + meia
 
 
@@ -403,7 +445,7 @@ class Noite:
         a = projetar(u, self.X, m, self.cats, n_boot=n_boot)
         av = a[:, [self.cats.index(c) for c in validos]]
         pv = av / av.sum(1, keepdims=True) * 100
-        lo, hi = intervalo(pv[1:], pv[0])
+        lo, hi = intervalo(pv[1:], pv[0], FATOR if self.mun else FATOR_UF)
         soma = u.loc[m, validos].sum()
         comp_proj = a[:, :].sum(1)
         return {
