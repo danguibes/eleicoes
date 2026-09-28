@@ -58,6 +58,12 @@
   .barra{height:8px;background:var(--grid);border-radius:999px;overflow:hidden;margin:10px 0 14px}
   .barra i{display:block;height:100%;background:var(--accent)}
   .ic{color:var(--mut);font-size:12px}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+  .mini h4{margin:0 0 6px;font-size:13.5px}
+  .mini .lin{display:grid;grid-template-columns:92px 1fr 44px;gap:6px;align-items:center;font-size:12px;margin:3px 0}
+  .mini .bar{height:10px;border-radius:2px;background:var(--grid);position:relative;overflow:hidden}
+  .mini .bar i{position:absolute;top:0;bottom:0;left:0}
+  .mini .rot{color:var(--mut);font-variant-numeric:tabular-nums}
   footer{color:var(--mut);font-size:12.5px;margin-top:30px}
   footer a,.note a{color:var(--accent)}
 </style>
@@ -100,6 +106,40 @@
   <p class="note" id="ens-nota"></p>
 </section>
 
+<section id="grupos" hidden>
+  <h2>Voto por idade e sexo, 2022 <span class="tag">ESTIMATIVA</span></h2>
+  <p class="sub">Capital, Presidente, % dos votos válidos entre quem votou em cada grupo. Inferência ecológica a partir das
+  26.288 urnas, com o comparecimento real por perfil do TSE no lugar do estimado.</p>
+  <div class="scroll"><table id="gr-tabela"></table></div>
+  <p class="note">O intervalo é o da reamostragem por zona <b>somado ao erro máximo que o método cometeu na régua do
+  comparecimento</b> (±4,4 pontos na idade, ±1,2 no sexo). Sexo quase não varia entre urnas: a estimativa tem pouca
+  informação para trabalhar, e as pesquisas são referência melhor para ela.</p>
+</section>
+
+<section id="regua-comp" hidden>
+  <h2>A régua: o comparecimento real por perfil <span class="tag">MEDIDO</span></h2>
+  <p class="sub">O TSE publica quem compareceu por idade e escolaridade. Antes de estimar o voto de um grupo, o método tem
+  que acertar o comparecimento dele, onde existe gabarito.</p>
+  <div class="scroll"><table id="rg-tabela"></table></div>
+  <p class="note"><b>Por que não há "voto por escolaridade" nesta página.</b> Em todas as variantes testadas o método
+  estimou o comparecimento de quem tem superior completo 10 a 19 pontos abaixo do real, e abaixo de quem tem ensino médio:
+  a ordem invertida. A leitura provável: nas urnas de bairros de alta escolaridade há muito eleitor inscrito que já não
+  mora ali, e essa abstenção é do lugar, não do grupo; o modelo não tem como separar as duas coisas. Um método que erra
+  assim onde há gabarito não vai para onde não há. A escolaridade aparece abaixo como <b>perfil da urna</b>, não como grupo.</p>
+</section>
+
+<section id="bairros" hidden>
+  <h2>As urnas agrupadas pelo perfil do lugar, 2022 <span class="tag">DADO</span></h2>
+  <p class="sub">Cada urna da capital cai num quintil (cinco grupos com o mesmo número de votantes) segundo o perfil do seu
+  eleitorado (TSE) ou do entorno do seu local de votação (Censo 2022, raio de 1,5 km). O voto é a soma real das urnas.</p>
+  <div class="grade" id="br-grade"></div>
+  <p class="note"><b>Isto não é "como votou cada grupo".</b> É como votaram as urnas dos lugares com mais daquele grupo, e as
+  duas coisas podem apontar para lados opostos. O exemplo abaixo mostra isso acontecendo.</p>
+  <h3 style="font-size:14px;margin:18px 0 6px">Evangélicos: o quadro geral e dentro da mesma renda</h3>
+  <div class="scroll"><table id="br-cruz"></table></div>
+  <p class="note" id="br-cruz-nota"></p>
+</section>
+
 <section>
   <h2>2022: a contagem na ordem em que as urnas chegaram <span class="tag">DADO</span></h2>
   <p class="sub">Presidente, capital, % dos votos válidos somando as seções na hora real em que cada uma chegou ao TSE.</p>
@@ -130,8 +170,7 @@
   <h2>Em construção</h2>
   <ul class="emobra">
     <li>Projeção do resultado da capital na noite de domingo, urna a urna contra 2022, com intervalo.</li>
-    <li>Voto estimado por idade, escolaridade, renda, cor e religião — 2022 e 2026 — com intervalo.</li>
-    <li>Validação: comparecimento estimado contra o comparecimento real por perfil (TSE), e voto por grupo contra as pesquisas.</li>
+    <li>Os mesmos quadros para 2026, na noite da apuração.</li>
     <li>Estado de São Paulo: Presidente, governador e senador.</li>
   </ul>
 </section>
@@ -217,6 +256,65 @@ const CORES = {lula:"var(--lula)", flavio:"var(--bolso)", bolsonaro:"var(--bolso
     real em <b>${cob} de ${E.length}</b> conferências (7 momentos × 5 candidaturas). Ressalva que o número esconde: o intervalo foi
     calibrado <b>neste mesmo ensaio</b> — e 2026 muda mais que 2022, com dois estreantes entre os três primeiros. Com 5% das urnas a projeção errou mais que a contagem simples
     (${fmt(L(.05).projecao-B(.05).projecao)} contra ${fmt(L(.05).contagem-B(.05).contagem)}): no começo da noite o intervalo largo é o aviso.`;
+})();
+
+// --- voto por grupo ------------------------------------------------------------
+(function(){
+  const G = D.grupos; if (!G) return;
+  document.getElementById("grupos").hidden = false;
+  const cats = ["lula","bolsonaro","tebet","ciro","outros"];
+  const grupos = [...new Set(G.map(g => g.variavel + "|" + g.grupo))];
+  document.getElementById("gr-tabela").innerHTML =
+    `<tr><th>grupo</th>${cats.map(c => `<th>${NOMES[c]}</th>`).join("")}</tr>` +
+    grupos.map(k => { const [v, g] = k.split("|");
+      return `<tr><td>${v === "idade" ? g + " anos" : g}</td>` + cats.map(c => {
+        const x = G.find(y => y.variavel===v && y.grupo===g && y.cat===c);
+        return `<td>${fmt(x.estimado)}<br><span class="ic">${fmt(Math.max(0,x.lo90))}–${fmt(x.hi90)}</span></td>`; }).join("") + "</tr>"; }).join("");
+})();
+
+// --- régua ---------------------------------------------------------------------
+(function(){
+  const R = D.regua; if (!R) return;
+  document.getElementById("regua-comp").hidden = false;
+  const sel = R.filter(r => r.nivel === "zona" && ((r.variavel === "escolaridade" && r.grupos === "finos") ||
+                                                    (r.variavel === "idade" && r.grupos === "juntos")));
+  document.getElementById("rg-tabela").innerHTML =
+    `<tr><th>grupo</th><th>comparecimento real</th><th>estimado pelo método</th><th>erro</th></tr>` +
+    sel.map(r => `<tr><td>${r.variavel === "idade" ? r.grupo + " anos" : r.grupo}</td><td>${fmt(r.real)}%</td>
+      <td>${fmt(r.estimado)}%</td><td>${r.erro > 0 ? "+" : ""}${fmt(r.erro)}</td></tr>`).join("");
+})();
+
+// --- bairros -------------------------------------------------------------------
+(function(){
+  const Q = D.quintis; if (!Q) return;
+  document.getElementById("bairros").hidden = false;
+  const TIT = {superior:"Eleitores com superior completo na urna", renda:"Renda média do responsável no entorno",
+    preta_parda:"Pretos e pardos no entorno (15+)", evangelicos:"Evangélicos no entorno (10+)", idosos:"Eleitores com 60+ na urna"};
+  const faixa = (v, x) => v === "renda" ? `R$ ${Math.round(x.de).toLocaleString("pt-BR")}–${Math.round(x.ate).toLocaleString("pt-BR")}`
+                                        : `${fmt(x.de,0)}–${fmt(x.ate,0)}%`;
+  const max = 65;
+  document.getElementById("br-grade").innerHTML = Object.keys(TIT).map(v => {
+    const q = Q.filter(x => x.variavel === v);
+    return `<div class="mini"><h4>${TIT[v]}</h4>` + q.map(x => `
+      <div class="lin"><span class="rot">${faixa(v, x)}</span>
+        <div><div class="bar"><i style="width:${x.lula/max*100}%;background:var(--lula)"></i></div>
+             <div class="bar" style="margin-top:2px"><i style="width:${x.bolsonaro/max*100}%;background:var(--bolso)"></i></div></div>
+        <span class="rot">${fmt(x.lula,0)} / ${fmt(x.bolsonaro,0)}</span></div>`).join("") + `</div>`;
+  }).join("") + `<div class="leg" style="grid-column:1/-1"><span><i style="background:var(--lula)"></i>Lula</span>
+    <span><i style="background:var(--bolso)"></i>Bolsonaro</span><span class="ic">% dos votos válidos das urnas do quintil, do menor para o maior valor</span></div>`;
+  const C = D.rendaevang; if (!C) return;
+  const ev = Q.filter(x => x.variavel === "evangelicos");
+  const lin = r => C.filter(x => x.renda === r);
+  document.getElementById("br-cruz").innerHTML =
+    `<tr><th>renda do entorno</th><th>Lula, menos evangélicos</th><th>Lula, mais evangélicos</th><th>Bolsonaro, menos</th><th>Bolsonaro, mais</th></tr>` +
+    [1,2,3,4,5].map(r => { const m = lin(r).find(x => x.evangelicos==="menos"), M = lin(r).find(x => x.evangelicos==="mais");
+      return `<tr><td>${r === 1 ? "1º quintil (mais pobre)" : r === 5 ? "5º quintil (mais rico)" : r + "º quintil"}</td>
+        <td>${fmt(m.lula)}</td><td><b>${fmt(M.lula)}</b></td><td>${fmt(m.bolsonaro)}</td><td><b>${fmt(M.bolsonaro)}</b></td></tr>`; }).join("");
+  document.getElementById("br-cruz-nota").innerHTML = `No quadro geral, as urnas do quintil com mais evangélicos deram
+    ${fmt(ev[4].lula)}% a Lula, contra ${fmt(ev[0].lula)}% no quintil com menos. Mas os lugares com mais evangélicos são também os
+    mais pobres, e os lugares mais pobres votaram em Lula. <b>Comparando lugares da mesma renda</b> (cada linha acima: o terço com
+    mais evangélicos contra o terço com menos), o sinal se inverte nos dois quintis mais pobres e no mais rico: mais evangélicos,
+    menos Lula e mais Bolsonaro. É o paradoxo de Simpson, e a razão de nenhum gráfico desta seção dizer como um grupo votou.`;
 })();
 
 // --- curva de chegada -------------------------------------------------------

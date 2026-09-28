@@ -52,12 +52,14 @@ def locais_coord(ano, mun="71072"):
         l[c] = pd.to_numeric(l[c].str.replace(",", ".", regex=False), errors="coerce")
     l = l[(l.NR_LATITUDE != -1) & l.NR_LATITUDE.notna()]
     g = (l.groupby(["NR_ZONA", "NR_LOCAL_VOTACAO"])
-         .agg(lat=("NR_LATITUDE", "first"), lon=("NR_LONGITUDE", "first")).reset_index())
+         .agg(lat=("NR_LATITUDE", "first"), lon=("NR_LONGITUDE", "first"),
+              municipio=("CD_MUNICIPIO", "first")).reset_index())
+    g["municipio"] = g.municipio.astype(int)
     g["zona"] = g.NR_ZONA.astype(int)
     g["local"] = g.NR_LOCAL_VOTACAO.astype(int)
     g["x"] = (g.lon + 46.63) * 102_000
     g["y"] = (g.lat + 23.55) * 111_000
-    return g[["zona", "local", "x", "y"]]
+    return g[["zona", "local", "municipio", "x", "y"]]
 
 
 def principal_de(ano, mun="71072"):
@@ -273,14 +275,14 @@ def ensaio(pontos=(0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90)):
     cats_alvo = {13: "lula", 22: "bolsonaro", 15: "tebet", 12: "ciro"}
     univ, cats = alvo_bu("2022", cats_alvo)
     coords = locais_coord("2022")
-    univ = univ.merge(coords, on=["zona", "local"], how="left")
+    univ = univ.merge(coords.drop(columns="municipio"), on=["zona", "local"], how="left")
     sem = univ.x.isna()
     # local sem coordenada (-1/-1 no cadastro): usa o centro dos locais da zona
     cz = coords.groupby("zona")[["x", "y"]].mean()
     univ.loc[sem, ["x", "y"]] = cz.reindex(univ.loc[sem, "zona"]).to_numpy()
     univ = univ.merge(perfil_secoes("2022"), on=["zona", "secao"], how="left")
     base, cats_base = base_2018()
-    base = base.merge(locais_coord("2018"), on=["zona", "local"], how="left")
+    base = base.merge(locais_coord("2018").drop(columns="municipio"), on=["zona", "local"], how="left")
     X, dist = montar(univ, base, cats_base)
     print(f"seções-alvo {len(univ):,} ({sem.sum()} sem coordenada, na média da zona); "
           f"distância até o local-base: mediana {np.median(dist):.0f} m, "
@@ -340,10 +342,19 @@ def universo_cadastro(ano, mun="71072"):
               aptos=("eleitores", "sum")).reset_index()
          .rename(columns={"principal": "secao"}))
     coords = locais_coord(ano, mun)
-    u = u.merge(coords, on=["zona", "local"], how="left")
+    u = u.merge(coords.drop(columns="municipio"), on=["zona", "local"], how="left")
+    # local sem coordenada (-1/-1 no cadastro): centro dos locais da zona; se a
+    # zona inteira não tem (acontece no interior), centro dos locais do município
     sem = u.x.isna()
     cz = coords.groupby("zona")[["x", "y"]].mean()
     u.loc[sem, ["x", "y"]] = cz.reindex(u.loc[sem, "zona"]).to_numpy()
+    sem2 = u.x.isna()
+    cm = coords.groupby("municipio")[["x", "y"]].mean()
+    u.loc[sem2, ["x", "y"]] = cm.reindex(u.loc[sem2, "municipio"]).to_numpy()
+    sem3 = u.x.isna()
+    print(f"coordenadas: {sem.sum() - sem2.sum()} seções pela zona, {sem2.sum() - sem3.sum()} "
+          f"pelo município, {sem3.sum()} sem nenhuma (descartadas da vizinhança)", flush=True)
+    u.loc[sem3, ["x", "y"]] = u[["x", "y"]].mean().to_numpy()
     return u.merge(perfil_secoes(ano, mun), on=["zona", "secao"], how="left")
 
 
@@ -362,7 +373,7 @@ class Noite:
         else:
             b, self.cats_base = base_bu(base, BASE_2022 if cargo == "presidente" else "auto",
                                         mun, cargo)
-        b = b.merge(locais_coord(base, mun), on=["zona", "local"], how="left")
+        b = b.merge(locais_coord(base, mun).drop(columns="municipio"), on=["zona", "local"], how="left")
         self.X, self.dist = montar(self.univ, b, self.cats_base)
         if cargo != "presidente":
             self.cats_alvo = "auto"
