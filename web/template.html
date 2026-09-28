@@ -166,12 +166,16 @@ const CORES = {lula:"var(--lula)", flavio:"var(--bolso)", bolsonaro:"var(--bolso
     `${u.secoes.toLocaleString("pt-BR")} de ${u.total.toLocaleString("pt-BR")} seções apuradas (${fmt(pct)}%) · ` +
     `comparecimento nas apuradas ${fmt(100*u.comparecimento_apurado)}% · atualizado às ${u.hora}`;
   document.getElementById("av-barra").style.width = pct + "%";
-  const cs = [...u.candidatos].sort((a,b) => b.projecao - a.projecao);
+  // Abaixo de 1% das seções não há de onde tirar deslocamento: no ensaio de 2022,
+  // com 13 urnas a projeção dava Lula − Bolsonaro +2,4 para um final de +9,6.
+  const MIN = 0.01, cedo = u.secoes/u.total < MIN;
+  const cs = [...u.candidatos].sort((a,b) => cedo ? b.contagem - a.contagem : b.projecao - a.projecao);
   document.getElementById("av-tabela").innerHTML =
     `<tr><th>candidato</th><th>contagem</th><th>projeção</th><th>intervalo 90%</th></tr>` +
-    cs.map(c => `<tr><td>${NOMES[c.cat]||c.cat}</td><td>${fmt(c.contagem)}%</td><td><b>${fmt(c.projecao)}%</b></td>
-      <td class="ic">${fmt(c.lo90)} – ${fmt(c.hi90)}</td></tr>`).join("");
-  const R = A.rodadas.filter(r => r.candidatos);
+    cs.map(c => `<tr><td>${NOMES[c.cat]||c.cat}</td><td>${fmt(c.contagem)}%</td>
+      <td>${cedo ? "—" : `<b>${fmt(c.projecao)}%</b>`}</td>
+      <td class="ic">${cedo ? "a partir de 1% das seções" : `${fmt(c.lo90)} – ${fmt(c.hi90)}`}</td></tr>`).join("");
+  const R = A.rodadas.filter(r => r.candidatos && r.secoes/r.total >= MIN);
   if (R.length < 2) return;
   const svg = document.getElementById("av-curva"), W=900, H=300, m={l:44,r:110,t:12,b:30};
   const top = cs.slice(0, 2).map(c => c.cat);
