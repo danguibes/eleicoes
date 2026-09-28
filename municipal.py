@@ -63,7 +63,7 @@ def secoes_2022(cats):
     return t.merge(d, on=["zona", "secao"], how="inner"), cs
 
 
-def projetar_mun(M, cats, n_boot=200, seed=0):
+def projetar_mun(M, cats, n_boot=200, seed=0, guardar_linhas=False):
     """M: um município por linha, com ap_<cat> (apurado), aptos_ap, comp_ap, aptos (total),
     b_<cat> (base, parcelas), b_comp, uf. Devolve (amostras B×C dos votos no país, por_mun)."""
     rng = np.random.default_rng(seed)
@@ -82,7 +82,7 @@ def projetar_mun(M, cats, n_boot=200, seed=0):
     o = np.where(tem)[0]
     # municípios por UF, para reamostrar dentro de cada UF
     grupos = {u: o[ufs[o] == u] for u in np.unique(ufs[o])}
-    amostras, por_mun = [], None
+    amostras, por_mun, linhas = [], None, []
     for b in range(n_boot):
         if b == 0:
             idx = o
@@ -111,7 +111,11 @@ def projetar_mun(M, cats, n_boot=200, seed=0):
         linha = ap + partes * (tc * resto)[:, None]
         if b == 0:
             por_mun = linha
+        if guardar_linhas:
+            linhas.append(linha)
         amostras.append(linha.sum(0))
+    if guardar_linhas:
+        return np.array(amostras), linhas   # linhas[0] é a projeção central
     return np.array(amostras), por_mun
 
 

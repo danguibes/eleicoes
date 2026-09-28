@@ -86,7 +86,7 @@
 <header>
   <div>
     <h1>Eleições 2026 — apuração e projeção</h1>
-    <p class="sub" id="subtitulo">Estado de São Paulo, urna a urna.
+    <p class="sub" id="subtitulo">Brasil por município; São Paulo urna a urna.
       <a href="metodo.html">Como funciona, o que foi medido e o que não passou na régua →</a></p>
   </div>
   <div class="modo" id="modo"></div>
@@ -112,9 +112,10 @@
 </section>
 
 <section>
-  <h2>Por perfil do lugar</h2>
-  <p class="sub">Urnas em quintis — cinco grupos com o mesmo número de eleitores no estado —, pelo perfil do eleitorado da
-  seção (TSE) ou do entorno do local de votação (Censo 2022). <b>É o voto das urnas desses lugares, não o voto das pessoas
+  <h2 id="t-aberturas">Por perfil do lugar</h2>
+  <p class="sub" id="sub-aberturas">Urnas em quintis — cinco grupos com o mesmo número de eleitores no estado —, pelo perfil do eleitorado da
+  seção (TSE) ou do entorno do local de votação (Censo 2022). Cada quintil tem 20% dos eleitores de 2026 — não dos locais,
+  nem dos moradores. <b>É o voto das urnas desses lugares, não o voto das pessoas
   desse grupo</b>: <a href="metodo.html#bairros">por que a diferença importa</a>. Clique num quintil para filtrar a tela; com Shift, estende a faixa. Os controles no topo fazem o mesmo.</p>
   <div class="leg" id="leg-ab"></div>
   <div class="grade" id="aberturas"></div>
@@ -139,8 +140,17 @@ const VARS = [["renda","Renda do entorno","R$"],["catolicos","Católicos no ento
 const fmt = (x, d=1) => (x==null||isNaN(x)) ? "—" : x.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const MODOS = [["2026","2026 — ao vivo"],["ensaio","Ensaio com 2022"]];
 
+const REGIOES = {"Norte":["AC","AM","AP","PA","RO","RR","TO"], "Nordeste":["AL","BA","CE","MA","PB","PE","PI","RN","SE"],
+  "Centro-Oeste":["DF","GO","MS","MT"], "Sudeste":["ES","MG","RJ","SP"], "Sul":["PR","RS","SC"], "Exterior":["ZZ"]};
+const UF_NOME = {AC:"Acre",AL:"Alagoas",AM:"Amazonas",AP:"Amapá",BA:"Bahia",CE:"Ceará",DF:"Distrito Federal",ES:"Espírito Santo",
+  GO:"Goiás",MA:"Maranhão",MG:"Minas Gerais",MS:"Mato Grosso do Sul",MT:"Mato Grosso",PA:"Pará",PB:"Paraíba",PE:"Pernambuco",
+  PI:"Piauí",PR:"Paraná",RJ:"Rio de Janeiro",RN:"Rio Grande do Norte",RO:"Rondônia",RR:"Roraima",RS:"Rio Grande do Sul",
+  SC:"Santa Catarina",SE:"Sergipe",SP:"São Paulo",TO:"Tocantins",ZZ:"Exterior"};
 let D = null, modo = null;
-const F = {cargo:"presidente", mun:null, zona:null, q:{}};   // o estado inteiro da tela
+// o estado inteiro da tela. uf "SP" carrega o painel detalhado por local (3 cargos, quintis);
+// qualquer outro recorte usa o nacional por município (camada rápida, só Presidente)
+const F = {cargo:"presidente", regiao:null, uf:null, mun:null, zona:null, q:{}};
+const detalhado = () => F.uf === "SP";
 let escondidos = new Set();
 
 // Cor por identidade, não por posição: Lula e o PT sempre vermelhos, o principal
@@ -165,14 +175,28 @@ function nomeCat(c){
 
 async function carregar(m){
   modo = m;
-  const r = await fetch(`dados/${m}_${F.cargo}.json`, {cache:"no-store"});
+  if (!detalhado()) F.cargo = "presidente";
+  const arq = detalhado() ? `dados/${m}_${F.cargo}.json` : `dados/${m}_brasil_presidente.json`;
+  const r = await fetch(arq, {cache:"no-store"});
   if (!r.ok) { D = null; desenhar(); return; }
   D = await r.json();
+  if (D.mun) {
+    // nacional: uma linha por município faz o papel de "local" nas duas tabelas
+    const t = D.mun, n = t.municipio.length;
+    t.zona = new Array(n).fill(0); t.apurada = t.apuradas;
+    // comparecimento da eleição anterior = soma dos votos dela (brancos e nulos inclusos)
+    t.comparecimento = t.municipio.map((_, i) => D.meta.cats_anterior.reduce((a, c) => a + (t[c][i] || 0), 0));
+    D.atual = t; D.anterior = t;
+  }
   desenhar();
 }
 
 // ---------- filtro: a única fonte de todos os quadros --------------------------
 function passa(t, i, ignorar){
+  if (t.uf) {
+    if (F.uf != null && ignorar !== "uf" && t.uf[i] !== F.uf) return false;
+    if (F.regiao != null && ignorar !== "regiao" && t.regiao[i] !== F.regiao) return false;
+  }
   if (F.mun != null && ignorar !== "mun" && t.municipio[i] !== F.mun) return false;
   if (F.zona != null && ignorar !== "zona" && t.zona[i] !== F.zona) return false;
   for (const [v, [lo, hi]] of Object.entries(F.q)) {
@@ -191,6 +215,12 @@ function pct(s, cats){ const v = cats.filter(c => c !== "bn"); const tot = v.red
 
 // intervalo só existe para o total e para recortes de uma dimensão
 function chaveIC(){
+  if (!detalhado()) {   // nacional: Brasil, uma região ou uma UF
+    if (F.mun != null) return null;
+    if (F.uf != null) return F.regiao == null || REGIOES[F.regiao].includes(F.uf) ? ["uf", F.uf] : null;
+    if (F.regiao != null) return ["regiao", F.regiao];
+    return ["total", "total"];
+  }
   const ativos = (F.mun!=null) + (F.zona!=null) + Object.keys(F.q).length;
   if (ativos === 0) return ["total","total"];
   if (ativos > 1) return null;
@@ -226,12 +256,14 @@ function desenharFiltros(){
   const zonas = D ? [...new Set(D.atual.zona.filter((z,i) => F.mun==null || D.atual.municipio[i]===F.mun))].sort((a,b)=>a-b) : [];
   const sel = (id, rot, ops, val, dis) => `<label class="f">${rot}<select id="${id}" ${dis?"disabled":""}>${ops.map(([v,t]) =>
       `<option value="${v}" ${String(v)===String(val)?"selected":""}>${t}</option>`).join("")}</select></label>`;
-  let h = sel("f-cargo","Cargo",[["presidente","Presidente"],["governador","Governador"],["senador","Senador"]], F.cargo);
-  h += sel("f-regiao","Região",[["se","Sudeste"]],"se",true);
-  h += sel("f-uf","UF",[["SP","São Paulo"]],"SP",true);
-  h += sel("f-mun","Município",[["","todos"], ...muns.map(([c,n]) => [c, n])], F.mun ?? "");
-  h += sel("f-zona","Zona",[["","todas"], ...zonas.map(z => [z, z])], F.zona ?? "");
-  for (const [v, t] of VARS) { const [lo, hi] = F.q[v] || [1, 5];
+  const ufsReg = F.regiao ? REGIOES[F.regiao] : Object.values(REGIOES).flat();
+  const munsVis = detalhado() ? muns : (F.uf ? muns.filter(([c]) => D.mun.uf[D.mun.municipio.indexOf(+c)] === F.uf) : []);
+  let h = sel("f-cargo","Cargo",[["presidente","Presidente"],["governador","Governador (SP)"],["senador","Senador (SP)"]], F.cargo, !detalhado());
+  h += sel("f-regiao","Região",[["","Brasil"], ...Object.keys(REGIOES).map(r => [r, r])], F.regiao ?? "");
+  h += sel("f-uf","UF",[["","todas"], ...ufsReg.map(u => [u, UF_NOME[u]])], F.uf ?? "");
+  h += sel("f-mun","Município",[["", F.uf || detalhado() ? "todos" : "escolha a UF"], ...munsVis.map(([c,n]) => [c, n])], F.mun ?? "", !munsVis.length);
+  if (detalhado()) h += sel("f-zona","Zona",[["","todas"], ...zonas.map(z => [z, z])], F.zona ?? "");
+  if (detalhado()) for (const [v, t] of VARS) { const [lo, hi] = F.q[v] || [1, 5];
     h += `<div class="sl" data-v="${v}">${t.replace(" no entorno","").replace(" na urna","")}
       <span class="val">${textoFaixa(lo, hi)}</span>
       <div class="trilho"><div class="fundo"></div><div class="faixa" style="left:${6+(lo-1)/4*88}%;width:${(hi-lo)/4*88}%"></div>
@@ -240,8 +272,14 @@ function desenharFiltros(){
       <div class="marcas"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div></div>`; }
   document.getElementById("barra-filtros").innerHTML = h;
   document.getElementById("f-cargo").onchange = e => { F.cargo = e.target.value; carregar(modo); };
+  document.getElementById("f-regiao").onchange = e => { const era = detalhado(); F.regiao = e.target.value || null;
+    if (F.uf && F.regiao && !REGIOES[F.regiao].includes(F.uf)) F.uf = null; F.mun = null; F.zona = null; F.q = {};
+    era !== detalhado() ? carregar(modo) : desenhar(); };
+  document.getElementById("f-uf").onchange = e => { const era = detalhado(); F.uf = e.target.value || null;
+    F.mun = null; F.zona = null; F.q = {}; era !== detalhado() ? carregar(modo) : desenhar(); };
   document.getElementById("f-mun").onchange = e => { F.mun = e.target.value ? +e.target.value : null; F.zona = null; desenhar(); };
-  document.getElementById("f-zona").onchange = e => { F.zona = e.target.value ? +e.target.value : null; desenhar(); };
+  const fz = document.getElementById("f-zona");
+  if (fz) fz.onchange = e => { F.zona = e.target.value ? +e.target.value : null; desenhar(); };
   document.querySelectorAll(".sl").forEach(el => {
     const v = el.dataset.v, lo = el.querySelector(".lo"), hi = el.querySelector(".hi");
     const aplicar = (qual) => { let a = +lo.value, b = +hi.value;
@@ -254,19 +292,24 @@ function desenharFiltros(){
 
 function desenharFoco(){
   const m = D ? D.meta : null, partes = [];
+  if (F.regiao != null) partes.push(["regiao", F.regiao]);
+  if (F.uf != null) partes.push(["uf", UF_NOME[F.uf]]);
   if (F.mun != null) partes.push(["mun", m.municipios[F.mun]]);
   if (F.zona != null) partes.push(["zona", "zona " + F.zona]);
   for (const [v, [lo, hi]] of Object.entries(F.q)) partes.push([v, VARS.find(x=>x[0]===v)[1] + ": " + textoFaixa(lo, hi)]);
   const el = document.getElementById("foco");
-  if (!partes.length) { el.innerHTML = `<span class="sub">Sem recorte: estado de São Paulo inteiro.</span>`; return; }
+  if (!partes.length) { el.innerHTML = `<span class="sub">Sem recorte: Brasil inteiro, por município. Escolha São Paulo em UF para o detalhe por local de votação, os quintis e governador e senador.</span>`; return; }
   el.innerHTML = `<span class="sub">Recorte:</span>` + partes.map(([k,t]) =>
     `<span class="chip">${t}<button data-k="${k}" title="tirar este filtro">×</button></span>`).join("") +
     ` <button class="limpar" id="limpar">limpar tudo</button>`;
   el.querySelectorAll(".chip button").forEach(b => b.onclick = () => {
-    const k = b.dataset.k; if (k==="mun") { F.mun=null; F.zona=null; } else if (k==="zona") F.zona=null; else delete F.q[k]; desenhar(); });
-  document.getElementById("limpar").onclick = () => { limpar(); desenhar(); };
+    const k = b.dataset.k, era = detalhado();
+    if (k==="regiao") { F.regiao=null; } else if (k==="uf") { F.uf=null; F.mun=null; F.zona=null; F.q={}; }
+    else if (k==="mun") { F.mun=null; F.zona=null; } else if (k==="zona") F.zona=null; else delete F.q[k];
+    era !== detalhado() ? carregar(modo) : desenhar(); });
+  document.getElementById("limpar").onclick = () => { const era = detalhado(); limpar(); era !== detalhado() ? carregar(modo) : desenhar(); };
 }
-function limpar(){ F.mun=null; F.zona=null; F.q={}; }
+function limpar(){ F.regiao=null; F.uf=null; F.mun=null; F.zona=null; F.q={}; }
 function textoFaixa(lo, hi){ return lo === 1 && hi === 5 ? "todos" : lo === hi ? lo + "º quintil" : lo + "º ao " + hi + "º"; }
 
 function desenharPrincipal(){
@@ -279,7 +322,8 @@ function desenharPrincipal(){
   const s = somar(D.atual, colsAt);
   const sa = somar(D.anterior, [...catsA, "comparecimento", "aptos"]);
   const pa = pct(sa, catsA);
-  document.getElementById("t-principal").innerHTML = `${F.cargo[0].toUpperCase()+F.cargo.slice(1)} — ${m.atual}`;
+  const onde = F.mun != null ? m.municipios[F.mun] : F.uf ? UF_NOME[F.uf] : F.regiao ? F.regiao : "Brasil";
+  document.getElementById("t-principal").innerHTML = `${F.cargo[0].toUpperCase()+F.cargo.slice(1)} — ${onde}, ${m.atual}`;
   document.getElementById("barra-ap").style.width = (100*s.apurada/s.secoes) + "%";
   document.getElementById("progresso").textContent = temAp
     ? `${s.apurada.toLocaleString("pt-BR")} de ${s.secoes.toLocaleString("pt-BR")} seções apuradas no recorte (${fmt(100*s.apurada/s.secoes)}%) · `
@@ -317,6 +361,9 @@ function desenharPrincipal(){
 function desenharAberturas(res){
   const box = document.getElementById("aberturas");
   if (!D) { box.innerHTML = ""; return; }
+  document.getElementById("t-aberturas").textContent = detalhado() ? "Por perfil do lugar" : "Por região e UF";
+  document.getElementById("sub-aberturas").hidden = !detalhado();
+  if (!detalhado()) return desenharRegioes(res, box);
   const m = D.meta, cats = m.cats, catsA = m.cats_anterior, temAp = m.apuradas > 0;
   // antes de o cargo ter candidatos de 2026 (governador, senador), os quadros mostram os de 2022
   const semAtual = !(res && res.ord && res.ord.length);
@@ -332,7 +379,8 @@ function desenharAberturas(res){
   box.innerHTML = VARS.map(([v, t, u]) => {
     const cortes = m.cortes[v];
     const rot = q => { const a = q===1 ? null : cortes[q-2], b = q===5 ? null : cortes[q-1];
-      const f = x => u==="R$" ? "R$ "+Math.round(x).toLocaleString("pt-BR") : fmt(x,0)+"%";
+      const estreito = u !== "R$" && (cortes[3] - cortes[0]) < 30;
+      const f = x => u==="R$" ? "R$ "+Math.round(x).toLocaleString("pt-BR") : fmt(x, estreito ? 1 : 0)+"%";
       return a==null ? "até "+f(b) : b==null ? "acima de "+f(a) : f(a)+"–"+f(b); };
     const linhas = [1,2,3,4,5].map(q => {
       const salvo = F.q[v]; F.q[v] = [q, q];        // o quintil desta linha + os outros filtros
@@ -364,10 +412,44 @@ function desenharAberturas(res){
     desenhar(); });
 }
 
+
+// Nacional: as mesmas três barras (anterior, apurado, projetado), por região e por UF.
+function desenharRegioes(res, box){
+  const m = D.meta, cats = m.cats, catsA = m.cats_anterior, temAp = m.apuradas > 0, par = m.pares;
+  const lista = res.ord || [], alvo = lista.slice(0, 2).filter(c => !escondidos.has(c));
+  document.getElementById("leg-ab").innerHTML = lista.slice(0,2).map(c =>
+    `<span data-c="${c}" class="${escondidos.has(c)?"off":""}"><i style="background:${corDe(c, lista)}"></i>${nomeCat(c)}</span>`).join("") +
+    `<span class="sub">barras de cima para baixo: ${m.anterior} completo · ${m.atual} apurado · ${m.atual} projetado — clique numa linha para filtrar</span>`;
+  document.querySelectorAll("#leg-ab span[data-c]").forEach(sp => sp.onclick = () => {
+    const c = sp.dataset.c; escondidos.has(c) ? escondidos.delete(c) : escondidos.add(c); desenharAberturas(res); });
+  const t = D.atual, cols = [...cats.map(c=>"ap_"+c), ...(temAp ? cats.map(c=>"pj_"+c) : []), ...catsA, "aptos"];
+  const soma = (k, chave) => { const s = Object.fromEntries(cols.map(c=>[c,0]));
+    for (let i = 0; i < t.municipio.length; i++) if (t[chave][i] === k && passa(t, i, chave)) for (const c of cols) s[c] += t[c][i] || 0; return s; };
+  const linha = (rot, k, chave, sel) => { const s = soma(k, chave);
+    const pj = pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c] || 0])), cats), ap = pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats), pa = pct(s, catsA);
+    const w = x => isNaN(x) ? 0 : Math.min(100, x/75*100);
+    const barras = alvo.map(c => { const cor = corDe(c, lista); return `<div class="tri">
+      <div><i style="width:${w(pa[par[c]])}%;background:${cor};opacity:.35"></i></div>
+      <div><i style="width:${w(ap[c])}%;background:${cor};opacity:.65"></i></div>
+      <div><i style="width:${w(pj[c])}%;background:${cor}"></i></div></div>`; }).join("");
+    const vals = alvo.map(c => `<span style="color:${corDe(c, lista)}">${fmt(temAp ? pj[c] : pa[par[c]],0)}%</span>`).join("<br>");
+    return `<div class="q ${sel?"sel":""}" data-chave="${chave}" data-k="${k}"><span class="rot">${rot}</span><div style="display:grid;gap:4px">${barras}</div><span class="val">${vals}</span></div>`; };
+  const regs = Object.keys(REGIOES).filter(r => !F.regiao || r === F.regiao);
+  const ufs = (F.regiao ? REGIOES[F.regiao] : Object.values(REGIOES).flat())
+    .map(u => [u, soma(u, "uf").aptos]).sort((a,b) => b[1]-a[1]).map(x => x[0]);
+  box.innerHTML = `<div class="ab"><h3>Região</h3>${regs.map(r => linha(r, r, "regiao", F.regiao === r)).join("")}</div>` +
+    `<div class="ab"><h3>UF</h3>${ufs.map(u => linha(UF_NOME[u], u, "uf", F.uf === u)).join("")}</div>`;
+  box.querySelectorAll(".q").forEach(el => el.onclick = () => {
+    const k = el.dataset.k, era = detalhado();
+    if (el.dataset.chave === "regiao") { F.regiao = F.regiao === k ? null : k; F.uf = null; }
+    else { F.uf = F.uf === k ? null : k; }
+    F.mun = null; era !== detalhado() ? carregar(modo) : desenhar(); });
+}
+
 function desenharLugares(res){
   const tab = document.getElementById("lugares");
   if (!D) { tab.innerHTML = ""; return; }
-  const m = D.meta, cats = m.cats, temAp = m.apuradas > 0, porZona = F.mun != null;
+  const m = D.meta, cats = m.cats, temAp = m.apuradas > 0, porZona = detalhado() && F.mun != null;
   document.getElementById("t-lugares").textContent = porZona ? "Zonas eleitorais do município" : "Municípios";
   const catsA = m.cats_anterior, A = D.anterior, gA = new Map();
   for (let i = 0; i < A.zona.length; i++) {
@@ -416,7 +498,7 @@ function desenhar(){
 
 (async () => {
   // abre no 2026; se ainda não há arquivo de 2026, abre no ensaio
-  const r = await fetch("dados/2026_presidente.json", {method:"HEAD", cache:"no-store"});
+  const r = await fetch("dados/2026_brasil_presidente.json", {method:"HEAD", cache:"no-store"});
   carregar(r.ok ? "2026" : "ensaio");
 })();
 </script>
