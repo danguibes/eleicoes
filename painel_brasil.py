@@ -28,6 +28,7 @@ REGIAO = {**{u: "Norte" for u in ["AC", "AM", "AP", "PA", "RO", "RR", "TO"]},
           **{u: "Sudeste" for u in ["ES", "MG", "RJ", "SP"]},
           **{u: "Sul" for u in ["PR", "RS", "SC"]}, "ZZ": "Exterior"}
 BASE22 = {13: "lula22", 22: "bolsonaro22", 15: "tebet22", 12: "ciro22"}
+VARS = ["renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda", "superior", "idosos"]
 
 
 def detalhe_mun(ano="2022"):
@@ -61,6 +62,9 @@ def montar(modo, frac=0.25, n_boot=200):
         cats_ant_map = {17: "bolsonaro18", 13: "haddad18", 12: "ciro18", 45: "alckmin18", 30: "amoedo18"}
         ant = mu.por_municipio("2018", cats_ant_map)
         cats_ant = list(cats_ant_map.values()) + ["outros", "bn"]
+        t2 = mu.por_municipio("2018", {13: "haddad18_2t", 17: "bolsonaro18_2t"}, turno="2")
+        cats_2t = ["haddad18_2t", "bolsonaro18_2t", "bn"]
+        pares_2t = {"lula": "haddad18_2t", "bolsonaro": "bolsonaro18_2t"}
         tot = s.groupby("municipio").agg(uf=("uf", "first"), aptos=("aptos", "sum"),
                                          secoes=("secao", "count")).reset_index()
         s = s.sort_values("t")
@@ -78,6 +82,9 @@ def montar(modo, frac=0.25, n_boot=200):
         cats = list(cats_alvo.values()) + ["outros", "bn"]
         ant = mu.por_municipio("2022", BASE22)
         cats_ant = list(BASE22.values()) + ["outros", "bn"]
+        t2 = mu.por_municipio("2022", {13: "lula22_2t", 22: "bolsonaro22_2t"}, turno="2")
+        cats_2t = ["lula22_2t", "bolsonaro22_2t", "bn"]
+        pares_2t = {"lula": "lula22_2t", "flavio": "bolsonaro22_2t"}
         tot = cadastro_2026().reset_index()
         arq = RAW / "2026" / "nacional" / "municipios.parquet"
         ap = None
@@ -98,6 +105,21 @@ def montar(modo, frac=0.25, n_boot=200):
         base_cols = ["lula22", "bolsonaro22", "tebet22", "ciro22", "outros", "bn"]
     d = detalhe_mun("2022") if modo != "ensaio" else None
     M = tot.merge(ant.drop(columns="uf"), on="municipio", how="left")
+    t2 = t2.rename(columns={"bn": "bn_2t"}).drop(columns=["uf", "outros"], errors="ignore")
+    M = M.merge(t2, on="municipio", how="left")
+    cats_2t = [c if c != "bn" else "bn_2t" for c in cats_2t]
+    for c in cats_2t:
+        M[c] = M[c].fillna(0)
+    # perfil do município pelo Censo 2022 e quintis nacionais pesados pelo eleitorado
+    perfil = pd.read_parquet(RAW / "ibge" / "municipios_BR.parquet").drop(columns=["CD_MUN", "populacao"])
+    M = M.merge(perfil, on="municipio", how="left")
+    cortes = {}
+    for v in VARS:
+        dd = M[[v, "aptos"]].dropna().sort_values(v)
+        acum = (dd.aptos.cumsum() / dd.aptos.sum()).to_numpy()
+        cortes[v] = [float(dd[v].iloc[np.searchsorted(acum, q)]) for q in (0.2, 0.4, 0.6, 0.8)]
+        x = M[v].to_numpy(float)
+        M[f"q_{v}"] = np.where(np.isnan(x), 0, 1 + np.searchsorted(cortes[v], x, side="right")).astype(int)
     for c in cats_ant:
         M[c] = M[c].fillna(0)
     denom = (d.aptos.reindex(M.municipio).to_numpy() if d is not None else M.aptos.to_numpy())
@@ -112,14 +134,17 @@ def montar(modo, frac=0.25, n_boot=200):
         M[c] = M[c].fillna(0)
     M["regiao"] = M.uf.map(REGIAO)
     temAp = M[[f"ap_{c}" for c in cats]].to_numpy().sum() > 0
-    ic, validos = {}, [c for c in cats if c != "bn"]
+    ic, validos, amostras_q = {}, [c for c in cats if c != "bn"], {}
     if temAp:
         linha, por, por_nomes = projetar_grupos(M, cats, n_boot)
         for j, c in enumerate(cats):
             M[f"pj_{c}"] = linha[:, j]
-        # intervalo por Brasil, região e UF
+        # intervalo por Brasil, região e UF; amostras por quintil para qualquer faixa
         iv = [cats.index(c) for c in validos]
+        amostras_q = {v: np.rint(por[f"q_{v}"][1:][:, :, iv]).astype(int).tolist() for v in VARS}
         for k, s_ in por.items():
+            if k.startswith("q_"):
+                continue
             pv = s_[:, :, iv] / np.maximum(s_[:, :, iv].sum(2, keepdims=True), 1e-9) * 100
             lo, hi = pj.intervalo(pv[1:], pv[0], mu.FATOR_MUN)
             nomes = por_nomes[k]
@@ -128,15 +153,18 @@ def montar(modo, frac=0.25, n_boot=200):
     col = lambda cs: {c: [round(float(x), 1) if isinstance(x, (float, np.floating)) else (x if isinstance(x, str) else int(x))
                           for x in M[c].fillna(0)] for c in cs}
     cols = ["municipio", "uf", "regiao", "aptos", "secoes", "apuradas", "aptos_ap", "comp_ap"] + \
-           [f"ap_{c}" for c in cats] + ([f"pj_{c}" for c in cats] if temAp else []) + cats_ant
+           [f"ap_{c}" for c in cats] + ([f"pj_{c}" for c in cats] if temAp else []) + cats_ant + cats_2t + \
+           [f"q_{v}" for v in VARS]
     dados = {
         "meta": {"modo": modo, "escopo": "brasil", "cargo": "presidente", "anterior": ano_ant, "atual": ano_at,
                  "hora": hora, "gerado": datetime.now().strftime("%d/%m/%Y %H:%M"),
                  "cats": cats, "cats_anterior": cats_ant, "pares": pares, "fator_ic": mu.FATOR_MUN,
+                 "cats_anterior_2t": cats_2t, "pares_2t": pares_2t, "cortes": cortes,
                  "secoes": int(M.secoes.sum()), "apuradas": int(M.apuradas.sum()),
                  "municipios": nomes_municipios()},
         "mun": col(cols),
         "ic": ic,
+        "amostras_q": amostras_q,
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = WEB / f"{modo}_brasil_presidente.json"
@@ -152,8 +180,11 @@ def projetar_grupos(M, cats, n_boot):
     for k, serie in [("total", pd.Series(["total"] * len(M))), ("regiao", M.regiao.fillna("?")), ("uf", M.uf)]:
         cod, nm = pd.factorize(serie)
         grupos[k], nomes[k] = cod, list(nm)
+    for v in VARS:
+        grupos[f"q_{v}"] = np.maximum(M[f"q_{v}"].to_numpy(int), 0)
+        nomes[f"q_{v}"] = list(range(6))
     amostras, linhas = mu.projetar_mun(M, cats, n_boot=n_boot, guardar_linhas=True)
-    por = {k: np.stack([np.stack([np.bincount(cod, L[:, j], cod.max() + 1) for j in range(len(cats))], axis=1)
+    por = {k: np.stack([np.stack([np.bincount(cod, L[:, j], max(cod.max() + 1, 6 if k.startswith("q_") else 0)) for j in range(len(cats))], axis=1)
                         for L in linhas]) for k, cod in grupos.items()}
     return linhas[0], por, nomes
 

@@ -42,10 +42,10 @@ REAMOSTRA = "uf"
 FATOR_MUN = 1.25
 
 
-def por_municipio(ano, cats):
+def por_municipio(ano, cats, turno="1"):
     v = pd.read_parquet(RAW / f"votacao_{ano}_BR.parquet",
                         columns=["NR_TURNO", "CD_CARGO", "SG_UF", "CD_MUNICIPIO", "NR_VOTAVEL", "QT_VOTOS"])
-    v = v[(v.NR_TURNO == "1") & (v.CD_CARGO == "1")]
+    v = v[(v.NR_TURNO == turno) & (v.CD_CARGO == "1")]
     v["cat"] = v.NR_VOTAVEL.astype(int).map(cats).fillna(
         v.NR_VOTAVEL.astype(int).map({95: "bn", 96: "bn"})).fillna("outros")
     v["votos"] = v.QT_VOTOS.astype(int)

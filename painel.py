@@ -273,6 +273,24 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
     an = an.merge(zm, on=["zona", "local"], how="left")
     for v in VARS:
         an[f"q_{v}"] = quintil(an[v].to_numpy(float), cortes[v])
+    # 2º turno da eleição anterior, por local — só Presidente (o de governador de 2022
+    # está no arquivo estadual de 900 MB, que não foi baixado; senador não tem 2º turno)
+    cats_2t, pares_2t = [], {}
+    if cargo == "presidente":
+        ano_v = ano_ant
+        cod = {"2018": {13: "haddad18_2t", 17: "bolsonaro18_2t"}, "2022": {13: "lula22_2t", 22: "bolsonaro22_2t"}}[ano_v]
+        v2 = pd.read_parquet(RAW / "tse" / f"votacao_{ano_v}_BR.parquet",
+                             columns=["NR_TURNO", "CD_CARGO", "SG_UF", "NR_ZONA", "NR_LOCAL_VOTACAO", "NR_VOTAVEL", "QT_VOTOS"])
+        v2 = v2[(v2.NR_TURNO == "2") & (v2.CD_CARGO == "1") & (v2.SG_UF == "SP")]
+        v2 = v2.assign(zona=v2.NR_ZONA.astype(int), local=v2.NR_LOCAL_VOTACAO.astype(int),
+                       votos=v2.QT_VOTOS.astype(int),
+                       cat=v2.NR_VOTAVEL.astype(int).map(cod).fillna("bn_2t"))
+        t2 = v2.pivot_table(index=["zona", "local"], columns="cat", values="votos", aggfunc="sum", fill_value=0)
+        an = an.merge(t2.reset_index(), on=["zona", "local"], how="left")
+        cats_2t = list(cod.values()) + ["bn_2t"]
+        for c in cats_2t:
+            an[c] = an[c].fillna(0)
+        pares_2t = dict(zip(list(PARES["ensaio" if modo == "ensaio" else "2026"]), list(cod.values())))
 
     nomes = (pd.read_parquet(RAW / "tse" / f"locais_{ano_at}_SP.parquet", columns=["CD_MUNICIPIO", "NM_MUNICIPIO"])
              .drop_duplicates("CD_MUNICIPIO"))
@@ -283,11 +301,12 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
                  "gerado": datetime.now().strftime("%d/%m/%Y %H:%M"),
                  "secoes": int(len(u)), "apuradas": int(u.apurada.sum()),
                  "cats": cats, "cats_anterior": cats_ant, "pares": PARES["ensaio" if modo == "ensaio" else "2026"],
+                 "cats_anterior_2t": cats_2t, "pares_2t": pares_2t,
                  "cortes": cortes, "fator_ic": pj.FATOR_UF,
                  "nomes": nomes_cand,
                  "municipios": {int(r.CD_MUNICIPIO): r.NM_MUNICIPIO for r in nomes.itertuples()}},
         "atual": col(at, chave + ["secoes"] + num + [f"q_{v}" for v in VARS]),
-        "anterior": col(an, chave + cats_ant + ["comparecimento", "aptos"] + [f"q_{v}" for v in VARS]),
+        "anterior": col(an, chave + cats_ant + cats_2t + ["comparecimento", "aptos"] + [f"q_{v}" for v in VARS]),
         "ic": ic,
         "amostras_q": amostras_q,
     }
