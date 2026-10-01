@@ -27,7 +27,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pleito", default="2026")
     ap.add_argument("--inicio", default="16:45", help="não manda nenhum pedido antes desta hora (HH:MM)")
+    ap.add_argument("--falso", action="store_true", help="ensaio contra o tse_falso.py local: sem horário, sem publicar")
     a = ap.parse_args()
+    if a.falso:
+        import os
+        os.environ["TSE_FALSO"] = "1"   # herdado pelos filhos: tse.py aponta o 2026 para 127.0.0.1:8800
+        a.inicio = "00:00"
     hh, mm = map(int, a.inicio.split(":"))
     while (datetime.now().hour, datetime.now().minute) < (hh, mm):
         # dormir sem pedir nada: antes da apuração, todo pedido é um 404
@@ -41,7 +46,7 @@ def main():
         "nacional": [py, "nacional.py", "--pleito", a.pleito, "--taxa", "15", "--intervalo", "60"],
     }
     if a.pleito == "2026":
-        cmds["publicador"] = [py, "domingo.py", "--pleito", a.pleito]
+        cmds["publicador"] = [py, "domingo.py", "--pleito", a.pleito] + (["--sem-publicar"] if a.falso else [])
     procs, espera = {}, {}
     try:
         while True:

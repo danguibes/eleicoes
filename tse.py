@@ -68,6 +68,13 @@ PLEITOS = {
 }
 
 
+# Ensaio local (tse_falso.py): o "2026" aponta para esta máquina e lê os BUs de 2022
+# com a especificação de 2022. Nunca vale em produção — só com TSE_FALSO=1.
+import os as _os
+if _os.environ.get("TSE_FALSO"):
+    PLEITOS["2026"] = Pleito("2026", "http://127.0.0.1:8800", "oficial", "ele2026", 3220, 6257, "2022")
+
+
 class Bloqueado(Exception):
     """O TSE recusou (403/429). Continuar tentando só prolonga o bloqueio."""
 

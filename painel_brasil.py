@@ -17,6 +17,19 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+
+def _limpo(o):
+    """NaN/inf viram null: json.dumps escreve NaN, que não é JSON válido, e a página
+    inteira deixa de carregar. Acontece com grupo sem voto apurado ainda — no começo
+    da noite, sempre. Pego no ensaio contra o TSE de mentira, 01/10/2026."""
+    if isinstance(o, float):
+        return o if np.isfinite(o) else None
+    if isinstance(o, dict):
+        return {k: _limpo(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_limpo(v) for v in o]
+    return o
+
 import municipal as mu
 import projecao as pj
 
@@ -74,7 +87,7 @@ def montar(modo, frac=0.25, n_boot=200):
                                              aptos_ap=("aptos", "sum"), comp_ap=("comparecimento", "sum"),
                                              apuradas=("secao", "count"))
         pares = {"lula": "haddad18", "bolsonaro": "bolsonaro18"}
-        base_cols = ["haddad18", "bolsonaro18", "alckmin18", "ciro18", "amoedo18", "bn"]
+        base_cols = ["haddad18", "bolsonaro18", "alckmin18", "ciro18", "amoedo18", "outros", "bn"]
         comp_ant = None
     else:
         ano_ant, ano_at = "2022", "2026"
@@ -124,8 +137,8 @@ def montar(modo, frac=0.25, n_boot=200):
         M[c] = M[c].fillna(0)
     denom = (d.aptos.reindex(M.municipio).to_numpy() if d is not None else M.aptos.to_numpy())
     M["b_comp"] = (M[cats_ant].sum(axis=1) / np.maximum(denom, 1)).clip(0.3, 0.98)
-    for cb, ca in zip(base_cols, cats):
-        M[f"b_{ca}"] = M[cb] + 1
+    for cb in base_cols:   # nomes próprios da eleição anterior — ver municipal.projetar_mun
+        M[f"b_{cb}"] = M[cb] + 1
     if ap is not None and len(ap):
         M = M.merge(ap, left_on="municipio", right_index=True, how="left")
     for c in [f"ap_{c}" for c in cats] + ["aptos_ap", "comp_ap", "apuradas"]:
@@ -178,7 +191,7 @@ def montar(modo, frac=0.25, n_boot=200):
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = WEB / f"{modo}_brasil_presidente.json"
-    nome.write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    nome.write_text(json.dumps(_limpo(dados), allow_nan=False, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"{nome}: {nome.stat().st_size / 1e6:.1f} MB; {len(M):,} municípios; "
           f"{dados['meta']['apuradas']:,}/{dados['meta']['secoes']:,} seções apuradas", flush=True)
     return dados

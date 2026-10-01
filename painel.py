@@ -20,7 +20,20 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.spatial import cKDTree
+
+
+def _limpo(o):
+    """NaN/inf viram null: json.dumps escreve NaN, que não é JSON válido, e a página
+    inteira deixa de carregar. Acontece com grupo sem voto apurado ainda — no começo
+    da noite, sempre. Pego no ensaio contra o TSE de mentira, 01/10/2026."""
+    if isinstance(o, float):
+        return o if np.isfinite(o) else None
+    if isinstance(o, dict):
+        return {k: _limpo(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_limpo(v) for v in o]
+    return o
+from vizinho import cKDTree, mais_proximo   # cKDTree só no entorno (cacheado), fora da noite
 
 import projecao as pj
 
@@ -269,7 +282,7 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
                               **{f"q_{v}": (f"q_{v}", "first") for v in VARS}).reset_index()
     if "superior" not in lb:
         # perfil do TSE de um lugar muda pouco em quatro anos: vem do local atual mais próximo
-        _, i = cKDTree(np.c_[la.x, la.y]).query(np.c_[lb.x, lb.y])
+        _, i = mais_proximo(np.c_[la.x, la.y], np.c_[lb.x, lb.y])
         lb["superior"] = la.superior.to_numpy()[i]
         lb["idosos"] = la.idosos.to_numpy()[i]
         lb["jovens"] = la.jovens.to_numpy()[i]
@@ -319,7 +332,7 @@ def montar(modo, frac=None, cargo="presidente", n_boot=200):
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = f"{modo}_{cargo}.json"
-    (WEB / nome).write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (WEB / nome).write_text(json.dumps(_limpo(dados), allow_nan=False, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"{WEB / nome}: {(WEB / nome).stat().st_size / 1e6:.1f} MB; {len(at):,} locais atuais, "
           f"{len(an):,} anteriores; {dados['meta']['apuradas']:,}/{dados['meta']['secoes']:,} seções apuradas",
           flush=True)

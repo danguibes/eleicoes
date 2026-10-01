@@ -39,7 +39,10 @@ REAMOSTRA = "uf"
 # 91% com 1,25, 97% com 1,5. O viés que sobra (~−0,9 ponto para Lula de 10% a 50%)
 # é o mesmo do modelo por seção: as urnas tardias de 2022 foram mais Lula do que a
 # eleição anterior e a UF explicam.
-FATOR_MUN = 1.25
+# Refeito em 01/10/2026 depois da correção das colunas da base (nomes próprios, em vez de
+# emparelhadas com as candidaturas): erro médio igual (0,26), cobertura 71% com fator 1,
+# 83% com 1,25, 89% com 1,5, 97% com 1,75.
+FATOR_MUN = 1.5
 # 2º turno da eleição anterior como covariável: medido no ensaio 2018→2022, PIOROU
 # (erro médio 0,282 contra 0,260 sem ele). 2026 pode ter cara de 2º turno, mas não
 # há evidência a favor; fica desligado, e o painel usa o 2º turno só para comparar.
@@ -73,7 +76,13 @@ def projetar_mun(M, cats, n_boot=200, seed=0, guardar_linhas=False):
     rng = np.random.default_rng(seed)
     ap = M[[f"ap_{c}" for c in cats]].to_numpy(float)
     tem = ap.sum(1) > 0
-    Xb = np.c_[pj.clr(M[[f"b_{c}" for c in cats]].to_numpy(float) * 1000), pj.logit(M.b_comp.to_numpy(float))]
+    # As colunas da eleição anterior entram com os nomes PRÓPRIOS (b_lula22, b_bn…), e não
+    # emparelhadas com as candidaturas atuais: no ensaio 2018→2022 as duas listas tinham 6
+    # categorias e o emparelhamento passava por coincidência; em 2026 são 8 contra 6, e ele
+    # quebrava — e emparelhava errado (Tebet de 2022 virava a coluna "de Cury"). Pego no
+    # ensaio contra o TSE de mentira, 01/10/2026.
+    bcols = sorted(c for c in M.columns if c.startswith("b_") and c != "b_comp" and not c.startswith("b2_"))
+    Xb = np.c_[pj.clr(M[bcols].to_numpy(float) * 1000), pj.logit(M.b_comp.to_numpy(float))]
     if USAR_2T and "b2_a" in M:
         # 2º turno da eleição anterior: a parcela do primeiro contra o segundo
         s2 = (M.b2_a / (M.b2_a + M.b2_b)).clip(0.02, 0.98).fillna(0.5).to_numpy(float)
@@ -154,8 +163,8 @@ def ensaio(pontos=(0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90), n_boot=200):
         M = total.merge(a, on="municipio", how="left").fillna({f"ap_{c}": 0 for c in cats} | {"aptos_ap": 0, "comp_ap": 0})
         # base: as parcelas de 2018 entram como b_<cat do alvo> por posição — o que importa
         # é o vetor, não o nome
-        for cb_, ca in zip(["haddad18", "bolsonaro18", "alckmin18", "ciro18", "amoedo18", "bn"], cats):
-            M[f"b_{ca}"] = M[cb_]
+        for cb_ in ["haddad18", "bolsonaro18", "alckmin18", "ciro18", "amoedo18", "outros", "bn"]:
+            M[f"b_{cb_}"] = M[cb_]
         M = M.merge(t2, on="municipio", how="left")
         amostras, _ = projetar_mun(M, cats, n_boot=n_boot)
         av = amostras[:, [cats.index(c) for c in validos]]

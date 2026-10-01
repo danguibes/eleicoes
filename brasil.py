@@ -23,7 +23,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.spatial import cKDTree
+from vizinho import mais_proximo   # SciPy se carregar; numpy se a DLL for bloqueada
 
 import projecao as pj
 
@@ -136,7 +136,7 @@ def base_local(ano, cats):
 
 def montar_X(univ, base, cats_base):
     b = base.dropna(subset=["x"]).reset_index(drop=True)
-    d, i = cKDTree(np.c_[b.x, b.y]).query(np.c_[univ.x, univ.y])
+    d, i = mais_proximo(np.c_[b.x, b.y], np.c_[univ.x, univ.y])
     bb = b.iloc[i].reset_index(drop=True)
     X = pd.DataFrame(pj.clr(bb[cats_base].to_numpy(float)), columns=[f"b_{c}" for c in cats_base])
     X["b_comp"] = pj.logit((bb.comparecimento / bb.aptos).clip(0.05, 0.99).to_numpy(float))

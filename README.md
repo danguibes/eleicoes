@@ -51,6 +51,21 @@ tenha listado; o `nacional.py` confirma que o arquivo da UF existe antes de varr
 os municípios dela (antes da publicação seriam ~5.700 404 por rodada); GET
 condicional; e bloqueio reinicia o processo só depois de 11 minutos.
 
+**Ensaio local, sem tocar o TSE** (`tse_falso.py`): um servidor nesta máquina que serve
+a noite de 2022 nos endereços e no formato de 2026, com relógio acelerado. Em 01/10/2026
+ele pegou dois defeitos que teriam quebrado domingo — a camada nacional emparelhava as
+categorias de 2022 com as candidaturas de 2026 (6 contra 8) e quebrava na primeira
+rodada; e grupo sem voto apurado gravava `NaN` no JSON, e a página inteira deixava de
+carregar. No fim, o Brasil apurado bateu com o oficial de 2022 (Lula 48,43%, 43,20%) e
+os 101.073 boletins de SP passaram com zero erro em 202 mil requisições.
+
+```bash
+python tse_falso.py --acel 15        # num terminal
+python noite.py --falso              # noutro: aponta para 127.0.0.1:8800 e não publica
+# ver em http://localhost:8765/ ; depois: apagar data/raw/2026/sp e
+# data/raw/2026/nacional/{municipios,ufs}.parquet e refazer os painéis de 2026
+```
+
 **Por que duas camadas.** Simulado com a hora real de chegada das 472.075 urnas
 de 2022: no pico o TSE recebeu 5.022 urnas num minuto. Baixando dois arquivos por
 urna a 70 req/s, a coleta nacional urna a urna atrasaria 25 min em média e 1 h no
@@ -98,8 +113,8 @@ No Brasil, a contagem mostrou Bolsonaro à frente até ~20h; a projeção aponta
 Lula à frente desde 10% das urnas (18h31).
 
 **O intervalo de 90%** é a meia-largura do bootstrap × um fator calibrado no
-ensaio: capital 1,25 (cobre 35 de 35), estado 3,5, Brasil por município 1,25
-reamostrando **UFs inteiras** (91%; reamostrando municípios dentro da UF, 23%).
+ensaio: capital 1,25 (cobre 35 de 35), estado 3,5, Brasil por município 1,5
+reamostrando **UFs inteiras** (89%; reamostrando municípios dentro da UF, 23%).
 **Sobra um viés** de ~0,9 ponto a menos para Lula até metade da noite, igual nas
 duas camadas: as urnas tardias de 2022 foram mais Lula do que a eleição anterior
 e a UF explicam. Calibrado numa eleição só.

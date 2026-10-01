@@ -32,7 +32,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.spatial import cKDTree
+from vizinho import mais_proximo   # SciPy se carregar; numpy se a DLL for bloqueada
 
 RAW = Path("data/raw")
 OUT = Path("out")
@@ -221,7 +221,7 @@ def logit(p):
 def montar(universo, base, cats_base):
     """Casa cada seção do alvo com o local-base mais próximo e monta X."""
     b = base.dropna(subset=["x"]).reset_index(drop=True)
-    d, i = cKDTree(np.c_[b.x, b.y]).query(np.c_[universo.x, universo.y])
+    d, i = mais_proximo(np.c_[b.x, b.y], np.c_[universo.x, universo.y])
     bb = b.iloc[i].reset_index(drop=True)
     X = pd.DataFrame(clr(bb[cats_base].to_numpy(float)), columns=[f"b_{c}" for c in cats_base])
     X["b_comp"] = logit((bb.comparecimento / bb.aptos).to_numpy(float))
