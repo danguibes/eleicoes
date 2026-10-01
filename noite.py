@@ -1,6 +1,6 @@
 """Sobe a noite inteira: os dois coletores e o publicador, cada um no seu processo.
 
-    python noite.py                    # 2026
+    python noite.py                    # 2026 (começa a pedir às 16:45; --inicio muda)
     python noite.py --pleito simulado  # ensaio contra o simulado do TSE (sem publicar)
 
   coletor.py  --uf sp      boletins urna a urna do estado de SP   (50 req/s)
@@ -26,7 +26,13 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
     ap.add_argument("--pleito", default="2026")
+    ap.add_argument("--inicio", default="16:45", help="não manda nenhum pedido antes desta hora (HH:MM)")
     a = ap.parse_args()
+    hh, mm = map(int, a.inicio.split(":"))
+    while (datetime.now().hour, datetime.now().minute) < (hh, mm):
+        # dormir sem pedir nada: antes da apuração, todo pedido é um 404
+        print(f"{datetime.now():%H:%M:%S}  aguardando {a.inicio}", flush=True)
+        time.sleep(60)
     LOGS.mkdir(parents=True, exist_ok=True)
     py = sys.executable
     cmds = {

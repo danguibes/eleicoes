@@ -39,9 +39,13 @@ def n(x):
 def lista_municipios(p, cli, destino):
     """[(uf, mun5)] pela configuração do TSE; reserva: o cadastro de 2026."""
     url = f"{p.raiz()}/{p.eleicao}/config/mun-e{p.eleicao:06d}-cm.json"
-    st, corpo, _ = cli.get(url)
+    cache = destino / "mun-cm.json"
+    if cache.exists():   # um pedido por noite, não um por reinício
+        st, corpo = 200, cache.read_bytes()
+    else:
+        st, corpo, _ = cli.get(url)
     if st == 200:
-        (destino / "mun-cm.json").write_bytes(corpo)
+        cache.write_bytes(corpo)
         cm = json.loads(corpo)
         out = [(a["cd"].lower(), m["cd"]) for a in cm.get("abr", []) for m in a.get("mu", [])]
         if out:
@@ -87,6 +91,14 @@ class Nacional:
         t0, mudou, erros = time.time(), 0, 0
         ufs = sorted({uf for uf, _ in self.muns})
         prontas = set()
+        if not self.ufs:
+            # Antes da publicação: UMA sondagem por rodada, ao arquivo de SP. Pedir os 28
+            # de uma vez dava 28 404 por minuto — em 29-30/09 isso fez a trava de 404
+            # disparar a cada reinício, por um dia e meio (medido nos logs).
+            st, corpo, etag = self.cli.get(self.url_uf("sp"), self.etags.get(self.url_uf("sp")))
+            if st not in (200, 304):
+                print(f"{datetime.now():%H:%M:%S}  ainda não publicado (sp: {st})", flush=True)
+                return 0
         for uf in ufs:
             url = self.url_uf(uf)
             st, corpo, etag = self.cli.get(url, self.etags.get(url))
