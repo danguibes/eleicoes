@@ -93,6 +93,7 @@ def main():
     for c in cargos:
         painel.preparar("2026", c)
     visto = {sp: 0, nac: 0}
+    ultimo_push, pendente = 0.0, None
     print("publicador pronto", flush=True)
     while True:
         t, feito = time.time(), []
@@ -114,10 +115,16 @@ def main():
                 except Exception as e:  # um cargo com problema não derruba os outros
                     print(f"   painel SP {c}: {e!r}", flush=True)
         if feito:
+            pendente = feito
+        if pendente:
             hora = datetime.now().strftime("%H:%M")
-            if not a.sem_publicar:
-                publicar(f"Apuração {hora}: " + " · ".join(feito))
-            print(f"{hora}  {' · '.join(feito)} seções; rodada em {time.time() - t:.0f} s", flush=True)
+            # um deploy a cada 4 min no máximo: o Pages enfileira e pode recusar deploys
+            # demais por hora; as rodadas do intervalo saem juntas no próximo push
+            if not a.sem_publicar and time.time() - ultimo_push >= 240:
+                publicar(f"Apuração {hora}: " + " · ".join(pendente))
+                ultimo_push, pendente = time.time(), None
+            if feito:
+                print(f"{hora}  {' · '.join(feito)} seções; rodada em {time.time() - t:.0f} s", flush=True)
         time.sleep(max(5, a.intervalo - (time.time() - t)))
 
 
