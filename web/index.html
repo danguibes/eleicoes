@@ -170,6 +170,17 @@
   <div class="grade" id="aberturas"></div>
 </section>
 
+<section id="bolhas-sec">
+  <h2>2022 × 2026, quintil a quintil</h2>
+  <div class="linha" style="justify-content:space-between;margin-bottom:6px;gap:8px;flex-wrap:wrap">
+    <p class="sub" id="bolhas-sub" style="margin:0"></p>
+    <div class="linha" style="gap:8px"><div class="modo" id="bolhas-cand"></div><div class="modo" id="bolhas-y"></div></div>
+  </div>
+  <div id="bolhas-caixa" style="position:relative"><svg id="bolhas" viewBox="0 0 560 440" style="width:100%;max-height:560px;display:block"></svg>
+    <div id="bolhas-dica" class="dica" hidden></div></div>
+  <div class="leg" id="bolhas-leg"></div>
+</section>
+
 <section>
   <h2 id="t-lugares">Municípios</h2>
   <p class="sub">Os maiores do recorte, por eleitores. Clique para filtrar.</p>
@@ -723,6 +734,99 @@ function desenharRegioes(res, box){
     F.mun = null; era !== detalhado() ? carregar(modo) : desenhar(); });
 }
 
+// ---------- bolhas: cada quintil de cada variável, 2022 no x e 2026 no y ----------------
+// Um candidato por vez (os dois primeiros, cada um com o par de 2022). Cada bolha obedece a
+// todos os filtros da tela, menos o da própria variável — a mesma regra dos quadros de quintis.
+let bolhaCand = 0, bolhaY = "pj";
+const escBolha = new Set();
+const COR_VAR = {renda:"#c27c2c", catolicos:"#8a5a9e", evangelicos:"#3f8f6b", sem_religiao:"#d06a9a",
+  preta_parda:"#7a6a3a", superior:"#2f8fb0", jovens:"#e0a019", idosos:"#7f8c8d"};
+function desenharBolhas(res){
+  const sec = document.getElementById("bolhas-sec"), svg = document.getElementById("bolhas");
+  const lista = (res && res.ord) || [], par = D ? paresAnt() : {};
+  const cands = lista.filter(c => par[c]).slice(0, 2);
+  if (!D || !D.meta.apuradas || !cands.length) { sec.hidden = true; return; }
+  sec.hidden = false;
+  const m = D.meta, cats = m.cats, catsA = catsAnt();
+  if (bolhaCand >= cands.length) bolhaCand = 0;
+  const c = cands[bolhaCand], cA = par[c];
+  document.getElementById("bolhas-cand").innerHTML = cands.map((x, i) =>
+    `<button class="${i===bolhaCand?"on":""}" data-i="${i}" style="${i===bolhaCand?`background:${corDe(x, lista)};border-color:${corDe(x, lista)}`:""}">${nomeCat(x)}</button>`).join("");
+  document.getElementById("bolhas-y").innerHTML = [["pj","projetado"],["ap","apurado"]].map(([k,t]) =>
+    `<button class="${k===bolhaY?"on":""}" data-k="${k}">${m.atual} ${t}</button>`).join("");
+  document.querySelectorAll("#bolhas-cand button").forEach(b => b.onclick = () => { bolhaCand = +b.dataset.i; desenharBolhas(res); });
+  document.querySelectorAll("#bolhas-y button").forEach(b => b.onclick = () => { bolhaY = b.dataset.k; desenharBolhas(res); });
+  // um ponto por variável × quintil
+  const pts = [];
+  for (const [v, t] of VARS) {
+    if (escBolha.has(v)) continue;
+    for (let q = 1; q <= 5; q++) {
+      const salvo = F.q[v]; F.q[v] = [q, q];
+      const s = somar(D.atual, [...cats.map(k => bolhaY + "_" + k), "aptos"]);
+      const sa = somar(D.anterior, catsA);
+      if (salvo == null) delete F.q[v]; else F.q[v] = salvo;
+      const y = pct(Object.fromEntries(cats.map(k => [k, s[bolhaY + "_" + k]])), cats)[c];
+      const x = pct(sa, catsA)[cA];
+      if (!isFinite(x) || !isFinite(y)) continue;
+      pts.push({v, t: tituloVar(t), q, x, y, n: s.aptos, sel: !!(F.q[v] && q >= F.q[v][0] && q <= F.q[v][1])});
+    }
+  }
+  // o recorte inteiro, como referência
+  const sT = somar(D.atual, cats.map(k => bolhaY + "_" + k)), saT = somar(D.anterior, catsA);
+  const ref = {x: pct(saT, catsA)[cA], y: pct(Object.fromEntries(cats.map(k => [k, sT[bolhaY + "_" + k]])), cats)[c]};
+  const W = 560, H = 440, mg = {l: 44, r: 14, t: 12, b: 36};
+  const todos = [...pts.flatMap(p => [p.x, p.y]), ref.x, ref.y].filter(isFinite);
+  if (!todos.length) { svg.innerHTML = ""; return; }
+  let lo = Math.max(0, Math.floor(Math.min(...todos) / 5) * 5 - 2), hi = Math.min(100, Math.ceil(Math.max(...todos) / 5) * 5 + 2);
+  // mesma escala nos dois eixos: a diagonal é "igual à eleição anterior"
+  const lado = Math.min(W - mg.l - mg.r, H - mg.t - mg.b);
+  const X = v => mg.l + (v - lo) / (hi - lo) * lado, Y = v => mg.t + lado - (v - lo) / (hi - lo) * lado;
+  const nMax = Math.max(...pts.map(p => p.n), 1), R = n => 4 + 16 * Math.sqrt(n / nMax);
+  let g = "";
+  const passo = (hi - lo) > 40 ? 10 : 5;
+  for (let v = Math.ceil(lo / passo) * passo; v <= hi; v += passo) {
+    g += `<line x1="${X(v)}" x2="${X(v)}" y1="${mg.t}" y2="${mg.t + lado}" stroke="var(--line)"/>
+      <line x1="${mg.l}" x2="${mg.l + lado}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/>
+      <text x="${X(v)}" y="${mg.t + lado + 14}" text-anchor="middle">${v}%</text>
+      <text x="${mg.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v}%</text>`;
+  }
+  g += `<line x1="${X(lo)}" y1="${Y(lo)}" x2="${X(hi)}" y2="${Y(hi)}" stroke="var(--ink)" stroke-dasharray="4 4" opacity=".45"/>
+    <text x="${X(hi) - 4}" y="${Y(hi) + 14}" text-anchor="end">igual a ${m.anterior}</text>
+    <text x="${mg.l + lado / 2}" y="${H - 4}" text-anchor="middle">${nomeCat(cA)} — ${rotAnt(m)}</text>
+    <text transform="translate(11 ${mg.t + lado / 2}) rotate(-90)" text-anchor="middle">${nomeCat(c)} — ${m.atual} ${bolhaY === "pj" ? "projetado" : "apurado"}</text>`;
+  if (isFinite(ref.x) && isFinite(ref.y))
+    g += `<path d="M${X(ref.x)-7},${Y(ref.y)}h14M${X(ref.x)},${Y(ref.y)-7}v14" stroke="${corDe(c, lista)}" stroke-width="2.5"/>`;
+  pts.sort((a, b) => b.n - a.n);   // as grandes atrás
+  pts.forEach((p, i) => {
+    g += `<g class="bolha" data-i="${i}" style="cursor:pointer"><circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${R(p.n)}" fill="${COR_VAR[p.v]}"
+      fill-opacity="${p.sel ? .9 : .55}" stroke="${p.sel ? "var(--ink)" : COR_VAR[p.v]}" stroke-width="${p.sel ? 2 : 1}"/>
+      <text x="${X(p.x)}" y="${Y(p.y) + 4}" text-anchor="middle" style="fill:#fff;font-weight:700;pointer-events:none">${p.q}</text></g>`;
+  });
+  svg.innerHTML = g;
+  const dica = document.getElementById("bolhas-dica"), caixa = document.getElementById("bolhas-caixa");
+  svg.querySelectorAll(".bolha").forEach(el => {
+    const p = pts[+el.dataset.i];
+    el.onmousemove = ev => { const b = caixa.getBoundingClientRect();
+      dica.hidden = false; dica.style.left = (ev.clientX - b.left + 12) + "px"; dica.style.top = (ev.clientY - b.top + 12) + "px";
+      dica.innerHTML = `<b>${p.t}: ${p.q}º quintil</b><br>${nomeCat(cA)}, ${rotAnt(m)}: ${fmt(p.x)}%<br>${nomeCat(c)}, ${m.atual} ${bolhaY === "pj" ? "projetado" : "apurado"}: ${fmt(p.y)}%`
+        + `<br>${(p.y - p.x >= 0 ? "+" : "") + fmt(p.y - p.x)} ponto(s) · ${Math.round(p.n).toLocaleString("pt-BR")} eleitores`; };
+    el.onmouseleave = () => { dica.hidden = true; };
+    el.onclick = ev => { const f = F.q[p.v];   // o mesmo clique dos quadros de quintis
+      if (ev.shiftKey && f) F.q[p.v] = [Math.min(f[0], p.q), Math.max(f[1], p.q)];
+      else if (f && f[0] === p.q && f[1] === p.q) delete F.q[p.v];
+      else F.q[p.v] = [p.q, p.q];
+      dica.hidden = true; desenhar(); };
+  });
+  document.getElementById("bolhas-leg").innerHTML = VARS.map(([v, t]) =>
+    `<span data-v="${v}" class="${escBolha.has(v) ? "off" : ""}"><i style="background:${COR_VAR[v]}"></i>${tituloVar(t)}</span>`).join("") +
+    `<span class="sub">número na bolha: quintil · tamanho: eleitores de ${m.atual} · cruz: o recorte inteiro — clique numa variável para escondê-la</span>`;
+  document.querySelectorAll("#bolhas-leg span[data-v]").forEach(sp => sp.onclick = () => {
+    const v = sp.dataset.v; escBolha.has(v) ? escBolha.delete(v) : escBolha.add(v); desenharBolhas(res); });
+  document.getElementById("bolhas-sub").innerHTML = `Cada bolha é um quintil de uma variável de perfil, com os filtros da tela
+    (menos o da própria variável). Acima da diagonal, ${nomeCat(c)} faz mais que ${nomeCat(cA)} em ${m.anterior}; abaixo, menos.
+    <b>Voto dos lugares, não das pessoas.</b> Clique numa bolha para filtrar.`;
+}
+
 function desenharLugares(res){
   const tab = document.getElementById("lugares");
   if (!D) { tab.innerHTML = ""; return; }
@@ -776,6 +880,7 @@ function desenhar(){
   desenharChances(res);
   desenharMapa(res);
   desenharAberturas(res);
+  desenharBolhas(res);
   desenharLugares(res);
 }
 
