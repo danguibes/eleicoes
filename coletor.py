@@ -155,7 +155,15 @@ class Coletor:
         verdes = len(novas)
         novas = [k for k in novas if madura(k)]
         verdes -= len(novas)
-        novas.sort()
+        # da mais antiga para a mais nova: o CDN publica o auxiliar até ~18 min depois da hora
+        # do índice (medido às 18h28: índice 18:10:52, Last-Modified 18:28:54). Quando a mais
+        # antiga ainda dá 404, as mais novas também dariam — e a rodada para ali.
+        def quando(k):
+            try:
+                return datetime.strptime(prontas[k], "%d/%m/%Y %H:%M:%S")
+            except ValueError:
+                return datetime.min
+        novas.sort(key=quando)
         if limite:
             novas = novas[:limite]
         print(f"{agora()}  índice gerado {dg} {hg}: {len(prontas)}/{total} seções "
@@ -173,7 +181,9 @@ class Coletor:
         feitas = erros = 0
         t0 = time.time()
         try:
-            with ThreadPoolExecutor(self.trab) as ex:
+            # poucos em voo: no primeiro 404 a rodada para, e só os que já estavam no ar
+            # podem somar 404 (com 16 eram 16 por rodada, e a trava disparava em 1 min)
+            with ThreadPoolExecutor(min(self.trab, 4)) as ex:
                 fut = {ex.submit(self.buscar_secao, *k): k for k in novas}
                 for f in as_completed(fut):
                     k = fut[f]
