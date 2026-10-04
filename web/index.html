@@ -781,7 +781,7 @@ function desenharBolhas(res){
   // mesma escala nos dois eixos: a diagonal é "igual à eleição anterior"
   const lado = Math.min(W - mg.l - mg.r, H - mg.t - mg.b);
   const X = v => mg.l + (v - lo) / (hi - lo) * lado, Y = v => mg.t + lado - (v - lo) / (hi - lo) * lado;
-  const nMax = Math.max(...pts.map(p => p.n), 1), R = n => 4 + 16 * Math.sqrt(n / nMax);
+  const R = () => 8;   // só o bastante para o número do quintil
   let g = "";
   const passo = (hi - lo) > 40 ? 10 : 5;
   for (let v = Math.ceil(lo / passo) * passo; v <= hi; v += passo) {
@@ -796,7 +796,7 @@ function desenharBolhas(res){
     <text transform="translate(11 ${mg.t + lado / 2}) rotate(-90)" text-anchor="middle">${nomeCat(c)} — ${m.atual} ${bolhaY === "pj" ? "projetado" : "apurado"}</text>`;
   if (isFinite(ref.x) && isFinite(ref.y))
     g += `<path d="M${X(ref.x)-7},${Y(ref.y)}h14M${X(ref.x)},${Y(ref.y)-7}v14" stroke="${corDe(c, lista)}" stroke-width="2.5"/>`;
-  pts.sort((a, b) => b.n - a.n);   // as grandes atrás
+  pts.sort((a, b) => a.sel - b.sel);   // as do filtro por cima
   pts.forEach((p, i) => {
     g += `<g class="bolha" data-i="${i}" style="cursor:pointer"><circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${R(p.n)}" fill="${COR_VAR[p.v]}"
       fill-opacity="${p.sel ? .9 : .55}" stroke="${p.sel ? "var(--ink)" : COR_VAR[p.v]}" stroke-width="${p.sel ? 2 : 1}"/>
@@ -819,7 +819,7 @@ function desenharBolhas(res){
   });
   document.getElementById("bolhas-leg").innerHTML = VARS.map(([v, t]) =>
     `<span data-v="${v}" class="${escBolha.has(v) ? "off" : ""}"><i style="background:${COR_VAR[v]}"></i>${tituloVar(t)}</span>`).join("") +
-    `<span class="sub">número na bolha: quintil · tamanho: eleitores de ${m.atual} · cruz: o recorte inteiro — clique numa variável para escondê-la</span>`;
+    `<span class="sub">número na bolha: quintil · cruz: o recorte inteiro — clique numa variável para escondê-la</span>`;
   document.querySelectorAll("#bolhas-leg span[data-v]").forEach(sp => sp.onclick = () => {
     const v = sp.dataset.v; escBolha.has(v) ? escBolha.delete(v) : escBolha.add(v); desenharBolhas(res); });
   document.getElementById("bolhas-sub").innerHTML = `Cada bolha é um quintil de uma variável de perfil, com os filtros da tela
