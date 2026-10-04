@@ -43,6 +43,7 @@ def agora():
 
 class Coletor:
     def __init__(self, pleito, uf, municipios, taxa, trabalhadores):
+        self.depois = {}   # seção -> quando pedir de novo, depois de um 404
         self.p = PLEITOS[pleito]
         self.uf = uf
         self.municipios = set(municipios) if municipios else None
@@ -95,10 +96,16 @@ class Coletor:
     # -- uma seção ------------------------------------------------------------
     def buscar_secao(self, mun, zona, secao):
         if self.adiar.is_set():
-            return {"erro": "adiado"}   # um 404 nesta rodada: o resto fica para a próxima
+            return {"erro": "adiado"}   # 404 demais nesta rodada: o resto fica para a próxima
         st, corpo, _ = self.cli.get(self.p.url_aux(self.uf, mun, zona, secao))
         if st == 404:
-            self.adiar.set()
+            # uma seção atrasada no CDN não pode parar a fila inteira (às 18h40 uma só
+            # parava toda rodada no mesmo ponto): ela espera 3 min, e a rodada só para no 3º 404
+            self.depois[(mun, zona, secao)] = time.time() + 180
+            with self.trava404:
+                self.n404 += 1
+                if self.n404 >= 3:
+                    self.adiar.set()
         if st != 200:
             return {"erro": f"aux {st}"}
         aux = json.loads(corpo)
@@ -153,7 +160,7 @@ class Coletor:
             except ValueError:
                 return True
         verdes = len(novas)
-        novas = [k for k in novas if madura(k)]
+        novas = [k for k in novas if madura(k) and self.depois.get(k, 0) <= time.time()]
         verdes -= len(novas)
         # da mais antiga para a mais nova: o CDN publica o auxiliar até ~18 min depois da hora
         # do índice (medido às 18h28: índice 18:10:52, Last-Modified 18:28:54). Quando a mais
@@ -173,6 +180,7 @@ class Coletor:
             return 0
         import threading
         self.adiar = threading.Event()
+        self.trava404, self.n404 = threading.Lock(), 0
         f_sec = open(self.dir / "secoes.jsonl", "a", encoding="utf-8")
         f_che = open(self.dir / "chegadas.csv", "a", newline="", encoding="utf-8")
         w = csv.writer(f_che)
