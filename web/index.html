@@ -198,7 +198,11 @@ const UF_NOME = {AC:"Acre",AL:"Alagoas",AM:"Amazonas",AP:"Amapá",BA:"Bahia",CE:
 let D = null, modo = null;
 // o estado inteiro da tela. uf "SP" carrega o painel detalhado por local (3 cargos, quintis);
 // qualquer outro recorte usa o nacional por município (camada rápida, só Presidente)
-const F = {cargo:"presidente", regiao:null, uf:null, mun:null, zona:null, q:{}, turno:1};
+const F = {cargo:"presidente", regiao:null, uf:null, mun:null, zona:null, q:{}, turno:1, fonte:"mun"};
+// Governador e senador de SP têm duas fontes: o arquivo por município do TSE (em dia) e os
+// boletins de urna (detalhe por local, mas atrasados: na noite de 2026 o TSE publicava o
+// boletim 20 a 40 min depois de listar a seção).
+const porMunSP = () => detalhado() && F.cargo !== "presidente" && F.fonte === "mun";
 const detalhado = () => F.uf === "SP";
 let escondidos = new Set();
 
@@ -232,8 +236,10 @@ function nomeCat(c){
 async function carregar(m){
   modo = m;
   if (!detalhado()) F.cargo = "presidente";
-  const arq = detalhado() ? `dados/${m}_${F.cargo}.json` : `dados/${m}_brasil_presidente.json`;
-  const r = await fetch(arq, {cache:"no-store"});
+  let arq = detalhado() ? `dados/${m}_${F.cargo}.json` : `dados/${m}_brasil_presidente.json`;
+  if (porMunSP()) arq = `dados/${m}_sp_${F.cargo}.json`;
+  let r = await fetch(arq, {cache:"no-store"});
+  if (!r.ok && porMunSP()) r = await fetch(`dados/${m}_${F.cargo}.json`, {cache:"no-store"});
   if (!r.ok) { D = null; desenhar(); return; }
   D = await r.json();
   if (D.mun) {
@@ -413,7 +419,9 @@ function desenharChances(res){
     resultado real em 89% das conferências, e a projeção ficou ~0,9 ponto abaixo de Lula até a metade da noite: "85%" quer dizer que um
     modelo tão bom quanto este foi em 2022 erraria mais ou menos 1 vez em 7. A curva tracejada é a normal equivalente; quando as duas
     divergem, a distribuição do modelo é assimétrica e a normal subestima um dos lados.` +
-    (D.meta.cargo !== "presidente" ? ` <b>Governador e senador não têm ensaio próprio</b> (não há 2018 desses cargos baixado): o fator de
+    (D.meta.escopo === "sp_mun" ? ` <b>Governador e senador por município não têm ensaio próprio:</b> o fator de calibração é o do
+    Presidente no Brasil por município, e a reamostragem é por 40 grupos de municípios vizinhos em vez de UFs. A chance aqui é menos
+    testada que a de Presidente.` : D.meta.cargo !== "presidente" ? ` <b>Governador e senador não têm ensaio próprio</b> (não há 2018 desses cargos baixado): o fator de
     calibração é o do Presidente em SP, e a chance aqui é menos testada que a de Presidente.` : "");
 }
 
@@ -522,7 +530,8 @@ function desenharFiltros(){
   h += sel("f-regiao","Região",[["","Brasil"], ...Object.keys(REGIOES).map(r => [r, r])], F.regiao ?? "");
   h += sel("f-uf","UF",[["","todas"], ...ufsReg.map(u => [u, UF_NOME[u]])], F.uf ?? "");
   h += sel("f-mun","Município",[["", F.uf || detalhado() ? "todos" : "escolha a UF"], ...munsVis.map(([c,n]) => [c, n])], F.mun ?? "", !munsVis.length);
-  if (detalhado()) h += sel("f-zona","Zona",[["","todas"], ...zonas.map(z => [z, z])], F.zona ?? "");
+  if (detalhado() && F.cargo !== "presidente") h += sel("f-fonte","Fonte",[["mun","por município (em dia)"],["bu","por local (boletins de urna)"]], F.fonte);
+  if (detalhado() && !(D && D.mun)) h += sel("f-zona","Zona",[["","todas"], ...zonas.map(z => [z, z])], F.zona ?? "");
   let hs = "";   // sliders numa segunda linha, todos juntos
   for (const [v, t] of VARS) { const [lo, hi] = F.q[v] || [1, 5];
     hs += `<div class="sl" data-v="${v}">${t.replace(" no entorno","").replace(" na urna","")}
@@ -539,6 +548,8 @@ function desenharFiltros(){
   document.getElementById("f-uf").onchange = e => { const era = detalhado(); F.uf = e.target.value || null;
     F.mun = null; F.zona = null; F.q = {}; era !== detalhado() ? carregar(modo) : desenhar(); };
   document.getElementById("f-mun").onchange = e => { F.mun = e.target.value ? +e.target.value : null; F.zona = null; desenhar(); };
+  const ff = document.getElementById("f-fonte");
+  if (ff) ff.onchange = e => { F.fonte = e.target.value; F.zona = null; F.q = {}; carregar(modo); };
   const fz = document.getElementById("f-zona");
   if (fz) fz.onchange = e => { F.zona = e.target.value ? +e.target.value : null; desenhar(); };
   document.querySelectorAll(".sl").forEach(el => {
@@ -576,7 +587,10 @@ const SUB_SP = `Urnas em quintis — cinco grupos com o mesmo número de eleitor
 const SUB_BR = `Municípios em quintis — cinco grupos com o mesmo número de eleitores de 2026 no país —, pelo perfil do município no
   Censo 2022. <b>É o voto dos municípios desse perfil, não o voto das pessoas desse grupo.</b> Para o detalhe por local de votação,
   escolha São Paulo em UF. Clique para filtrar; com Shift, estende a faixa.`;
-function tituloVar(t){ return detalhado() ? t : t.replace("(16–24) na urna", "(15–24) no município").replace(" do entorno", " do município").replace(" no entorno", " no município").replace(" na urna", " no município"); }
+const SUB_SPMUN = `Municípios de SP em quintis — cinco grupos com o mesmo número de eleitores de 2026 do estado —, pelo perfil do
+  município no Censo 2022. <b>É o voto dos municípios desse perfil, não o voto das pessoas desse grupo.</b> Para o detalhe por local de
+  votação, troque a fonte para "boletins de urna". Clique para filtrar; com Shift, estende a faixa.`;
+function tituloVar(t){ return detalhado() && !(D && D.mun) ? t : t.replace("(16–24) na urna", "(15–24) no município").replace(" do entorno", " do município").replace(" no entorno", " no município").replace(" na urna", " no município"); }
 function limpar(){ F.regiao=null; F.uf=null; F.mun=null; F.zona=null; F.q={}; }
 function textoFaixa(lo, hi){ return lo === 1 && hi === 5 ? "todos" : lo === hi ? lo + "º quintil" : lo + "º ao " + hi + "º"; }
 
@@ -630,7 +644,7 @@ function desenharAberturas(res){
   const box = document.getElementById("aberturas");
   if (!D) { box.innerHTML = ""; return; }
   document.getElementById("t-aberturas").textContent = "Por perfil do lugar";
-  document.getElementById("sub-aberturas").innerHTML = detalhado() ? SUB_SP : SUB_BR;
+  document.getElementById("sub-aberturas").innerHTML = detalhado() ? (D && D.mun ? SUB_SPMUN : SUB_SP) : SUB_BR;
   const m = D.meta, cats = m.cats, catsA = catsAnt(), temAp = m.apuradas > 0;
   // antes de o cargo ter candidatos de 2026 (governador, senador), os quadros mostram os de 2022
   const semAtual = !(res && res.ord && res.ord.length);

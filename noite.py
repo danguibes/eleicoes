@@ -44,6 +44,8 @@ def main():
         "sp": [py, "coletor.py", "--pleito", a.pleito, "--uf", "sp", "--taxa", "50", "--trabalhadores", "16",
                "--intervalo", "30"],
         "nacional": [py, "nacional.py", "--pleito", a.pleito, "--taxa", "25", "--intervalo", "30"],
+        # governador e senador de SP por município (entrou às 19h de 04/10/2026)
+        "sp_mun": [py, "sp_municipios.py", "--pleito", a.pleito, "--taxa", "10", "--intervalo", "30"],
     }
     if a.pleito == "2026":
         cmds["publicador"] = [py, "domingo.py", "--pleito", a.pleito] + (["--sem-publicar"] if a.falso else [])

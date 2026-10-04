@@ -92,7 +92,11 @@ def main():
     cargos = ["presidente", "governador", "senador"]
     for c in cargos:
         painel.preparar("2026", c)
-    visto = {sp: 0, nac: 0}
+    import painel_sp_mun
+    # governador e senador de SP por município (sp_municipios.py): em dia, enquanto os
+    # boletins de urna chegam com 20-40 min de atraso
+    est = {cg: Path("data/raw") / a.pleito / f"sp_{cg}" / "municipios.parquet" for cg in ("governador", "senador")}
+    visto = {sp: 0, nac: 0, **{p: 0 for p in est.values()}}
     ultimo_push, pendente = 0.0, None
     print("publicador pronto", flush=True)
     while True:
@@ -104,6 +108,14 @@ def main():
                 feito.append(f"Brasil {d['meta']['apuradas']:,}/{d['meta']['secoes']:,}")
             except Exception as e:
                 print(f"   painel Brasil: {e!r}", flush=True)
+        for cg, p in est.items():
+            if p.exists() and p.stat().st_mtime > visto[p]:
+                visto[p] = p.stat().st_mtime
+                try:
+                    d = painel_sp_mun.montar(cg, n_boot=200)
+                    feito.append(f"{cg} SP {d['meta']['apuradas']:,}/{d['meta']['secoes']:,}")
+                except Exception as e:
+                    print(f"   painel SP {cg} por município: {e!r}", flush=True)
         if sp.exists() and sp.stat().st_mtime > visto[sp]:
             visto[sp] = sp.stat().st_mtime
             tabelar.tabelar(a.pleito, "sp", cargos=cargos)

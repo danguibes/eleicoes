@@ -70,7 +70,7 @@ def secoes_2022(cats):
     return t.merge(d, on=["zona", "secao"], how="inner"), cs
 
 
-def projetar_mun(M, cats, n_boot=200, seed=0, guardar_linhas=False):
+def projetar_mun(M, cats, n_boot=200, seed=0, guardar_linhas=False, votos_por=1):
     """M: um município por linha, com ap_<cat> (apurado), aptos_ap, comp_ap, aptos (total),
     b_<cat> (base, parcelas), b_comp, uf. Devolve (amostras B×C dos votos no país, por_mun)."""
     rng = np.random.default_rng(seed)
@@ -96,7 +96,8 @@ def projetar_mun(M, cats, n_boot=200, seed=0, guardar_linhas=False):
     ufs = M.uf.to_numpy()
     ufu = np.unique(ufs)
     cod = pd.Series(range(len(ufu)), index=ufu)[ufs].to_numpy()
-    resto = (M.aptos - M.aptos_ap).clip(lower=0).to_numpy(float)
+    # votos_por: votos por eleitor que compareceu — 2 no Senado de 2026 (duas vagas)
+    resto = (M.aptos - M.aptos_ap).clip(lower=0).to_numpy(float) * votos_por
     frac = (M.aptos_ap / M.aptos).clip(0, 1).to_numpy(float)
     o = np.where(tem)[0]
     # municípios por UF, para reamostrar dentro de cada UF
