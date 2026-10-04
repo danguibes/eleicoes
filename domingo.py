@@ -118,9 +118,9 @@ def main():
             pendente = feito
         if pendente:
             hora = datetime.now().strftime("%H:%M")
-            # um deploy a cada 4 min no máximo: o Pages enfileira e pode recusar deploys
+            # um deploy a cada 2 min no máximo (cada um leva ~20 s no Actions): o Pages enfileira e pode recusar deploys
             # demais por hora; as rodadas do intervalo saem juntas no próximo push
-            if not a.sem_publicar and time.time() - ultimo_push >= 240:
+            if not a.sem_publicar and time.time() - ultimo_push >= 120:
                 publicar(f"Apuração {hora}: " + " · ".join(pendente))
                 ultimo_push, pendente = time.time(), None
             if feito:
