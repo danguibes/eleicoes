@@ -33,7 +33,8 @@ from pathlib import Path
 import bu
 from tse import PLEITOS, Bloqueado, Cliente
 
-VALIDOS = {"Recebido", "Totalizado"}  # descarta Rejeitado, Excluído, Sem arquivo
+VALIDOS = {"Recebido", "Totalizado"}
+ESPERA_CDN = 240   # s entre a hora do índice e o pedido do auxiliar (medido: ~5 min de defasagem)  # descarta Rejeitado, Excluído, Sem arquivo
 
 
 def agora():
@@ -93,7 +94,11 @@ class Coletor:
 
     # -- uma seção ------------------------------------------------------------
     def buscar_secao(self, mun, zona, secao):
+        if self.adiar.is_set():
+            return {"erro": "adiado"}   # um 404 nesta rodada: o resto fica para a próxima
         st, corpo, _ = self.cli.get(self.p.url_aux(self.uf, mun, zona, secao))
+        if st == 404:
+            self.adiar.set()
         if st != 200:
             return {"erro": f"aux {st}"}
         aux = json.loads(corpo)
@@ -135,14 +140,31 @@ class Coletor:
         novas = [k for k, quando in prontas.items()
                  if vistas.get("/".join(k), {}).get("indice") != quando
                  or not vistas.get("/".join(k), {}).get("bu", True)]   # sem BU legível: tenta de novo
+        # O índice lista a seção como chegada ANTES de o auxiliar dela estar no CDN: pedir
+        # na hora dava 404 em rajada, e às 17h43 de domingo a trava de 404 desligou o coletor
+        # por 11 min. Medido em seguida: a seção entrou no índice às 17:49:53 e o auxiliar
+        # ainda era 404 às 17:55 (200 às 17:56). Espera ESPERA_CDN depois da hora do índice.
+        def madura(k):
+            q = prontas[k]
+            if q == "encerrado":
+                return True
+            try:
+                return (datetime.now() - datetime.strptime(q, "%d/%m/%Y %H:%M:%S")).total_seconds() >= ESPERA_CDN
+            except ValueError:
+                return True
+        verdes = len(novas)
+        novas = [k for k in novas if madura(k)]
+        verdes -= len(novas)
         novas.sort()
         if limite:
             novas = novas[:limite]
         print(f"{agora()}  índice gerado {dg} {hg}: {len(prontas)}/{total} seções "
-              f"com auxiliar, {len(novas)} novas ou alteradas", flush=True)
+              f"com auxiliar, {len(novas)} novas ou alteradas, {verdes} esperando o CDN", flush=True)
         if not novas:
             self.salvar()
             return 0
+        import threading
+        self.adiar = threading.Event()
         f_sec = open(self.dir / "secoes.jsonl", "a", encoding="utf-8")
         f_che = open(self.dir / "chegadas.csv", "a", newline="", encoding="utf-8")
         w = csv.writer(f_che)
