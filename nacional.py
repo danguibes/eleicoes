@@ -110,19 +110,25 @@ class Nacional:
         if not prontas:
             print(f"{datetime.now():%H:%M:%S}  nenhum arquivo de UF publicado ainda", flush=True)
             return 0
-        falhas = {}
-        for uf, mun in self.muns:
-            if uf not in prontas or falhas.get(uf, 0) >= 3:
-                continue
+        # Em paralelo: um pedido por vez ficava preso na latência do TSE (~90 ms), ~11 req/s,
+        # e a varredura levava 8-9 min na noite de 2026 (medido às 17h40). O teto global de
+        # requisições continua no Cliente.
+        from concurrent.futures import ThreadPoolExecutor
+        alvo = [(uf, mun) for uf, mun in self.muns if uf in prontas]
+
+        def um(par):
+            uf, mun = par
             url = self.p.url_municipio(uf, mun, self.cargo)
-            st, corpo, etag = self.cli.get(url, self.etags.get(url))
-            if st == 200:
-                self.etags[url] = etag
-                self.linhas[(uf, mun)] = {"uf": uf.upper(), "municipio": int(mun), **ler_u(corpo)}
-                mudou += 1
-            elif st != 304:
-                erros += 1
-                falhas[uf] = falhas.get(uf, 0) + 1   # 3 falhas numa UF: para a UF nesta rodada
+            return par, url, self.cli.get(url, self.etags.get(url))
+
+        with ThreadPoolExecutor(8) as ex:
+            for (uf, mun), url, (st, corpo, etag) in ex.map(um, alvo):
+                if st == 200:
+                    self.etags[url] = etag
+                    self.linhas[(uf, mun)] = {"uf": uf.upper(), "municipio": int(mun), **ler_u(corpo)}
+                    mudou += 1
+                elif st != 304:
+                    erros += 1
         t = pd.DataFrame(self.linhas.values())
         if len(t):
             tmp = self.dir / "municipios.tmp.parquet"

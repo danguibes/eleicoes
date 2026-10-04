@@ -43,7 +43,7 @@ def main():
     cmds = {
         "sp": [py, "coletor.py", "--pleito", a.pleito, "--uf", "sp", "--taxa", "50", "--trabalhadores", "16",
                "--intervalo", "30"],
-        "nacional": [py, "nacional.py", "--pleito", a.pleito, "--taxa", "15", "--intervalo", "60"],
+        "nacional": [py, "nacional.py", "--pleito", a.pleito, "--taxa", "25", "--intervalo", "30"],
     }
     if a.pleito == "2026":
         cmds["publicador"] = [py, "domingo.py", "--pleito", a.pleito] + (["--sem-publicar"] if a.falso else [])
