@@ -87,6 +87,8 @@ def projetar_mun(M, cats, n_boot=200, seed=0, guardar_linhas=False):
         # 2º turno da eleição anterior: a parcela do primeiro contra o segundo
         s2 = (M.b2_a / (M.b2_a + M.b2_b)).clip(0.02, 0.98).fillna(0.5).to_numpy(float)
         Xb = np.c_[Xb, pj.logit(s2)]
+    # um NaN numa covariável contamina mean/std e, por eles, todas as linhas: vira a média
+    Xb = np.where(np.isfinite(Xb), Xb, np.nanmean(np.where(np.isfinite(Xb), Xb, np.nan), axis=0))
     mu, sd = Xb[tem].mean(0), Xb[tem].std(0) + 1e-9
     Xb = (Xb - mu) / sd
     Y = np.c_[pj.clr(ap), pj.logit((M.comp_ap / M.aptos_ap.replace(0, np.nan)).fillna(0.8).to_numpy(float))]

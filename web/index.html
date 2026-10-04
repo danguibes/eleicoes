@@ -458,7 +458,7 @@ async function desenharMapa(res){
     if (!pt || !rival) return null;
     const d = fonte[pt] - fonte[rival];
     return {v: d, txt: `${nomeCat(pt)} ${fmt(fonte[pt])}% × ${nomeCat(rival)} ${fmt(fonte[rival])}% ${pj ? "(projetado)" : `(${rotAnt(m)})`}`}; };
-  const cor = x => { if (!x) return fora;
+  const cor = x => { if (!x || !isFinite(x.v)) return fora;   // valor inválido: cinza, nunca preto
     if (mapaModo === "apurado") return misturar(neutro, acc, Math.min(1, x.v));
     const lim = mapaModo === "mudanca" ? 15 : 40, tt = Math.min(1, Math.abs(x.v) / lim);
     return misturar(neutro, x.v >= 0 ? verm : azul, 0.15 + 0.85 * tt); };
@@ -764,6 +764,9 @@ function desenhar(){
   desenharAberturas(res);
   desenharLugares(res);
 }
+
+// atualização automática: recarrega só os dados a cada 2 min no modo ao vivo; os filtros ficam
+setInterval(() => { if (modo === "2026" && !document.hidden) carregar(modo); }, 120000);
 
 (async () => {
   // abre no 2026; se ainda não há arquivo de 2026, abre no ensaio

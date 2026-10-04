@@ -137,6 +137,10 @@ def montar(modo, frac=0.25, n_boot=200):
         M[c] = M[c].fillna(0)
     denom = (d.aptos.reindex(M.municipio).to_numpy() if d is not None else M.aptos.to_numpy())
     M["b_comp"] = (M[cats_ant].sum(axis=1) / np.maximum(denom, 1)).clip(0.3, 0.98)
+    # município sem 2022 (7 criados ou novos no exterior): sem aptos de 2022, b_comp vira
+    # NaN e contaminava a padronização do modelo inteiro — projeção zerada no país todo,
+    # às 18h de domingo. Fica com a mediana.
+    M["b_comp"] = M.b_comp.fillna(M.b_comp.median())
     for cb in base_cols:   # nomes próprios da eleição anterior — ver municipal.projetar_mun
         M[f"b_{cb}"] = M[cb] + 1
     if ap is not None and len(ap):
