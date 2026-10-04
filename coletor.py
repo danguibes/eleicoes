@@ -106,7 +106,13 @@ class Coletor:
         # .busa: BU do Sistema de Apuração, a contingência quando a urna falha.
         # Mesmo formato ASN.1. Em 2022 foram 2 das 101.073 seções de SP — e sem
         # isto elas sumiam caladas (a soma do estado ficava 400 votos curta).
-        nome_bu = (next((n for n in nomes if n.endswith(".bu")), None)
+        # 2026 mudou o nome: "o03220sp...-bu.dat" com "tp":"bu" (em 2022 era "....bu"). Escolhe
+        # pelo TIPO quando ele vem; o nome só como reserva. Sem isto, nenhuma urna de SP
+        # era lida — pego às 17h27 do domingo, nas primeiras 26 seções.
+        tipos = {a["nm"]: a.get("tp") for a in h.get("arq", [])}
+        nome_bu = (next((n for n, t in tipos.items() if t == "bu"), None)
+                   or next((n for n, t in tipos.items() if t == "busa"), None)
+                   or next((n for n in nomes if n.endswith(".bu")), None)
                    or next((n for n in nomes if n.endswith(".busa")), None))
         if not nome_bu:
             return {"situacao": aux.get("st"), "sem_bu": True, "hash": h["hash"]}
@@ -127,7 +133,8 @@ class Coletor:
         prontas, total, dg, hg = self.ler_indice()
         vistas = self.estado["secoes"]
         novas = [k for k, quando in prontas.items()
-                 if vistas.get("/".join(k), {}).get("indice") != quando]
+                 if vistas.get("/".join(k), {}).get("indice") != quando
+                 or not vistas.get("/".join(k), {}).get("bu", True)]   # sem BU legível: tenta de novo
         novas.sort()
         if limite:
             novas = novas[:limite]
