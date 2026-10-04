@@ -97,15 +97,20 @@ class Coletor:
     def buscar_secao(self, mun, zona, secao):
         if self.adiar.is_set():
             return {"erro": "adiado"}   # 404 demais nesta rodada: o resto fica para a próxima
+        # orçamento de 404: a trava do cliente dispara em 31 por minuto; com 8 em voo, parar
+        # de pedir ao chegar em 20 deixa no máximo 27. Os 404 vêm espalhados pela fila (o CDN
+        # não publica na ordem do índice), então parar no 3º fazia rodadas de 20 seções.
+        with self.cli.trava:
+            agora_m = time.monotonic()
+            while self.cli.n404 and agora_m - self.cli.n404[0] > 60:
+                self.cli.n404.popleft()
+            if len(self.cli.n404) >= 20:
+                self.adiar.set()
+                return {"erro": "adiado"}
         st, corpo, _ = self.cli.get(self.p.url_aux(self.uf, mun, zona, secao))
         if st == 404:
-            # uma seção atrasada no CDN não pode parar a fila inteira (às 18h40 uma só
-            # parava toda rodada no mesmo ponto): ela espera 3 min, e a rodada só para no 3º 404
+            # uma seção atrasada no CDN não pode parar a fila inteira: ela espera 3 min
             self.depois[(mun, zona, secao)] = time.time() + 180
-            with self.trava404:
-                self.n404 += 1
-                if self.n404 >= 3:
-                    self.adiar.set()
         if st != 200:
             return {"erro": f"aux {st}"}
         aux = json.loads(corpo)
@@ -180,7 +185,6 @@ class Coletor:
             return 0
         import threading
         self.adiar = threading.Event()
-        self.trava404, self.n404 = threading.Lock(), 0
         f_sec = open(self.dir / "secoes.jsonl", "a", encoding="utf-8")
         f_che = open(self.dir / "chegadas.csv", "a", newline="", encoding="utf-8")
         w = csv.writer(f_che)
