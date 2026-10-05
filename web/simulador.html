@@ -52,6 +52,10 @@
   .ctl .rot b{color:var(--ink);font-size:12.5px}
   .ctl .pista{position:relative}
   .ctl input[type=range]{width:100%;margin:2px 0 0;accent-color:var(--accent)}
+  .ctl.lf input[type=range]{-webkit-appearance:none;appearance:none;height:8px;border-radius:4px;margin-top:7px}
+  .ctl.lf input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--card);border:2px solid var(--ink);cursor:pointer}
+  .ctl.lf input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--card);border:2px solid var(--ink);cursor:pointer}
+  .ctl.lf .partida{top:4px;background:var(--ink)}
   .ctl .partida{position:absolute;top:-2px;width:2px;height:8px;background:var(--mut);opacity:.7;pointer-events:none}
   .divide{display:flex;height:9px;border-radius:3px;overflow:hidden;background:var(--grid);min-width:120px}
   .divide i{display:block;height:100%}
@@ -92,8 +96,8 @@
 
 <section>
   <h2>Para onde vai cada eleitor do 1º turno</h2>
-  <p class="sub">Em cada linha: quanto escolhe um dos dois, e desses quanto vai a Lula. O tracinho cinza sob o controle marca o ponto
-  de partida. Votos do 1º turno de 2026 na segunda coluna.</p>
+  <p class="sub">Em cada linha: quanto vira voto válido no 2º turno (Lula ou Flávio; o resto é branco, nulo ou abstenção), e como os
+  válidos se dividem entre Lula e Flávio. O tracinho sob o controle marca o ponto de partida. Votos do 1º turno de 2026 na segunda coluna.</p>
   <div class="scroll"><table id="t-cand"></table></div>
   <div class="leg"><span><i style="background:var(--c1)"></i>Lula</span><span><i style="background:var(--c2)"></i>Flávio</span>
     <span><i style="background:var(--c7)"></i>nenhum dos dois</span></div>
@@ -218,6 +222,20 @@ function controle(id, rot, valor, inicio, onInput){
     <div class="pista"><input type="range" id="${id}" min="0" max="100" step="0.1" value="${(100 * valor).toFixed(1)}">
     <span class="partida" style="left:calc(${100 * inicio}% - 1px)"></span></div></div>`;
 }
+// controle da divisão Lula × Flávio: os dois lados à mostra, Lula em vermelho, Flávio em azul
+function trilhoLF(p){ return `linear-gradient(90deg,var(--c1) 0 ${p}%,var(--c2) ${p}% 100%)`; }
+function rotLF(id, p){ return `<b id="${id}-l" style="color:var(--c1)">Lula ${fmt(p)}%</b><b id="${id}-f" style="color:var(--c2)">${fmt(100 - p)}% Flávio</b>`; }
+function controleLF(id, valor, inicio){
+  const p = 100 * valor;
+  return `<div class="ctl lf"><div class="rot">${rotLF(id, p)}</div>
+    <div class="pista"><input type="range" id="${id}" min="0" max="100" step="0.1" value="${p.toFixed(1)}" style="background:${trilhoLF(p)}">
+    <span class="partida" style="left:calc(${100 * inicio}% - 1px)"></span></div></div>`;
+}
+function mostrarLF(id, p){
+  document.getElementById(id + "-l").textContent = `Lula ${fmt(p)}%`;
+  document.getElementById(id + "-f").textContent = `${fmt(100 - p)}% Flávio`;
+  document.getElementById(id).style.background = trilhoLF(p);
+}
 let INICIO = {};
 function divisao(r){ const o = r.n - r.nl - r.nf;
   return `<div class="divide" title="Lula ${nf(r.nl)} · Flávio ${nf(r.nf)} · nenhum ${nf(o)}"><i style="width:${100*r.nl/r.n}%;background:var(--c1)"></i><i style="width:${100*r.nf/r.n}%;background:var(--c2)"></i><i style="width:${100*o/r.n}%;background:var(--c7);opacity:.5"></i></div>
@@ -234,15 +252,17 @@ function desenharCandidatos(out){
   const L = R, nomes = S.meta.nomes, an = S.meta.analogia, n22 = S.meta.nomes_2022;
   const real = realizado();
   const tab = document.getElementById("t-cand");
-  tab.innerHTML = `<tr><th>1º turno de 2026</th><th>eleitores</th><th>herda de 2022</th><th>escolhe um dos dois</th><th>desses, Lula</th><th>no 2º turno</th></tr>` +
+  tab.innerHTML = `<tr><th>1º turno de 2026</th><th>eleitores</th><th>herda de 2022</th><th>votos válidos</th><th>Lula × Flávio</th><th>no 2º turno</th></tr>` +
     L.map(l => { const r = real[l];
       return `<tr><td>${nomes[l]}</td><td>${nf(r.n)}</td><td class="nota">${an[l] === l || (l === "flavio" && an[l] === "bolsonaro") ? (l === "flavio" ? "Bolsonaro" : "a mesma") : n22[an[l]]}</td>
-      <td>${controle("v-" + l, "", alvoV[l], INICIO[l].v)}</td><td>${controle("s-" + l, "", alvoS[l], INICIO[l].s)}</td>
+      <td>${controle("v-" + l, "", alvoV[l], INICIO[l].v)}</td><td>${controleLF("s-" + l, alvoS[l], INICIO[l].s)}</td>
       <td id="d-${l}">${divisao(r)}</td></tr>`; }).join("");
   L.forEach(l => {
     for (const [k, alvo] of [["v", alvoV], ["s", alvoS]]) {
       const el = document.getElementById(`${k}-${l}`);
-      el.oninput = () => { alvo[l] = +el.value / 100; document.getElementById(`${k}-${l}-v`).textContent = fmt(+el.value) + "%"; agendar(); };
+      el.oninput = () => { alvo[l] = +el.value / 100;
+        if (k === "s") mostrarLF(`s-${l}`, +el.value); else document.getElementById(`v-${l}-v`).textContent = fmt(+el.value) + "%";
+        agendar(); };
     }
   });
 }
@@ -255,11 +275,11 @@ function desenharQuintis(out){
     const s = soma(out, m => Q(m) === q + 1), ini = quintilTerceiros(q, 0), atual = quintilTerceiros(q, c[q]);
     const faixa = q === 0 ? "até " + unid(cortes[0]) : q === 4 ? "acima de " + unid(cortes[3]) : unid(cortes[q-1]) + "–" + unid(cortes[q]);
     return `<div><h3>${q + 1}º quintil</h3><span class="nota">${faixa}</span>
-      ${controle("q-" + q, "terceiros → Lula", atual, ini)}
+      <span class="nota">dos demais eleitores que votam válido:</span>${controleLF("q-" + q, atual, ini)}
       <table style="margin-top:6px;font-size:12.5px" id="qr-${q}">${tabQ(s)}</table></div>`;
   }).join("");
   [0,1,2,3,4].forEach(q => { const el = document.getElementById("q-" + q);
-    el.oninput = () => { alvoQ[q] = +el.value / 100; document.getElementById(`q-${q}-v`).textContent = fmt(+el.value) + "%"; agendar(); }; });
+    el.oninput = () => { alvoQ[q] = +el.value / 100; mostrarLF("q-" + q, +el.value); agendar(); }; });
 }
 function desenharRegioes(out){
   const regs = ["Norte","Nordeste","Centro-Oeste","Sudeste","Sul","Exterior"];
@@ -289,7 +309,7 @@ function atualizarRealizados(out){
     if (alvoQ[q] == null) {   // quintil não mexido: acompanha os controles por candidato
       const v = quintilTerceiros(q, 0), el = document.getElementById("q-" + q);
       if (el !== document.activeElement) el.value = (100 * v).toFixed(1);
-      document.getElementById(`q-${q}-v`).textContent = fmt(100 * v) + "%";
+      mostrarLF("q-" + q, 100 * v);
     }
   });
 }
