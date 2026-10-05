@@ -44,6 +44,7 @@ def agora():
 class Coletor:
     def __init__(self, pleito, uf, municipios, taxa, trabalhadores):
         self.depois = {}   # seção -> quando pedir de novo, depois de um 404
+        self.falhas = {}   # seção -> quantos 404 já deu
         self.p = PLEITOS[pleito]
         self.uf = uf
         self.municipios = set(municipios) if municipios else None
@@ -110,7 +111,12 @@ class Coletor:
         st, corpo, _ = self.cli.get(self.p.url_aux(self.uf, mun, zona, secao))
         if st == 404:
             # uma seção atrasada no CDN não pode parar a fila inteira: ela espera 3 min
-            self.depois[(mun, zona, secao)] = time.time() + 180
+            # e espera cada vez mais: em 05/10 havia seções com auxiliar ainda 404 treze horas
+            # depois; na frente da fila, elas gastavam o orçamento de toda rodada, e as 58 mil
+            # já publicadas atrás delas nunca eram pedidas
+            k = (mun, zona, secao)
+            self.falhas[k] = self.falhas.get(k, 0) + 1
+            self.depois[k] = time.time() + min(3600, 180 * 2 ** (self.falhas[k] - 1))
         if st != 200:
             return {"erro": f"aux {st}"}
         aux = json.loads(corpo)
@@ -175,7 +181,13 @@ class Coletor:
                 return datetime.strptime(prontas[k], "%d/%m/%Y %H:%M:%S")
             except ValueError:
                 return datetime.min
-        novas.sort(key=quando)
+        # quem já deu 404 vai para o fim da fila; entre as demais, sorteio. Depois de ~23h o TSE
+        # reescreveu a hora de todas as seções (viraram "Totalizada"), e a mais antiga deixou de
+        # ser a mais provável de estar publicada: em 05/10 o bloco de 22:59:05 era todo 404 e
+        # ocupava a frente da fila, enquanto 20 de 20 sorteadas no resto davam 200
+        import random
+        sorte = {k: random.random() for k in novas}
+        novas.sort(key=lambda k: (self.falhas.get(k, 0), sorte[k]))
         if limite:
             novas = novas[:limite]
         print(f"{agora()}  índice gerado {dg} {hg}: {len(prontas)}/{total} seções "
