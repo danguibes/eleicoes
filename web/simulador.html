@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador do 2º turno</title>
+<style>
+  :root{
+    --bg:#faf9f7; --card:#fff; --ink:#1c1b19; --mut:#56534e; --line:#e4e1db;
+    --accent:#1f4f7a; --accent-soft:#dde8f2; --grid:#efece7;
+    --c1:#b03a2e; --c2:#1f4f7a; --c7:#8a867f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
+      --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
+      --c1:#e0705f; --c2:#7fb4d4; --c7:#8f8b84;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
+    --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
+    --c1:#e0705f; --c2:#7fb4d4; --c7:#8f8b84;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+  header{padding:26px 0 12px}
+  h1{font-size:24px;margin:0;letter-spacing:-.02em}
+  h2{font-size:16px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin:0}
+  a{color:var(--accent)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+  .modo{display:flex;gap:6px;flex-wrap:wrap}
+  .modo button,.limpar{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:5px 10px;cursor:pointer}
+  .modo button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .linha{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  select{font:inherit;font-size:13.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 8px}
+  .placar{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .placar .nums{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .placar b{font-size:26px;font-variant-numeric:tabular-nums}
+  .barra2{display:flex;height:12px;border-radius:999px;overflow:hidden;margin:6px 0 4px;background:var(--grid);position:relative}
+  .barra2 i{display:block;height:100%}
+  .barra2 .meio{position:absolute;left:50%;top:-3px;bottom:-3px;border-left:2px dashed var(--ink);opacity:.5}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th{text-align:right;font-weight:600;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:0 8px 6px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:7px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums;vertical-align:middle}
+  .scroll{overflow-x:auto}
+  .abs{display:block;font-size:10.5px;color:var(--mut)}
+  .ctl{min-width:190px;text-align:left}
+  .ctl .rot{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut)}
+  .ctl .rot b{color:var(--ink);font-size:12.5px}
+  .ctl .pista{position:relative}
+  .ctl input[type=range]{width:100%;margin:2px 0 0;accent-color:var(--accent)}
+  .ctl .partida{position:absolute;top:-2px;width:2px;height:8px;background:var(--mut);opacity:.7;pointer-events:none}
+  .divide{display:flex;height:9px;border-radius:3px;overflow:hidden;background:var(--grid);min-width:120px}
+  .divide i{display:block;height:100%}
+  .nota{font-size:12.5px;color:var(--mut)}
+  .grade5{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px;margin-top:10px}
+  .grade5 > div{border:1px solid var(--line);border-radius:9px;padding:10px}
+  .grade5 h3{font-size:13px;margin:0 0 2px}
+  .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:6px 0 2px}
+  .leg i{display:inline-block;width:12px;height:8px;border-radius:2px;margin-right:4px}
+  .alerta{background:var(--accent-soft);border-left:4px solid var(--accent);padding:8px 12px;border-radius:6px;font-size:13px;margin-top:10px}
+  .rolagem{max-height:460px;overflow-y:auto}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>Simulador do 2º turno de 2026</h1>
+  <p class="sub">Lula × Flávio Bolsonaro, 25/10/2026. <a href="index.html">Painel</a> ·
+    <a href="1t2026.html">1º turno (consulta)</a> · <a href="metodo.html">Método</a></p>
+</header>
+
+<div class="placar" id="placar"></div>
+
+<section>
+  <h2>Como funciona</h2>
+  <p class="sub">Cada eleitor do 1º turno — de cada candidato, de branco, de nulo, ou que não foi votar — faz uma de três coisas no
+  2º turno: vota em Lula, vota em Flávio, ou não escolhe nenhum dos dois (branco, nulo ou abstenção). O <b>ponto de partida</b> é o
+  que aconteceu de 2022 para cá, seção a seção, entre o 1º e o 2º turno: os eleitores de Lula, Bolsonaro, branco, nulo e abstenção
+  herdam as próprias taxas de 2022, e os candidatos novos herdam as de um candidato de 2022 por analogia (Cury ← Tebet, Renan ← Ciro,
+  Caiado ← Soraya, Zema ← D'Avila; os demais, as dos menores de 2022). A conta é feita <b>município a município</b>, com o 1º turno de
+  2026 de cada um. Mova os controles e veja o resultado reagir.</p>
+  <div class="linha" style="margin-top:10px">
+    <span class="sub">Ponto de partida:</span>
+    <div class="modo" id="partida"></div>
+    <button class="limpar" id="restaurar">voltar ao ponto de partida</button>
+  </div>
+  <div class="alerta" id="alerta-metodo"></div>
+</section>
+
+<section>
+  <h2>Para onde vai cada eleitor do 1º turno</h2>
+  <p class="sub">Em cada linha: quanto escolhe um dos dois, e desses quanto vai a Lula. O tracinho cinza sob o controle marca o ponto
+  de partida. Votos do 1º turno de 2026 na segunda coluna.</p>
+  <div class="scroll"><table id="t-cand"></table></div>
+  <div class="leg"><span><i style="background:var(--c1)"></i>Lula</span><span><i style="background:var(--c2)"></i>Flávio</span>
+    <span><i style="background:var(--c7)"></i>nenhum dos dois</span></div>
+</section>
+
+<section>
+  <h2>Por perfil do município</h2>
+  <p class="sub">Escolha uma variável: cada quintil (cinco grupos de municípios com o mesmo número de eleitores) ganha um controle
+  para a parte de Lula entre os eleitores <b>que não votaram em Lula nem em Flávio no 1º turno</b> e escolhem um dos dois agora.
+  O ponto de partida de cada quintil é o que 2022 mostrou para aquele tipo de lugar. <b>É o comportamento dos lugares, não das
+  pessoas desse grupo.</b> Os ajustes por quintil se aplicam depois dos ajustes por candidato.</p>
+  <div class="linha" style="margin-top:10px"><label class="sub">Variável <select id="var"></select></label>
+    <button class="limpar" id="zerar-q">zerar os quintis</button></div>
+  <div class="grade5" id="quintis"></div>
+</section>
+
+<section>
+  <h2>Por região e UF</h2>
+  <p class="sub">Lula entre os votos dados a um dos dois. 2022 é o 2º turno real (Lula × Bolsonaro); "1º turno" é Lula entre Lula e
+  Flávio em 04/10/2026.</p>
+  <div class="scroll rolagem"><table id="t-reg"></table></div>
+</section>
+
+<p class="nota">O que isto não é: uma previsão. É uma conta — o 1º turno de 2026, município a município, levado ao 2º turno pelas
+migrações que você escolher. As de partida vêm de regressão ecológica sobre as seções de 2022 (o voto é secreto; ninguém sabe o que
+cada eleitor fez), e nenhuma pesquisa entra aqui.</p>
+</div>
+
+<script>
+const VARS = [["renda","Renda"],["catolicos","Católicos"],["evangelicos","Evangélicos"],["sem_religiao","Sem religião"],
+  ["preta_parda","Pretos e pardos"],["superior","Superior completo"],["jovens","Jovens (15–24)"],["idosos","60+"]];
+let S, N, nM, R, base = "dentro", variavel = "renda";
+let alvoV = {}, alvoS = {}, alvoQ = [null,null,null,null,null], a = {}, b = {}, c = [0,0,0,0,0];
+const sig = x => 1 / (1 + Math.exp(-x)), logit = p => Math.log(p / (1 - p));
+const clamp = p => Math.min(0.999, Math.max(0.001, p));
+const fmt = (x, d = 1) => isFinite(x) ? x.toLocaleString("pt-BR", {minimumFractionDigits: d, maximumFractionDigits: d}) : "—";
+const nf = x => Math.round(x).toLocaleString("pt-BR");
+const LF = new Set(["lula", "flavio"]);
+
+// pré-cálculo por (município, linha): logit da parte que escolhe um dos dois, da parte de Lula, e o rateio do resto
+let V0, S0, RESTO;
+function preparar(){
+  const M = S[base], L = S.meta.linhas;
+  V0 = []; S0 = []; RESTO = [];
+  for (let m = 0; m < nM; m++) {
+    const v = [], s = [], r = [];
+    for (let i = 0; i < L.length; i++) {
+      const [pl, pf, pb, pn, pa] = M[m][i], dois = pl + pf, resto = pb + pn + pa;
+      v.push(logit(clamp(dois))); s.push(logit(clamp(dois > 0 ? pl / dois : 0.5)));
+      r.push(resto > 0 ? [pb / resto, pn / resto, pa / resto] : [0.2, 0.2, 0.6]);
+    }
+    V0.push(v); S0.push(s); RESTO.push(r);
+  }
+}
+const Q = m => S.mun["q_" + variavel][m];
+// soma nacional de uma linha, dados os deslocamentos
+function somaLinha(i, da, db, comQ){
+  let n = 0, nv = 0, nl = 0;
+  const col = S.mun[R[i]], terceiro = !LF.has(R[i]);
+  for (let m = 0; m < nM; m++) {
+    const x = col[m]; if (!x) continue;
+    const v = sig(V0[m][i] + da), s = sig(S0[m][i] + db + (comQ && terceiro ? (c[Q(m) - 1] || 0) : 0));
+    n += x; nv += x * v; nl += x * v * s;
+  }
+  return {n, nv, nl};
+}
+function bissecao(f, alvo){ let lo = -12, hi = 12; for (let k = 0; k < 50; k++) { const md = (lo + hi) / 2; if (f(md) < alvo) lo = md; else hi = md; } return (lo + hi) / 2; }
+function resolverCandidatos(){
+  R.forEach((l, i) => {
+    a[l] = bissecao(x => { const s = somaLinha(i, x, 0, false); return s.nv / s.n; }, alvoV[l]);
+    b[l] = bissecao(x => { const s = somaLinha(i, a[l], x, false); return s.nl / s.nv; }, alvoS[l]);
+  });
+}
+// parte de Lula entre os terceiros que escolhem um dos dois, num quintil, com o deslocamento x
+function quintilTerceiros(q, x){
+  let nv = 0, nl = 0;
+  R.forEach((l, i) => { if (LF.has(l)) return; const col = S.mun[l];
+    for (let m = 0; m < nM; m++) { if (Q(m) !== q + 1 || !col[m]) continue;
+      const v = sig(V0[m][i] + a[l]), s = sig(S0[m][i] + b[l] + x); nv += col[m] * v; nl += col[m] * v * s; } });
+  return nv ? nl / nv : NaN;
+}
+function resolverQuintis(){
+  for (let q = 0; q < 5; q++) c[q] = alvoQ[q] == null ? 0 : bissecao(x => quintilTerceiros(q, x), alvoQ[q]);
+}
+// resultado por município: [lula, flavio, branco, nulo, abst]
+function calcular(){
+  const out = new Float64Array(nM * 5);
+  R.forEach((l, i) => { const col = S.mun[l], terceiro = !LF.has(l);
+    for (let m = 0; m < nM; m++) { const x = col[m]; if (!x) continue;
+      const v = sig(V0[m][i] + a[l]), s = sig(S0[m][i] + b[l] + (terceiro ? c[Q(m) - 1] || 0 : 0)), r = RESTO[m][i];
+      out[m*5] += x * v * s; out[m*5+1] += x * v * (1 - s);
+      out[m*5+2] += x * (1 - v) * r[0]; out[m*5+3] += x * (1 - v) * r[1]; out[m*5+4] += x * (1 - v) * r[2]; } });
+  return out;
+}
+function partida(){
+  a = {}; b = {}; c = [0,0,0,0,0]; alvoQ = [null,null,null,null,null];
+  R.forEach((l, i) => { const s = somaLinha(i, 0, 0, false); alvoV[l] = s.nv / s.n; alvoS[l] = s.nl / s.nv; a[l] = 0; b[l] = 0; });
+  resolverCandidatos();
+}
+
+// ---------------------------------------------------------------- desenho
+function soma(out, filtro){
+  const t = [0,0,0,0,0]; let l22 = 0, b22 = 0, l1 = 0, f1 = 0;
+  for (let m = 0; m < nM; m++) { if (filtro && !filtro(m)) continue;
+    for (let k = 0; k < 5; k++) t[k] += out[m*5+k];
+    l22 += S.mun.lula22[m]; b22 += S.mun.bolsonaro22[m]; l1 += S.mun.lula[m]; f1 += S.mun.flavio[m]; }
+  return {t, sim: 100 * t[0] / (t[0] + t[1]), v22: 100 * l22 / (l22 + b22), v1: 100 * l1 / (l1 + f1)};
+}
+function desenharPlacar(out){
+  const s = soma(out), t = s.t, tot = t.reduce((x, y) => x + y, 0), validos = t[0] + t[1];
+  const lula = 100 * t[0] / validos, flavio = 100 - lula;
+  document.getElementById("placar").innerHTML = `<div class="nums">
+    <div><span class="sub">Lula</span><br><b style="color:var(--c1)">${fmt(lula, 2)}%</b><span class="abs">${nf(t[0])} votos</span></div>
+    <div style="text-align:center"><span class="sub">diferença</span><br><b>${fmt(Math.abs(lula - flavio), 2)}</b><span class="abs">pontos · ${nf(Math.abs(t[0] - t[1]))} votos</span></div>
+    <div style="text-align:right"><span class="sub">Flávio Bolsonaro</span><br><b style="color:var(--c2)">${fmt(flavio, 2)}%</b><span class="abs">${nf(t[1])} votos</span></div></div>
+    <div class="barra2"><i style="width:${lula}%;background:var(--c1)"></i><i style="width:${flavio}%;background:var(--c2)"></i><span class="meio"></span></div>
+    <span class="sub">Comparecimento ${fmt(100 * (1 - t[4] / tot))}% · brancos e nulos ${fmt(100 * (t[2] + t[3]) / (tot - t[4]))}% dos que votaram ·
+    1º turno: Lula ${fmt(s.v1)}% entre Lula e Flávio · 2º turno de 2022: Lula ${fmt(s.v22, 2)}%</span>`;
+}
+function controle(id, rot, valor, inicio, onInput){
+  return `<div class="ctl"><div class="rot"><span>${rot}</span><b id="${id}-v">${fmt(100 * valor)}%</b></div>
+    <div class="pista"><input type="range" id="${id}" min="0" max="100" step="0.1" value="${(100 * valor).toFixed(1)}">
+    <span class="partida" style="left:calc(${100 * inicio}% - 1px)"></span></div></div>`;
+}
+let INICIO = {};
+function divisao(r){ const o = r.n - r.nl - r.nf;
+  return `<div class="divide" title="Lula ${nf(r.nl)} · Flávio ${nf(r.nf)} · nenhum ${nf(o)}"><i style="width:${100*r.nl/r.n}%;background:var(--c1)"></i><i style="width:${100*r.nf/r.n}%;background:var(--c2)"></i><i style="width:${100*o/r.n}%;background:var(--c7);opacity:.5"></i></div>
+    <span class="abs">Lula ${nf(r.nl)} · Flávio ${nf(r.nf)}</span>`; }
+function realizado(){
+  const real = {};
+  R.forEach((l, i) => { const col = S.mun[l], terceiro = !LF.has(l); let n = 0, nl = 0, nf_ = 0;
+    for (let m = 0; m < nM; m++) { const x = col[m]; if (!x) continue; n += x;
+      const v = sig(V0[m][i] + a[l]), s = sig(S0[m][i] + b[l] + (terceiro ? c[Q(m) - 1] || 0 : 0)); nl += x * v * s; nf_ += x * v * (1 - s); }
+    real[l] = {n, nl, nf: nf_}; });
+  return real;
+}
+function desenharCandidatos(out){
+  const L = R, nomes = S.meta.nomes, an = S.meta.analogia, n22 = S.meta.nomes_2022;
+  const real = realizado();
+  const tab = document.getElementById("t-cand");
+  tab.innerHTML = `<tr><th>1º turno de 2026</th><th>eleitores</th><th>herda de 2022</th><th>escolhe um dos dois</th><th>desses, Lula</th><th>no 2º turno</th></tr>` +
+    L.map(l => { const r = real[l];
+      return `<tr><td>${nomes[l]}</td><td>${nf(r.n)}</td><td class="nota">${an[l] === l || (l === "flavio" && an[l] === "bolsonaro") ? (l === "flavio" ? "Bolsonaro" : "a mesma") : n22[an[l]]}</td>
+      <td>${controle("v-" + l, "", alvoV[l], INICIO[l].v)}</td><td>${controle("s-" + l, "", alvoS[l], INICIO[l].s)}</td>
+      <td id="d-${l}">${divisao(r)}</td></tr>`; }).join("");
+  L.forEach(l => {
+    for (const [k, alvo] of [["v", alvoV], ["s", alvoS]]) {
+      const el = document.getElementById(`${k}-${l}`);
+      el.oninput = () => { alvo[l] = +el.value / 100; document.getElementById(`${k}-${l}-v`).textContent = fmt(+el.value) + "%"; agendar(); };
+    }
+  });
+}
+function tabQ(s){ return `<tr><td>simulado</td><td><b>${fmt(s.sim)}%</b></td></tr>
+  <tr><td class="nota">1º turno</td><td class="nota">${fmt(s.v1)}%</td></tr><tr><td class="nota">2022, 2º turno</td><td class="nota">${fmt(s.v22)}%</td></tr>`; }
+function desenharQuintis(out){
+  const box = document.getElementById("quintis"), cortes = S.meta.cortes[variavel];
+  const unid = variavel === "renda" ? (x => "R$ " + Math.round(x).toLocaleString("pt-BR")) : (x => fmt(x, 0) + "%");
+  box.innerHTML = [0,1,2,3,4].map(q => {
+    const s = soma(out, m => Q(m) === q + 1), ini = quintilTerceiros(q, 0), atual = quintilTerceiros(q, c[q]);
+    const faixa = q === 0 ? "até " + unid(cortes[0]) : q === 4 ? "acima de " + unid(cortes[3]) : unid(cortes[q-1]) + "–" + unid(cortes[q]);
+    return `<div><h3>${q + 1}º quintil</h3><span class="nota">${faixa}</span>
+      ${controle("q-" + q, "terceiros → Lula", atual, ini)}
+      <table style="margin-top:6px;font-size:12.5px" id="qr-${q}">${tabQ(s)}</table></div>`;
+  }).join("");
+  [0,1,2,3,4].forEach(q => { const el = document.getElementById("q-" + q);
+    el.oninput = () => { alvoQ[q] = +el.value / 100; document.getElementById(`q-${q}-v`).textContent = fmt(+el.value) + "%"; agendar(); }; });
+}
+function desenharRegioes(out){
+  const regs = ["Norte","Nordeste","Centro-Oeste","Sudeste","Sul","Exterior"];
+  const ufs = [...new Set(S.mun.uf)].sort();
+  const linha = (rot, f, forte) => { const s = soma(out, f);
+    return `<tr><td>${forte ? "<b>" + rot + "</b>" : rot}</td><td>${fmt(s.v22)}%</td><td>${fmt(s.v1)}%</td><td><b>${fmt(s.sim)}%</b></td><td>${(s.sim - s.v22 >= 0 ? "+" : "") + fmt(s.sim - s.v22)}</td></tr>`; };
+  document.getElementById("t-reg").innerHTML = `<tr><th></th><th>2022, 2º turno</th><th>1º turno 2026</th><th>simulado</th><th>× 2022</th></tr>` +
+    regs.map(r => linha(r, m => S.mun.regiao[m] === r, true)).join("") +
+    ufs.map(u => linha(u, m => S.mun.uf[m] === u, false)).join("");
+}
+let pend = null;
+function agendar(){ if (pend) return; pend = setTimeout(() => { pend = null; recalcular(false); }, 16); }   // rAF para em aba oculta
+function recalcular(redesenharControles = true){
+  resolverCandidatos(); resolverQuintis();
+  const out = calcular();
+  desenharPlacar(out);
+  if (redesenharControles) { desenharCandidatos(out); desenharQuintis(out); }
+  else { atualizarRealizados(out); }
+  desenharRegioes(out);
+}
+function atualizarRealizados(out){
+  // sem redesenhar os controles: o que está sendo arrastado seria trocado no meio do gesto
+  const real = realizado();
+  R.forEach(l => { document.getElementById("d-" + l).innerHTML = divisao(real[l]); });
+  [0,1,2,3,4].forEach(q => {
+    document.getElementById("qr-" + q).innerHTML = tabQ(soma(out, m => Q(m) === q + 1));
+    if (alvoQ[q] == null) {   // quintil não mexido: acompanha os controles por candidato
+      const v = quintilTerceiros(q, 0), el = document.getElementById("q-" + q);
+      if (el !== document.activeElement) el.value = (100 * v).toFixed(1);
+      document.getElementById(`q-${q}-v`).textContent = fmt(100 * v) + "%";
+    }
+  });
+}
+function desenharPartida(){
+  document.getElementById("partida").innerHTML = [["dentro","dentro de cada município"],["entre","entre os municípios da UF"]]
+    .map(([k, t]) => `<button class="${k === base ? "on" : ""}" data-k="${k}">${t}</button>`).join("");
+  document.querySelectorAll("#partida button").forEach(bt => bt.onclick = () => { base = bt.dataset.k; iniciar(); });
+  document.getElementById("alerta-metodo").innerHTML = base === "dentro"
+    ? `<b>Dentro de cada município</b> (padrão): a matriz de cada município sai só das seções dele, onde o contexto é o mesmo para
+       todas — é a estimativa que menos confunde o tipo de lugar com o tipo de eleitor. Compare com a outra: onde as duas discordam,
+       o dado de 2022 não decide, e o resultado depende do que você supuser.`
+    : `<b>Entre os municípios da UF</b>: uma matriz por UF, a regressão clássica (Goodman). Prevê bem o total, mas atribui a cada
+       grupo parte do efeito do lugar — em 2022 dava branco → Bolsonaro 44%, o que é implausível. Fica aqui para mostrar quanto o
+       ponto de partida depende do método.`;
+}
+function iniciar(){
+  preparar(); partida();
+  INICIO = Object.fromEntries(R.map(l => [l, {v: alvoV[l], s: alvoS[l]}]));
+  desenharPartida(); recalcular(true);
+}
+(async () => {
+  S = await (await fetch("dados/simulador_2t.json", {cache: "no-store"})).json();
+  nM = S.mun.municipio.length; R = S.meta.linhas;
+  const sel = document.getElementById("var");
+  sel.innerHTML = VARS.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
+  sel.onchange = () => { variavel = sel.value; c = [0,0,0,0,0]; alvoQ = [null,null,null,null,null]; recalcular(true); };
+  document.getElementById("restaurar").onclick = iniciar;
+  document.getElementById("zerar-q").onclick = () => { c = [0,0,0,0,0]; alvoQ = [null,null,null,null,null]; recalcular(true); };
+  iniciar();
+})();
+</script>
+</body>
+</html>
