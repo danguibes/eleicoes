@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eleições — 1º turno de 2026 — resultado final</title>
+<style>
+  :root{
+    --bg:#faf9f7; --card:#fff; --ink:#1c1b19; --mut:#56534e; --line:#e4e1db;
+    --accent:#1f4f7a; --accent-soft:#dde8f2; --grid:#efece7;
+    --c1:#b03a2e; --c2:#1f4f7a; --c3:#6b8f3a; --c4:#b8862b; --c5:#7a4f9a; --c6:#2e8a86; --c7:#8a867f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
+      --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
+      --c1:#e0705f; --c2:#7fb4d4; --c3:#9cc26a; --c4:#e0b45f; --c5:#b58fd6; --c6:#6cc5bf; --c7:#8f8b84;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17181a; --card:#1f2124; --ink:#e8e6e1; --mut:#b3aea5; --line:#32353a;
+    --accent:#7fb4d4; --accent-soft:#22313f; --grid:#2a2d31;
+    --c1:#e0705f; --c2:#7fb4d4; --c3:#9cc26a; --c4:#e0b45f; --c5:#b58fd6; --c6:#6cc5bf; --c7:#8f8b84;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+  header{padding:26px 0 12px;display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+  h1{font-size:24px;margin:0;letter-spacing:-.02em}
+  h2{font-size:16px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin:0}
+  a{color:var(--accent)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+  .filtros{padding:10px 0;margin-bottom:6px}
+  /* fixa só a barra de recorte, como no Aquinas: os filtros com sliders ocupavam meia tela */
+  .foco{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  label.f{display:flex;flex-direction:column;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;gap:2px}
+  select,input{font:inherit;font-size:13.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 8px;max-width:190px}
+  select:disabled{opacity:.5}
+  .sl{display:flex;flex-direction:column;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;gap:2px;min-width:132px}
+  .sl .val{text-transform:none;letter-spacing:0;color:var(--ink);font-size:12px}
+  .sl .trilho{position:relative;height:22px}
+  .sl .trilho .fundo{position:absolute;left:6px;right:6px;top:9px;height:4px;border-radius:2px;background:var(--grid)}
+  .sl .trilho .faixa{position:absolute;top:9px;height:4px;border-radius:2px;background:var(--accent)}
+  .sl input[type=range]{position:absolute;left:0;right:0;top:0;width:100%;margin:0;height:22px;background:none;pointer-events:none;-webkit-appearance:none;appearance:none;border:none;padding:0;max-width:none}
+  .sl input[type=range]::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--card);border:2px solid var(--accent);cursor:pointer}
+  .sl input[type=range]::-moz-range-thumb{pointer-events:auto;width:12px;height:12px;border-radius:50%;background:var(--card);border:2px solid var(--accent);cursor:pointer}
+  .sl .marcas{display:flex;justify-content:space-between;padding:0 4px;font-size:9.5px;color:var(--mut);text-transform:none}
+  .foco{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;min-height:26px;align-items:center;font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px}
+  .chip button{border:none;background:transparent;color:var(--mut);font-size:15px;cursor:pointer;padding:0 5px}
+  .limpar{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:3px 10px;cursor:pointer;font:inherit;font-size:12.5px}
+  .modo{display:flex;gap:6px}
+  .modo button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:5px 10px;cursor:pointer}
+  .modo button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .aviso-ensaio{background:var(--accent-soft);border-left:4px solid var(--accent)}
+  .barra{height:8px;background:var(--grid);border-radius:999px;overflow:hidden;margin:8px 0 4px}
+  .barra i{display:block;height:100%;background:var(--accent)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th{text-align:right;font-weight:600;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:0 8px 6px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  .big{font-size:22px;font-weight:700}
+  .ic{color:var(--mut);font-size:11.5px;display:block}
+  .scroll{overflow-x:auto}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px}
+  .ab h3{font-size:13.5px;margin:0 0 8px}
+  .ab .q{display:grid;grid-template-columns:118px 1fr 64px;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;cursor:pointer;font-size:12px}
+  .ab .q:hover{background:var(--grid)}
+  .rolagem{max-height:430px;overflow-y:auto;padding-right:4px}
+  .abs{display:block;font-size:10.5px;color:var(--mut);font-weight:400;font-variant-numeric:tabular-nums}
+  .linha-sl{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+  /* moldura por recorte: sem ela, a rolagem da UF parecia ser da renda, e os números da região, das UFs */
+  .ab{border:1px solid var(--line);border-radius:9px;padding:10px 10px 8px;background:var(--card)}
+  .ab h3{padding-bottom:6px;border-bottom:1px solid var(--grid);margin-bottom:6px!important}
+  .regua{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .regua div{flex:1;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .regua b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+  .regua span{color:var(--mut);font-size:12px}
+  .ch-h{font-size:13.5px;margin:0 0 6px}
+  #mapa path.m{stroke:var(--card);stroke-width:.25;cursor:pointer}
+  #mapa path.m:hover{stroke:var(--ink);stroke-width:1}
+  #mapa path.u{fill:none;stroke:var(--ink);stroke-width:.6;opacity:.55;pointer-events:none}
+  #mapa path.sel{stroke:var(--ink);stroke-width:1.6}
+  .dica{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:7px;
+        padding:6px 9px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12);white-space:nowrap}
+  .escala{display:inline-block;width:120px;height:9px;border-radius:2px;vertical-align:middle;margin:0 6px}
+  svg text{fill:var(--mut);font-size:11px}
+  .ab .q.sel{background:var(--accent-soft);outline:1px solid var(--accent)}
+  .ab .q .rot{color:var(--mut);font-variant-numeric:tabular-nums}
+  .ab .q .val{text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;line-height:1.35}
+  .tri{display:grid;grid-template-rows:repeat(3,7px);gap:2px}
+  .tri div{position:relative;background:var(--grid);border-radius:2px}
+  .tri i{position:absolute;left:0;top:0;bottom:0;border-radius:2px}
+  .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:6px 0 2px}
+  .leg span{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+  .leg span.off{opacity:.35}
+  .leg i{display:inline-block;width:12px;height:8px;border-radius:2px}
+  tr.clic{cursor:pointer} tr.clic:hover td{background:var(--grid)}
+  .vazio{color:var(--mut);font-size:13px;padding:10px 0}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
+  .aviso-arquivo{background:var(--accent-soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;margin:6px 0}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>1º turno de 2026 — resultado final</h1>
+    <p class="aviso-arquivo">Página de consulta, congelada: o código e os dados como estavam ao fim da apuração. O painel ao vivo está em <a href="index.html">index.html</a>.</p>
+    <p class="sub" id="subtitulo">Brasil por município; São Paulo urna a urna.
+      <a href="metodo.html">Como funciona, o que foi medido e o que não passou na régua →</a> ·
+      <a href="checagens.html">Checagens dos dados →</a> ·
+      <a href="simulador.html"><b>Simulador do 2º turno →</b></a> · <a href="1t2026.html">1º turno de 2026 (consulta) →</a></p>
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+    <div class="modo" id="turno"></div>
+    <div class="modo" id="modo"></div>
+  </div>
+</header>
+
+<div class="filtros">
+  <div id="barra-filtros"></div>
+</div>
+<div class="foco" id="foco"></div>
+
+<section id="aviso-ensaio" class="aviso-ensaio" hidden>
+  <p class="sub"><b>Modo ensaio.</b> A eleição de 2022 reproduzida urna a urna, parada no momento em que uma parte das
+  urnas tinha chegado ao TSE, com 2018 fazendo o papel de eleição anterior. Serve para ver o painel funcionando — e
+  conferir a projeção contra um resultado que já se conhece — antes de domingo.</p>
+</section>
+
+<section>
+  <h2 id="t-principal">Resultado</h2>
+  <p class="sub" id="progresso"></p>
+  <div class="barra"><i id="barra-ap"></i></div>
+  <div class="scroll"><table id="principal"></table></div>
+  <p class="sub" id="nota-ic" style="margin-top:8px"></p>
+</section>
+
+<section id="chances" hidden>
+  <h2>Chances</h2>
+  <p class="sub" id="ch-sub"></p>
+  <div class="regua" id="ch-cards"></div>
+  <div class="grade" style="margin-top:14px">
+    <div><h3 class="ch-h">Onde os dois primeiros podem terminar <span class="sub">(% dos válidos)</span></h3>
+      <svg id="ch-curvas" viewBox="0 0 520 230" style="width:100%"></svg><div class="leg" id="ch-leg"></div></div>
+    <div><h3 class="ch-h" id="ch-dif-t">Diferença entre os dois primeiros</h3>
+      <svg id="ch-dif" viewBox="0 0 520 230" style="width:100%"></svg></div>
+  </div>
+  <p class="note" id="ch-nota"></p>
+</section>
+
+<section id="mapa-sec">
+  <h2>Mapa</h2>
+  <div class="linha" style="justify-content:space-between;margin-bottom:6px">
+    <p class="sub" id="mapa-sub"></p>
+    <div class="modo" id="mapa-modo"></div>
+  </div>
+  <div id="mapa-caixa" style="position:relative"><svg id="mapa" style="width:100%;max-height:680px;display:block"></svg>
+    <div id="mapa-dica" class="dica" hidden></div></div>
+  <div class="leg" id="mapa-leg"></div>
+</section>
+
+<section>
+  <h2 id="t-aberturas">Por perfil do lugar</h2>
+  <p class="sub" id="sub-aberturas">Urnas em quintis — cinco grupos com o mesmo número de eleitores no estado —, pelo perfil do eleitorado da
+  seção (TSE) ou do entorno do local de votação (Censo 2022). Cada quintil tem 20% dos eleitores de 2026 — não dos locais,
+  nem dos moradores. <b>É o voto das urnas desses lugares, não o voto das pessoas
+  desse grupo</b>: <a href="metodo.html#bairros">por que a diferença importa</a>. Clique num quintil para filtrar a tela; com Shift, estende a faixa. Os controles no topo fazem o mesmo.</p>
+  <div class="leg" id="leg-ab"></div>
+  <div class="grade" id="aberturas"></div>
+</section>
+
+<section id="bolhas-sec">
+  <h2>2022 × 2026, quintil a quintil</h2>
+  <div class="linha" style="justify-content:space-between;margin-bottom:6px;gap:8px;flex-wrap:wrap">
+    <p class="sub" id="bolhas-sub" style="margin:0"></p>
+    <div class="linha" style="gap:8px"><div class="modo" id="bolhas-cand"></div><div class="modo" id="bolhas-y"></div></div>
+  </div>
+  <div id="bolhas-caixa" style="position:relative"><svg id="bolhas" viewBox="0 0 560 440" style="width:100%;max-height:560px;display:block"></svg>
+    <div id="bolhas-dica" class="dica" hidden></div></div>
+  <div class="leg" id="bolhas-leg"></div>
+</section>
+
+<section>
+  <h2 id="t-lugares">Municípios</h2>
+  <p class="sub">Os maiores do recorte, por eleitores. Clique para filtrar.</p>
+  <div class="scroll"><table id="lugares"></table></div>
+</section>
+</div>
+
+<script>
+const NOMES = {lula:"Lula", flavio:"Flávio Bolsonaro", cury:"Augusto Cury", caiado:"Ronaldo Caiado", renan:"Renan Santos",
+  zema:"Romeu Zema", bolsonaro:"Bolsonaro", tebet:"Tebet", ciro:"Ciro", outros:"outros", bn:"brancos e nulos",
+  lula22:"Lula", bolsonaro22:"Bolsonaro", tebet22:"Tebet", ciro22:"Ciro", haddad18:"Haddad", bolsonaro18:"Bolsonaro",
+  ciro18:"Ciro", alckmin18:"Alckmin", amoedo18:"Amoêdo"};
+const CORES = ["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)","var(--c7)"];
+const VARS = [["renda","Renda do entorno","R$"],["catolicos","Católicos no entorno","%"],["evangelicos","Evangélicos no entorno","%"],
+  ["sem_religiao","Sem religião no entorno","%"],
+  ["preta_parda","Pretos e pardos no entorno","%"],["superior","Superior completo na urna","%"],["jovens","Jovens (16–24) na urna","%"],["idosos","60+ na urna","%"]];
+const fmt = (x, d=1) => (x==null||isNaN(x)) ? "—" : x.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const MODOS = [["1t2026","1º turno de 2026 — resultado final"],["ensaio","Ensaio com 2022"]];
+
+const REGIOES = {"Norte":["AC","AM","AP","PA","RO","RR","TO"], "Nordeste":["AL","BA","CE","MA","PB","PE","PI","RN","SE"],
+  "Centro-Oeste":["DF","GO","MS","MT"], "Sudeste":["ES","MG","RJ","SP"], "Sul":["PR","RS","SC"], "Exterior":["ZZ"]};
+const UF_NOME = {AC:"Acre",AL:"Alagoas",AM:"Amazonas",AP:"Amapá",BA:"Bahia",CE:"Ceará",DF:"Distrito Federal",ES:"Espírito Santo",
+  GO:"Goiás",MA:"Maranhão",MG:"Minas Gerais",MS:"Mato Grosso do Sul",MT:"Mato Grosso",PA:"Pará",PB:"Paraíba",PE:"Pernambuco",
+  PI:"Piauí",PR:"Paraná",RJ:"Rio de Janeiro",RN:"Rio Grande do Norte",RO:"Rondônia",RR:"Roraima",RS:"Rio Grande do Sul",
+  SC:"Santa Catarina",SE:"Sergipe",SP:"São Paulo",TO:"Tocantins",ZZ:"Exterior"};
+let D = null, modo = null;
+// o estado inteiro da tela. uf "SP" carrega o painel detalhado por local (3 cargos, quintis);
+// qualquer outro recorte usa o nacional por município (camada rápida, só Presidente)
+const F = {cargo:"presidente", regiao:null, uf:null, mun:null, zona:null, q:{}, turno:1, fonte:"mun"};
+// Governador e senador de SP têm duas fontes: o arquivo por município do TSE (em dia) e os
+// boletins de urna (detalhe por local, mas atrasados: na noite de 2026 o TSE publicava o
+// boletim 20 a 40 min depois de listar a seção).
+const porMunSP = () => detalhado() && F.cargo !== "presidente" && F.fonte === "mun";
+const detalhado = () => F.uf === "SP";
+let escondidos = new Set();
+
+// Cor por identidade, não por posição: Lula e o PT sempre vermelhos, o principal
+// adversário (o primeiro não petista da lista) sempre azul, os demais em ordem.
+// Por posição, Bolsonaro saía vermelho no estado de SP, onde ficou em primeiro.
+const PETISTAS = new Set(["lula", "lula22", "haddad18"]);
+function ehPT(c){ return PETISTAS.has(c) || /\(PT\)$/.test(nomeCat(c)); }
+function corDe(c, lista){
+  if (ehPT(c)) return "var(--c1)";
+  const outros = lista.filter(x => !ehPT(x) && x !== "outros" && x !== "outros_ant" && x !== "bn");
+  const i = outros.indexOf(c);
+  if (c === "outros" || c === "outros_ant") return "var(--c7)";
+  return i === 0 ? "var(--c2)" : ["var(--c3)","var(--c4)","var(--c5)","var(--c6)"][(i-1) % 4] || "var(--c7)";
+}
+
+// Eleição anterior: 1º ou 2º turno, pelo botão do topo. 2026 tem cara de 2º turno já no 1º.
+function temTurno2(){ return D && D.meta.cats_anterior_2t && D.meta.cats_anterior_2t.length > 0; }
+function catsAnt(){ return F.turno === 2 && temTurno2() ? D.meta.cats_anterior_2t : D.meta.cats_anterior; }
+function paresAnt(){ return F.turno === 2 && temTurno2() ? D.meta.pares_2t : D.meta.pares; }
+function rotAnt(m){ return `${m.anterior}, ${F.turno === 2 && temTurno2() ? "2º turno" : "1º turno"}`; }
+
+function nomeCat(c){
+  if (c.endsWith("_2t")) return nomeCat(c.slice(0, -3));
+  if (D && D.meta.nomes && D.meta.nomes[c]) return D.meta.nomes[c];
+  if (NOMES[c]) return NOMES[c];
+  if (c === "outros_ant") return "outros";
+  const n = /^n(\d+)(_ant)?$/.exec(c); return n ? "nº " + n[1] : c;
+}
+
+async function carregar(m){
+  modo = m;
+  if (!detalhado()) F.cargo = "presidente";
+  let arq = detalhado() ? `dados/${m}_${F.cargo}.json` : `dados/${m}_brasil_presidente.json`;
+  if (porMunSP()) arq = `dados/${m}_sp_${F.cargo}.json`;
+  let r = await fetch(arq, {cache:"no-store"});
+  if (!r.ok && porMunSP()) r = await fetch(`dados/${m}_${F.cargo}.json`, {cache:"no-store"});
+  if (!r.ok) { D = null; desenhar(); return; }
+  D = await r.json();
+  if (D.mun) {
+    // nacional: uma linha por município faz o papel de "local" nas duas tabelas
+    const t = D.mun, n = t.municipio.length;
+    t.zona = new Array(n).fill(0); t.apurada = t.apuradas;
+    // comparecimento da eleição anterior = soma dos votos dela (brancos e nulos inclusos)
+    t.comparecimento = t.municipio.map((_, i) => D.meta.cats_anterior.reduce((a, c) => a + (t[c][i] || 0), 0));
+    D.atual = t; D.anterior = t;
+  }
+  desenhar();
+}
+
+// ---------- filtro: a única fonte de todos os quadros --------------------------
+function passa(t, i, ignorar){
+  if (t.uf) {
+    if (F.uf != null && ignorar !== "uf" && t.uf[i] !== F.uf) return false;
+    if (F.regiao != null && ignorar !== "regiao" && t.regiao[i] !== F.regiao) return false;
+  }
+  if (F.mun != null && ignorar !== "mun" && t.municipio[i] !== F.mun) return false;
+  if (F.zona != null && ignorar !== "zona" && t.zona[i] !== F.zona) return false;
+  for (const [v, [lo, hi]] of Object.entries(F.q)) {
+    if (ignorar === v) continue;
+    const q = t["q_"+v][i]; if (q < lo || q > hi) return false; }
+  return true;
+}
+function somar(t, cols, ignorar){
+  const s = Object.fromEntries(cols.map(c => [c, 0]));
+  const n = t.zona.length;
+  for (let i = 0; i < n; i++) if (passa(t, i, ignorar)) for (const c of cols) s[c] += t[c][i] || 0;
+  return s;
+}
+// votos absolutos, pequenos, embaixo do percentual; "≈" no projetado, que é estimativa
+function nAbs(x, pre = ""){ return (x == null || isNaN(x)) ? "" : `<span class="abs">${pre}${Math.round(x).toLocaleString("pt-BR")} votos</span>`; }
+function pct(s, cats){ const v = cats.filter(c => !c.startsWith("bn")); const tot = v.reduce((a,c)=>a+s[c],0);
+  return Object.fromEntries(v.map(c => [c, tot ? 100*s[c]/tot : NaN])); }
+
+// intervalo só existe para o total e para recortes de uma dimensão
+function chaveIC(){
+  if (!detalhado()) {   // nacional: Brasil, uma região, uma UF ou uma faixa de quintis
+    const nq = Object.keys(F.q).length;
+    if (nq) {   // faixa de quintis só vale sozinha: com região/UF junto, não há intervalo
+      if (nq > 1 || F.mun != null || F.uf != null || F.regiao != null) return null;
+      const [v, [lo, hi]] = Object.entries(F.q)[0]; return ["faixa", v, lo, hi];
+    }
+    if (F.mun != null) return null;
+    if (F.uf != null) return F.regiao == null || REGIOES[F.regiao].includes(F.uf) ? ["uf", F.uf] : null;
+    if (F.regiao != null) return ["regiao", F.regiao];
+    return ["total", "total"];
+  }
+  const ativos = (F.mun!=null) + (F.zona!=null) + Object.keys(F.q).length;
+  if (ativos === 0) return ["total","total"];
+  if (ativos > 1) return null;
+  if (F.mun != null) return ["mun", String(F.mun)];
+  if (F.zona != null) return ["zona", String(F.zona)];
+  const [v, [lo, hi]] = Object.entries(F.q)[0];
+  return ["faixa", v, lo, hi];
+}
+// Intervalo de uma faixa de quintis: soma as amostras do bootstrap de cada quintil
+// da faixa e mede a dispersão — mesma regra do servidor (meia-largura × fator).
+function icFaixa(v, lo, hi, ponto){
+  const A = D.amostras_q && D.amostras_q[v]; if (!A || !A.length) return null;
+  const validos = D.meta.cats.filter(c => c !== "bn");
+  const pcts = A.map(amostra => { const s = validos.map((_, j) => { let x = 0; for (let q = lo; q <= hi; q++) x += amostra[q][j]; return x; });
+    const tot = s.reduce((a,b)=>a+b,0); return s.map(x => 100*x/tot); });
+  const out = {};
+  validos.forEach((c, j) => { const col = pcts.map(p => p[j]).sort((a,b)=>a-b);
+    const p5 = col[Math.floor(.05*(col.length-1))], p95 = col[Math.ceil(.95*(col.length-1))];
+    const meia = (p95 - p5)/2 * D.meta.fator_ic; out[c] = [ponto[c]-meia, ponto[c]+meia]; });
+  return out;
+}
+
+
+// ---------- chances: as reamostragens do modelo, alargadas pelo fator calibrado ----------
+function amostrasDoRecorte(pj){
+  const k = chaveIC(); if (!k || !D.amostras_pct) return null;
+  const validos = D.meta.cats.filter(c => !c.startsWith("bn"));
+  if (k[0] === "faixa") {
+    const A = D.amostras_q && D.amostras_q[k[1]]; if (!A || !A.length) return null;
+    const bruto = A.map(a => { const s = validos.map((_, j) => { let x = 0; for (let q = k[2]; q <= k[3]; q++) x += a[q][j]; return x; });
+      const t = s.reduce((x,y)=>x+y,0); return s.map(x => 100*x/t); });
+    const med = validos.map((_, j) => { const c = bruto.map(r => r[j]).sort((a,b)=>a-b); return c[Math.floor(c.length/2)]; });
+    return {validos, S: bruto.map(r => r.map((x, j) => pj[validos[j]] + D.meta.fator_ic * (x - med[j])))};
+  }
+  const g = D.amostras_pct[k[0]]; if (!g || !g[k[1]]) return null;
+  return {validos, S: g[k[1]]};
+}
+function kde(xs, grade){
+  const n = xs.length, m = xs.reduce((a,b)=>a+b,0)/n, sd = Math.sqrt(xs.reduce((a,b)=>a+(b-m)**2,0)/(n-1)) || 0.1;
+  const bw = 1.06 * sd * Math.pow(n, -0.2);
+  return {m, sd, y: grade.map(x => xs.reduce((a, v) => a + Math.exp(-0.5*((x-v)/bw)**2), 0) / (n*bw*Math.sqrt(2*Math.PI)))};
+}
+function curva(svg, series, rotX){
+  const W = 520, H = 230, mg = {l:10, r:10, t:10, b:28};
+  const todos = series.flatMap(s => s.xs);
+  let x0 = Math.floor(Math.min(...todos) - 1), x1 = Math.ceil(Math.max(...todos) + 1);
+  for (const v of (series.marcas || [])) { if (v > x1 && v - x1 < 8) x1 = v + 1; if (v < x0 && x0 - v < 8) x0 = v - 1; }
+  const grade = Array.from({length: 160}, (_, i) => x0 + (x1-x0)*i/159);
+  const dens = series.map(s => ({...s, ...kde(s.xs, grade)}));
+  const ymax = Math.max(...dens.flatMap(d => d.y), ...dens.map(d => 1/(d.sd*Math.sqrt(2*Math.PI))));
+  const X = x => mg.l + (x-x0)/(x1-x0)*(W-mg.l-mg.r), Y = y => H - mg.b - y/ymax*(H-mg.t-mg.b);
+  let s = `<line x1="${mg.l}" x2="${W-mg.r}" y1="${H-mg.b}" y2="${H-mg.b}" stroke="var(--line)"/>`;
+  const passo = Math.max(1, Math.round((x1-x0)/8));
+  for (let v = Math.ceil(x0); v <= x1; v += passo) s += `<text x="${X(v)}" y="${H-10}" text-anchor="middle">${rotX(v)}</text>`;
+  for (const d of dens) {
+    s += `<path d="M${grade.map((x,i)=>`${X(x).toFixed(1)},${Y(d.y[i]).toFixed(1)}`).join("L")}" fill="${d.cor}" fill-opacity=".18" stroke="${d.cor}" stroke-width="2"/>`;
+    const nrm = grade.map(x => Math.exp(-0.5*((x-d.m)/d.sd)**2)/(d.sd*Math.sqrt(2*Math.PI)));
+    s += `<path d="M${grade.map((x,i)=>`${X(x).toFixed(1)},${Y(nrm[i]).toFixed(1)}`).join("L")}" fill="none" stroke="${d.cor}" stroke-width="1" stroke-dasharray="3 3"/>`;
+  }
+  (series.marcas || []).forEach(v => { if (v > x0 && v < x1) s += `<line x1="${X(v)}" x2="${X(v)}" y1="${mg.t}" y2="${H-mg.b}" stroke="var(--ink)" stroke-dasharray="2 3" opacity=".5"/>`; });
+  svg.innerHTML = s;
+}
+function desenharChances(res){
+  const sec = document.getElementById("chances");
+  if (!D || !D.meta.apuradas || !res || !res.ord || !res.ord.length) { sec.hidden = true; return; }
+  const cedo = res.cedo; const A = amostrasDoRecorte(res.pj);
+  sec.hidden = false;
+  if (cedo || !A) {
+    document.getElementById("ch-sub").textContent = cedo ? "A partir de 1% das seções do recorte."
+      : "Há chance calculada para o Brasil, cada região, cada UF, o estado de SP e uma faixa de quintis de uma variável — não para combinações de filtros.";
+    ["ch-cards","ch-curvas","ch-dif","ch-leg","ch-nota","ch-dif-t"].forEach(id => document.getElementById(id).innerHTML = ""); return;
+  }
+  const {validos, S} = A, n = S.length;
+  const idx = c => validos.indexOf(c);
+  const ord = res.ord.filter(c => validos.includes(c) && c !== "outros");
+  const cargo = D.meta.cargo;
+  // a eleição inteira: Presidente no Brasil sem filtro; governador e senador no estado de SP sem filtro
+  const eleicao = cargo === "presidente"
+    ? !detalhado() && !F.uf && !F.regiao && !Object.keys(F.q).length
+    : detalhado() && F.mun == null && F.zona == null && !Object.keys(F.q).length;
+  const onde = cargo === "presidente" ? "no Brasil inteiro" : "no estado inteiro";
+  const p = x => { const v = 100*x/n; return v >= 99.5 ? "> 99%" : v <= 0.5 ? "< 1%" : fmt(v,0) + "%"; };
+  let cards, c1, c2, titDif, marcas;
+  if (cargo === "senador") {
+    // 2026: duas vagas por estado, sem 2º turno — vencem os dois mais votados
+    const eleito = Object.fromEntries(ord.map(c => [c, 0]));
+    for (const s of S) {
+      const top2 = [...ord].sort((a, b) => s[idx(b)] - s[idx(a)]).slice(0, 2);
+      top2.forEach(c => eleito[c]++);
+    }
+    cards = ord.slice(0, 5).map(c => `<div><b style="color:${corDe(c, ord)}">${p(eleito[c])}</b><span>de ${nomeCat(c)} ${eleicao ? "ficar com uma das duas vagas" : "ficar entre os dois mais votados aqui"}</span></div>`).join("");
+    [c1, c2] = [ord[1], ord[2]];                     // a disputa que decide: a 2ª vaga
+    titDif = c2 ? `${nomeCat(c1)} − ${nomeCat(c2)}: a disputa pela 2ª vaga (pontos)` : "";
+    marcas = [];
+  } else {
+    [c1, c2] = ord;
+    const primeiro = Object.fromEntries(ord.map(c => [c, 0])), segundoTurno = {v: 0};
+    const passa50 = Object.fromEntries(ord.map(c => [c, 0]));
+    for (const s of S) {
+      const topo = ord.reduce((a, c) => s[idx(c)] > s[idx(a)] ? c : a, ord[0]);
+      primeiro[topo]++;
+      if (Math.max(...ord.map(c => s[idx(c)])) <= 50) segundoTurno.v++; else passa50[topo]++;
+    }
+    cards = `<div><b>${p(segundoTurno.v)}</b><span>${eleicao ? "de haver 2º turno" : "de ninguém passar de 50% aqui"}</span></div>` +
+      ord.slice(0, 3).map(c => `<div><b style="color:${corDe(c, ord)}">${p(primeiro[c])}</b><span>de ${nomeCat(c)} terminar em 1º</span></div>`).join("") +
+      `<div><b style="color:${corDe(c1, ord)}">${p(passa50[c1])}</b><span>de ${nomeCat(c1)} passar de 50%${eleicao ? " (vencer no 1º turno)" : ""}</span></div>`;
+    titDif = c2 ? `${nomeCat(c1)} − ${nomeCat(c2)} (pontos)` : "";
+    marcas = [50];
+  }
+  document.getElementById("ch-sub").innerHTML = `${n} reamostragens do modelo, alargadas pelo fator calibrado no ensaio de 2022. `
+    + (eleicao ? "" : `<b>Recorte, não eleição:</b> quem vence se decide ${onde}; aqui a chance é a de o recorte terminar assim.`);
+  document.getElementById("ch-cards").innerHTML = cards;
+  // curvas: os dois primeiros (no Senado, os três que disputam as duas vagas)
+  const nCurvas = cargo === "senador" ? 3 : 2;
+  const series = ord.slice(0, nCurvas).map(c => ({c, cor: corDe(c, ord), xs: S.map(s => s[idx(c)])}));
+  series.marcas = marcas;
+  curva(document.getElementById("ch-curvas"), series, v => v + "%");
+  document.getElementById("ch-leg").innerHTML = series.map(s => `<span><i style="background:${s.cor}"></i>${nomeCat(s.c)}</span>`).join("") +
+    `<span class="sub">cheia: distribuição do modelo · tracejada: normal com a mesma média e desvio${marcas.length ? " · vertical: 50%" : ""}</span>`;
+  if (c1 && c2) {
+    const dif = S.map(s => s[idx(c1)] - s[idx(c2)]);
+    const ds = [{c: c1, cor: corDe(c1, ord), xs: dif}]; ds.marcas = [0];
+    document.getElementById("ch-dif-t").textContent = titDif;
+    curva(document.getElementById("ch-dif"), ds, v => (v > 0 ? "+" : "") + v);
+  } else { document.getElementById("ch-dif").innerHTML = ""; document.getElementById("ch-dif-t").textContent = ""; }
+  document.getElementById("ch-nota").innerHTML = `Chances <b>segundo o modelo</b>. No ensaio de 2022 o intervalo de 90% do Brasil cobriu o
+    resultado real em 89% das conferências, e a projeção ficou ~0,9 ponto abaixo de Lula até a metade da noite: "85%" quer dizer que um
+    modelo tão bom quanto este foi em 2022 erraria mais ou menos 1 vez em 7. A curva tracejada é a normal equivalente; quando as duas
+    divergem, a distribuição do modelo é assimétrica e a normal subestima um dos lados.` +
+    (D.meta.escopo === "sp_mun" ? ` <b>Governador e senador por município não têm ensaio próprio:</b> o fator de calibração é o do
+    Presidente no Brasil por município, e a reamostragem é por 40 grupos de municípios vizinhos em vez de UFs. A chance aqui é menos
+    testada que a de Presidente.` : D.meta.cargo !== "presidente" ? ` <b>Governador e senador não têm ensaio próprio</b> (não há 2018 desses cargos baixado): o fator de
+    calibração é o do Presidente em SP, e a chance aqui é menos testada que a de Presidente.` : "");
+}
+
+
+// ---------- mapa ---------------------------------------------------------------------
+let MAPA = null, mapaModo = "lider";
+async function carregarMapa(){ if (MAPA) return MAPA;
+  const r = await fetch("dados/mapa_br.json"); MAPA = await r.json(); return MAPA; }
+function misturar(cor1, cor2, t){   // t em [0,1]: interpola dois hex
+  const a = [1,3,5].map(i => parseInt(cor1.slice(i,i+2),16)), b = [1,3,5].map(i => parseInt(cor2.slice(i,i+2),16));
+  return "#" + a.map((x,i) => Math.round(x + (b[i]-x)*t).toString(16).padStart(2,"0")).join(""); }
+const escuro = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light";
+async function desenharMapa(res){
+  const sec = document.getElementById("mapa-sec");
+  if (!D) { sec.hidden = true; return; }
+  sec.hidden = false;
+  const M = await carregarMapa(), m = D.meta, cats = m.cats, catsA = catsAnt(), par = paresAnt();
+  const lista = (res.ord && res.ord.length) ? res.ord : (res.ordA || []);
+  const semAtual = !(res.ord && res.ord.length);
+  const pt = lista.find(c => ehPT(c)), rival = lista.find(c => !ehPT(c) && c !== "outros" && !c.startsWith("bn"));
+  const temAp = m.apuradas > 0;
+  // soma por município, respeitando os filtros menos o de município (o mapa mostra o recorte inteiro)
+  const t = D.atual, A = D.anterior, g = new Map(), gA = new Map();
+  const colsAt = ["secoes", "apurada", ...(temAp ? cats.flatMap(c => ["pj_"+c, "ap_"+c]) : [])];
+  for (let i = 0; i < t.municipio.length; i++) { if (!passa(t, i, "mun")) continue;
+    const k = t.municipio[i]; if (!g.has(k)) g.set(k, Object.fromEntries(colsAt.map(c=>[c,0])));
+    const s = g.get(k); for (const c of colsAt) s[c] += t[c][i] || 0; }
+  for (let i = 0; i < A.municipio.length; i++) { if (!passa(A, i, "mun")) continue;
+    const k = A.municipio[i]; if (!gA.has(k)) gA.set(k, Object.fromEntries(catsA.map(c=>[c,0])));
+    const s = gA.get(k); for (const c of catsA) s[c] += A[c][i] || 0; }
+  const verm = escuro() ? "#e0705f" : "#b03a2e", azul = escuro() ? "#7fb4d4" : "#1f4f7a",
+        neutro = escuro() ? "#2a2d31" : "#efece7", fora = escuro() ? "#1b1c1e" : "#f6f5f2", acc = escuro() ? "#7fb4d4" : "#1f4f7a";
+  const valor = k => { const s = g.get(k), sa = gA.get(k); if (!s && !sa) return null;
+    const pa = sa ? pct(sa, catsA) : {};
+    const usaAt = temAp && !semAtual && s && s.apurada > 0;
+    const pj = usaAt ? pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c]])), cats) : null;
+    if (mapaModo === "apurado") return s ? {v: s.apurada / Math.max(s.secoes,1), txt: `${fmt(100*s.apurada/Math.max(s.secoes,1),0)}% apurado`} : null;
+    if (mapaModo === "mudanca") { if (!pj || !pt || !par[pt]) return null;
+      const d = pj[pt] - pa[par[pt]]; return {v: d, txt: `${nomeCat(pt)} ${d>0?"+":""}${fmt(d)} pts desde ${m.anterior}`}; }
+    // quem lidera: margem PT − adversário (projetado; antes da apuração, a eleição anterior)
+    const fonte = pj ? pj : Object.fromEntries(lista.map(c => [c, pa[semAtual ? c : par[c]]]));
+    if (!pt || !rival) return null;
+    const d = fonte[pt] - fonte[rival];
+    return {v: d, txt: `${nomeCat(pt)} ${fmt(fonte[pt])}% × ${nomeCat(rival)} ${fmt(fonte[rival])}% ${pj ? "(projetado)" : `(${rotAnt(m)})`}`}; };
+  const cor = x => { if (!x || !isFinite(x.v)) return fora;   // valor inválido: cinza, nunca preto
+    if (mapaModo === "apurado") return misturar(neutro, acc, Math.min(1, x.v));
+    const lim = mapaModo === "mudanca" ? 15 : 40, tt = Math.min(1, Math.abs(x.v) / lim);
+    return misturar(neutro, x.v >= 0 ? verm : azul, 0.15 + 0.85 * tt); };
+  // escopo do desenho: UF escolhida (ou SP no detalhado) aproxima; senão o Brasil
+  const ufEsc = detalhado() ? "SP" : F.uf;
+  const ufDe = k => detalhado() ? "SP" : (D.mun.uf[D.mun.municipio.indexOf(k)]);
+  let caminhos = "";
+  for (const [k, d] of Object.entries(M.mun)) {
+    const kk = +k; if (ufEsc && !g.has(kk) && !gA.has(kk) && (!D.mun || ufDe(kk) !== ufEsc)) continue;
+    if (ufEsc && D.mun && ufDe(kk) !== ufEsc) continue;
+    if (detalhado() && !g.has(kk) && !gA.has(kk)) continue;
+    const x = valor(kk);
+    caminhos += `<path class="m${F.mun===kk?" sel":""}" data-k="${kk}" d="${d}" fill="${cor(x)}"><title>${(m.municipios[kk]||"")}: ${x ? x.txt : "fora do recorte"}</title></path>`;
+  }
+  const bordas = ufEsc ? (M.uf[ufEsc] ? `<path class="u" d="${M.uf[ufEsc]}"/>` : "") : Object.values(M.uf).map(d => `<path class="u" d="${d}"/>`).join("");
+  const svg = document.getElementById("mapa");
+  svg.innerHTML = `<g id="mapa-g">${caminhos}${bordas}</g>`;
+  const bb = document.getElementById("mapa-g").getBBox();
+  const folga = Math.max(bb.width, bb.height) * 0.02;
+  svg.setAttribute("viewBox", `${bb.x - folga} ${bb.y - folga} ${bb.width + 2*folga} ${bb.height + 2*folga}`);
+  svg.querySelectorAll("path.m").forEach(el => el.onclick = () => {
+    const k = +el.dataset.k, era = detalhado();
+    if (F.mun === k) F.mun = null; else { F.mun = k; if (!detalhado() && D.mun) F.uf = ufDe(k); }
+    era !== detalhado() ? carregar(modo) : desenhar(); });
+  document.getElementById("mapa-modo").innerHTML = [["lider","Quem lidera"],["mudanca","Mudança desde "+m.anterior],["apurado","Apurado"]]
+    .map(([k,tx]) => `<button class="${k===mapaModo?"on":""}" data-k="${k}" ${k!=="lider" && !temAp ? "disabled" : ""}>${tx}</button>`).join("");
+  document.querySelectorAll("#mapa-modo button").forEach(b => b.onclick = () => { mapaModo = b.dataset.k; desenharMapa(res); });
+  const grad = (a, b) => `<span class="escala" style="background:linear-gradient(90deg,${a},${neutro},${b})"></span>`;
+  document.getElementById("mapa-leg").innerHTML = mapaModo === "apurado"
+    ? `0% <span class="escala" style="background:linear-gradient(90deg,${neutro},${acc})"></span> 100% das seções apuradas`
+    : mapaModo === "mudanca" ? `${pt ? nomeCat(pt) : ""} perdeu 15+ pts ${grad(azul, verm)} ganhou 15+ pts, desde ${rotAnt(m)}`
+    : `${rival ? nomeCat(rival) : ""} +40 ${grad(azul, verm)} ${pt ? nomeCat(pt) : ""} +40 · ${temAp && !semAtual ? "projetado; município sem urna apurada mostra " + rotAnt(m) : rotAnt(m)} · cinza claro: fora do recorte`;
+  document.getElementById("mapa-sub").textContent = detalhado() ? "Estado de São Paulo, por município. Clique para filtrar."
+    : ufEsc ? `${UF_NOME[ufEsc]}, por município. Clique para filtrar; limpe a UF para voltar ao Brasil.` : "Brasil, por município. Clique para filtrar.";
+}
+
+// ---------- quadros ---------------------------------------------------------------
+function desenharTurno(){
+  const el = document.getElementById("turno"); if (!D) { el.innerHTML = ""; return; }
+  const ok = temTurno2();
+  el.innerHTML = `<span class="sub" style="align-self:center">comparar com ${D.meta.anterior}:</span>` +
+    [[1,"1º turno"],[2,"2º turno"]].map(([k,t]) => `<button class="${F.turno===k && (k===1 || ok)?"on":""}" data-t="${k}" ${k===2 && !ok ? "disabled title='O 2º turno de 2022 de governador está no arquivo estadual de 900 MB, que não foi baixado; senador não tem 2º turno.'" : ""}>${t}</button>`).join("");
+  el.querySelectorAll("button").forEach(b => b.onclick = () => { F.turno = +b.dataset.t; desenhar(); });
+}
+
+function desenharModo(){
+  document.getElementById("modo").innerHTML = MODOS.map(([k,t]) =>
+    `<button class="${k===modo?"on":""}" data-m="${k}">${t}</button>`).join("");
+  document.querySelectorAll("#modo button").forEach(b => b.onclick = () => { limpar(); carregar(b.dataset.m); });
+}
+
+function desenharFiltros(){
+  const m = D ? D.meta : null;
+  const muns = m ? Object.entries(m.municipios).sort((a,b)=>a[1].localeCompare(b[1],"pt")) : [];
+  const zonas = D ? [...new Set(D.atual.zona.filter((z,i) => F.mun==null || D.atual.municipio[i]===F.mun))].sort((a,b)=>a-b) : [];
+  const sel = (id, rot, ops, val, dis) => `<label class="f">${rot}<select id="${id}" ${dis?"disabled":""}>${ops.map(([v,t]) =>
+      `<option value="${v}" ${String(v)===String(val)?"selected":""}>${t}</option>`).join("")}</select></label>`;
+  const ufsReg = F.regiao ? REGIOES[F.regiao] : Object.values(REGIOES).flat();
+  const munsVis = detalhado() ? muns : (F.uf ? muns.filter(([c]) => D.mun.uf[D.mun.municipio.indexOf(+c)] === F.uf) : []);
+  let h = sel("f-cargo","Cargo",[["presidente","Presidente"],["governador","Governador (SP)"],["senador","Senador (SP)"]], F.cargo, !detalhado());
+  h += sel("f-regiao","Região",[["","Brasil"], ...Object.keys(REGIOES).map(r => [r, r])], F.regiao ?? "");
+  h += sel("f-uf","UF",[["","todas"], ...ufsReg.map(u => [u, UF_NOME[u]])], F.uf ?? "");
+  h += sel("f-mun","Município",[["", F.uf || detalhado() ? "todos" : "escolha a UF"], ...munsVis.map(([c,n]) => [c, n])], F.mun ?? "", !munsVis.length);
+  if (detalhado() && F.cargo !== "presidente") h += sel("f-fonte","Fonte",[["mun","por município (em dia)"],["bu","por local (boletins de urna)"]], F.fonte);
+  if (detalhado() && !(D && D.mun)) h += sel("f-zona","Zona",[["","todas"], ...zonas.map(z => [z, z])], F.zona ?? "");
+  let hs = "";   // sliders numa segunda linha, todos juntos
+  for (const [v, t] of VARS) { const [lo, hi] = F.q[v] || [1, 5];
+    hs += `<div class="sl" data-v="${v}">${t.replace(" no entorno","").replace(" na urna","")}
+      <span class="val">${textoFaixa(lo, hi)}</span>
+      <div class="trilho"><div class="fundo"></div><div class="faixa" style="left:${6+(lo-1)/4*88}%;width:${(hi-lo)/4*88}%"></div>
+        <input type="range" min="1" max="5" step="1" value="${lo}" class="lo" aria-label="${t}: de">
+        <input type="range" min="1" max="5" step="1" value="${hi}" class="hi" aria-label="${t}: até"></div>
+      <div class="marcas"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div></div>`; }
+  document.getElementById("barra-filtros").innerHTML = `<div class="linha">${h}</div><div class="linha linha-sl">${hs}</div>`;
+  document.getElementById("f-cargo").onchange = e => { F.cargo = e.target.value; carregar(modo); };
+  document.getElementById("f-regiao").onchange = e => { const era = detalhado(); F.regiao = e.target.value || null;
+    if (F.uf && F.regiao && !REGIOES[F.regiao].includes(F.uf)) F.uf = null; F.mun = null; F.zona = null; F.q = {};
+    era !== detalhado() ? carregar(modo) : desenhar(); };
+  document.getElementById("f-uf").onchange = e => { const era = detalhado(); F.uf = e.target.value || null;
+    F.mun = null; F.zona = null; F.q = {}; era !== detalhado() ? carregar(modo) : desenhar(); };
+  document.getElementById("f-mun").onchange = e => { F.mun = e.target.value ? +e.target.value : null; F.zona = null; desenhar(); };
+  const ff = document.getElementById("f-fonte");
+  if (ff) ff.onchange = e => { F.fonte = e.target.value; F.zona = null; F.q = {}; carregar(modo); };
+  const fz = document.getElementById("f-zona");
+  if (fz) fz.onchange = e => { F.zona = e.target.value ? +e.target.value : null; desenhar(); };
+  document.querySelectorAll(".sl").forEach(el => {
+    const v = el.dataset.v, lo = el.querySelector(".lo"), hi = el.querySelector(".hi");
+    const aplicar = (qual) => { let a = +lo.value, b = +hi.value;
+      if (a > b) { if (qual === "lo") b = a; else a = b; }
+      if (a === 1 && b === 5) delete F.q[v]; else F.q[v] = [a, b]; desenhar(); };
+    lo.onchange = () => aplicar("lo"); hi.onchange = () => aplicar("hi");
+    lo.oninput = hi.oninput = () => { el.querySelector(".val").textContent = textoFaixa(Math.min(+lo.value, +hi.value), Math.max(+lo.value, +hi.value)); };
+  });
+}
+
+function desenharFoco(){
+  const m = D ? D.meta : null, partes = [];
+  if (F.regiao != null) partes.push(["regiao", F.regiao]);
+  if (F.uf != null) partes.push(["uf", UF_NOME[F.uf]]);
+  if (F.mun != null) partes.push(["mun", m.municipios[F.mun]]);
+  if (F.zona != null) partes.push(["zona", "zona " + F.zona]);
+  for (const [v, [lo, hi]] of Object.entries(F.q)) partes.push([v, tituloVar(VARS.find(x=>x[0]===v)[1]) + ": " + textoFaixa(lo, hi)]);
+  const el = document.getElementById("foco");
+  if (!partes.length) { el.innerHTML = `<span class="sub">Sem recorte: Brasil inteiro, por município. Escolha São Paulo em UF para o detalhe por local de votação, os quintis e governador e senador.</span>`; return; }
+  el.innerHTML = `<span class="sub">Recorte:</span>` + partes.map(([k,t]) =>
+    `<span class="chip">${t}<button data-k="${k}" title="tirar este filtro">×</button></span>`).join("") +
+    ` <button class="limpar" id="limpar">limpar tudo</button>`;
+  el.querySelectorAll(".chip button").forEach(b => b.onclick = () => {
+    const k = b.dataset.k, era = detalhado();
+    if (k==="regiao") { F.regiao=null; } else if (k==="uf") { F.uf=null; F.mun=null; F.zona=null; F.q={}; }
+    else if (k==="mun") { F.mun=null; F.zona=null; } else if (k==="zona") F.zona=null; else delete F.q[k];
+    era !== detalhado() ? carregar(modo) : desenhar(); });
+  document.getElementById("limpar").onclick = () => { const era = detalhado(); limpar(); era !== detalhado() ? carregar(modo) : desenhar(); };
+}
+const SUB_SP = `Urnas em quintis — cinco grupos com o mesmo número de eleitores de 2026 do estado —, pelo perfil do eleitorado da
+  seção (TSE) ou do entorno do local de votação (Censo 2022). <b>É o voto das urnas desses lugares, não o voto das pessoas desse grupo</b>:
+  <a href="metodo.html#bairros">por que a diferença importa</a>. Clique num quintil para filtrar; com Shift, estende a faixa.`;
+const SUB_BR = `Municípios em quintis — cinco grupos com o mesmo número de eleitores de 2026 no país —, pelo perfil do município no
+  Censo 2022. <b>É o voto dos municípios desse perfil, não o voto das pessoas desse grupo.</b> Para o detalhe por local de votação,
+  escolha São Paulo em UF. Clique para filtrar; com Shift, estende a faixa.`;
+const SUB_SPMUN = `Municípios de SP em quintis — cinco grupos com o mesmo número de eleitores de 2026 do estado —, pelo perfil do
+  município no Censo 2022. <b>É o voto dos municípios desse perfil, não o voto das pessoas desse grupo.</b> Para o detalhe por local de
+  votação, troque a fonte para "boletins de urna". Clique para filtrar; com Shift, estende a faixa.`;
+function tituloVar(t){ return detalhado() && !(D && D.mun) ? t : t.replace("(16–24) na urna", "(15–24) no município").replace(" do entorno", " do município").replace(" no entorno", " no município").replace(" na urna", " no município"); }
+function limpar(){ F.regiao=null; F.uf=null; F.mun=null; F.zona=null; F.q={}; }
+function textoFaixa(lo, hi){ return lo === 1 && hi === 5 ? "todos" : lo === hi ? lo + "º quintil" : lo + "º ao " + hi + "º"; }
+
+function desenharPrincipal(){
+  const tab = document.getElementById("principal");
+  if (!D) { tab.innerHTML = ""; document.getElementById("progresso").textContent =
+    `Sem dados para ${F.cargo} neste modo ainda.`; return; }
+  const m = D.meta, cats = m.cats, catsA = catsAnt();
+  const temAp = m.apuradas > 0;
+  const colsAt = ["aptos","secoes","apurada"].concat(temAp ? [...cats.map(c=>"pj_"+c), ...cats.map(c=>"ap_"+c), "aptos_ap","comp_ap"] : []);
+  const s = somar(D.atual, colsAt);
+  const sa = somar(D.anterior, [...catsA, "comparecimento", "aptos"]);
+  const pa = pct(sa, catsA);
+  const onde = F.mun != null ? m.municipios[F.mun] : F.uf ? UF_NOME[F.uf] : F.regiao ? F.regiao : "Brasil";
+  document.getElementById("t-principal").innerHTML = `${F.cargo[0].toUpperCase()+F.cargo.slice(1)} — ${onde}, ${m.atual}`;
+  document.getElementById("barra-ap").style.width = (100*s.apurada/s.secoes) + "%";
+  document.getElementById("progresso").textContent = temAp
+    ? `${s.apurada.toLocaleString("pt-BR")} de ${s.secoes.toLocaleString("pt-BR")} seções apuradas no recorte (${fmt(100*s.apurada/s.secoes)}%) · `
+      + `comparecimento nas apuradas ${fmt(100*s.comp_ap/s.aptos_ap)}% · ${m.modo==="ensaio" ? "momento do ensaio: " : "dados finais, gerados às "}${m.hora}`
+    : `Aguardando as primeiras urnas. ${s.secoes.toLocaleString("pt-BR")} seções e ${s.aptos.toLocaleString("pt-BR")} eleitores no recorte.`;
+  const pj = temAp ? pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c]])), cats) : {};
+  const ic = chaveIC();
+  const faixa = !ic || !temAp ? null : ic[0] === "faixa" ? icFaixa(ic[1], ic[2], ic[3], pj)
+              : (D.ic[ic[0]] ? D.ic[ic[0]][ic[1]] : null);
+  const ap = temAp ? pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats) : {};
+  const cedo = temAp && s.apurada/s.secoes < 0.01;
+  const ord = cats.filter(c=>c!=="bn").sort((a,b) => (temAp ? (pj[b]-pj[a]) : 0));
+  const par = Object.fromEntries(Object.entries(paresAnt()));
+  if (!ord.length) {   // governador/senador antes da apuração: os candidatos de 2026 saem das urnas
+    const oa = catsA.filter(c=>c!=="bn").sort((a,b)=>pa[b]-pa[a]);
+    tab.innerHTML = `<tr><th>${m.anterior}, completo</th><th>% dos válidos</th></tr>` +
+      oa.map((c,i) => `<tr><td><b style="color:${corDe(c, oa)}">${nomeCat(c)}</b></td><td>${fmt(pa[c])}%</td></tr>`).join("");
+    document.getElementById("nota-ic").textContent = `Os candidatos de ${m.atual} entram aqui pelos votos, à medida que as urnas chegam.`;
+    return {pj:{}, ap:{}, pa, ord: [], ordA: oa};
+  }
+  tab.innerHTML = `<tr><th>candidatura</th><th>${m.atual} projetado</th><th>${m.atual} apurado</th><th>${rotAnt(m)}</th></tr>` +
+    ord.map((c,i) => `<tr><td><b style="color:${corDe(c, ord)}">${nomeCat(c)}</b></td>
+      <td>${temAp && !cedo ? `<span class="big">${fmt(pj[c])}%</span>${faixa && faixa[c] ? `<span class="ic">${fmt(faixa[c][0])} – ${fmt(faixa[c][1])}</span>` : ""}${nAbs(s["pj_"+c], "≈ ")}` : "—"}</td>
+      <td>${temAp ? fmt(ap[c])+"%" + nAbs(s["ap_"+c]) : "—"}</td>
+      <td>${par[c] ? `${fmt(pa[par[c]])}% <span class="ic">${nomeCat(par[c])}</span>${nAbs(sa[par[c]])}` : "—"}</td></tr>`).join("") +
+    `<tr><td class="sub">demais de ${rotAnt(m)}</td><td></td><td></td><td class="ic">${catsA.filter(c=>c!=="bn" && !Object.values(par).includes(c))
+        .map(c => nomeCat(c)+" "+fmt(pa[c])+"%").join(" · ")}</td></tr>`;
+  document.getElementById("nota-ic").innerHTML = !temAp ? "" : cedo
+    ? "Projeção só a partir de 1% das seções do recorte: antes disso não há de onde medir o deslocamento."
+    : faixa ? `Intervalo de 90%, calibrado no ensaio de 2022 (largura do bootstrap × ${fmt(m.fator_ic,2)}).`
+    : "Recorte com mais de um filtro: a projeção aparece sem intervalo — ele existe para o total, para um município, uma zona ou uma faixa de quintis de uma variável.";
+  return {pj, ap, pa, ord, cedo};
+}
+
+function desenharAberturas(res){
+  const box = document.getElementById("aberturas");
+  if (!D) { box.innerHTML = ""; return; }
+  document.getElementById("t-aberturas").textContent = "Por perfil do lugar";
+  document.getElementById("sub-aberturas").innerHTML = detalhado() ? (D && D.mun ? SUB_SPMUN : SUB_SP) : SUB_BR;
+  const m = D.meta, cats = m.cats, catsA = catsAnt(), temAp = m.apuradas > 0;
+  // antes de o cargo ter candidatos de 2026 (governador, senador), os quadros mostram os de 2022
+  const semAtual = !(res && res.ord && res.ord.length);
+  const lista = semAtual ? (res.ordA || []) : res.ord;
+  const par = semAtual ? Object.fromEntries(lista.map(c=>[c,c])) : paresAnt();
+  const alvo = lista.slice(0, 2).filter(c => !escondidos.has(c));
+  res = {...res, ord: lista};
+  document.getElementById("leg-ab").innerHTML = lista.slice(0,2).map((c,i) =>
+    `<span data-c="${c}" class="${escondidos.has(c)?"off":""}"><i style="background:${corDe(c, lista)}"></i>${nomeCat(c)}</span>`).join("") +
+    `<span class="sub">barras de cima para baixo: ${rotAnt(m)} · ${m.atual} apurado · ${m.atual} projetado; número à direita: ${m.apuradas ? "projetado" : m.anterior} — clique no nome para esconder</span>`;
+  document.querySelectorAll("#leg-ab span[data-c]").forEach(sp => sp.onclick = () => {
+    const c = sp.dataset.c; escondidos.has(c) ? escondidos.delete(c) : escondidos.add(c); desenharAberturas(res); });
+  box.innerHTML = VARS.map(([v, t, u]) => {
+    const cortes = m.cortes[v];
+    const rot = q => { const a = q===1 ? null : cortes[q-2], b = q===5 ? null : cortes[q-1];
+      const estreito = u !== "R$" && (cortes[3] - cortes[0]) < 30;
+      const f = x => u==="R$" ? "R$ "+Math.round(x).toLocaleString("pt-BR") : fmt(x, estreito ? 1 : 0)+"%";
+      return a==null ? "até "+f(b) : b==null ? "acima de "+f(a) : f(a)+"–"+f(b); };
+    const linhas = [1,2,3,4,5].map(q => {
+      const salvo = F.q[v]; F.q[v] = [q, q];        // o quintil desta linha + os outros filtros
+      const s = temAp ? somar(D.atual, [...cats.map(c=>"pj_"+c), ...cats.map(c=>"ap_"+c)]) : null;
+      const sa = somar(D.anterior, catsA);
+      if (salvo == null) delete F.q[v]; else F.q[v] = salvo;
+      const pj = s ? pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c]])), cats) : {};
+      const ap = s ? pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats) : {};
+      const pa = pct(sa, catsA);
+      const barras = alvo.map((c) => { const cor = corDe(c, res.ord || []);
+        const w = x => isNaN(x) ? 0 : Math.min(100, x/70*100);
+        return `<div class="tri" title="${nomeCat(c)}: ${m.anterior} ${fmt(pa[par[c]])}% · apurado ${fmt(ap[c])}% · projetado ${fmt(pj[c])}%">
+          <div><i style="width:${w(pa[par[c]])}%;background:${cor};opacity:.35"></i></div>
+          <div><i style="width:${w(ap[c])}%;background:${cor};opacity:.65"></i></div>
+          <div><i style="width:${w(pj[c])}%;background:${cor}"></i></div></div>`; }).join("");
+      const vals = alvo.map(c => { const i = (res.ord||[]).indexOf(c);
+        const x = temAp ? pj[c] : pa[par[c]];
+        return `<span style="color:${corDe(c, res.ord || [])}">${fmt(x,0)}%</span>`; }).join("<br>");
+      const dentro = F.q[v] && q >= F.q[v][0] && q <= F.q[v][1];
+      return `<div class="q ${dentro?"sel":""}" data-v="${v}" data-q="${q}"><span class="rot">${rot(q)}</span><div style="display:grid;gap:4px">${barras}</div><span class="val">${vals}</span></div>`;
+    }).join("");
+    return `<div class="ab"><h3>${tituloVar(t)}</h3>${linhas}</div>`;
+  }).join("");
+  if (!detalhado()) desenharRegioes(res, box);
+  box.querySelectorAll(".q[data-v]").forEach(el => el.onclick = (ev) => {   // só quintis; região/UF têm o próprio
+    const v = el.dataset.v, q = +el.dataset.q, f = F.q[v];
+    if (ev.shiftKey && f) F.q[v] = [Math.min(f[0], q), Math.max(f[1], q)];      // estende a faixa
+    else if (f && f[0] === q && f[1] === q) delete F.q[v];                        // clicar de novo tira
+    else F.q[v] = [q, q];
+    desenhar(); });
+}
+
+
+// Nacional: as mesmas três barras (anterior, apurado, projetado), por região e por UF.
+function desenharRegioes(res, box){
+  const m = D.meta, cats = m.cats, catsA = catsAnt(), temAp = m.apuradas > 0, par = paresAnt();
+  const lista = res.ord || [], alvo = lista.slice(0, 2).filter(c => !escondidos.has(c));
+  const t = D.atual, cols = [...cats.map(c=>"ap_"+c), ...(temAp ? cats.map(c=>"pj_"+c) : []), ...catsA, "aptos"];
+  const soma = (k, chave) => { const s = Object.fromEntries(cols.map(c=>[c,0]));
+    for (let i = 0; i < t.municipio.length; i++) if (t[chave][i] === k && passa(t, i, chave)) for (const c of cols) s[c] += t[c][i] || 0; return s; };
+  const linha = (rot, k, chave, sel) => { const s = soma(k, chave);
+    const pj = pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c] || 0])), cats), ap = pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats), pa = pct(s, catsA);
+    const w = x => isNaN(x) ? 0 : Math.min(100, x/75*100);
+    const barras = alvo.map(c => { const cor = corDe(c, lista); return `<div class="tri">
+      <div><i style="width:${w(pa[par[c]])}%;background:${cor};opacity:.35"></i></div>
+      <div><i style="width:${w(ap[c])}%;background:${cor};opacity:.65"></i></div>
+      <div><i style="width:${w(pj[c])}%;background:${cor}"></i></div></div>`; }).join("");
+    const vals = alvo.map(c => `<span style="color:${corDe(c, lista)}">${fmt(temAp ? pj[c] : pa[par[c]],0)}%</span>`).join("<br>");
+    return `<div class="q ${sel?"sel":""}" data-chave="${chave}" data-k="${k}"><span class="rot">${rot}</span><div style="display:grid;gap:4px">${barras}</div><span class="val">${vals}</span></div>`; };
+  const regs = Object.keys(REGIOES).filter(r => !F.regiao || r === F.regiao);
+  const ufs = (F.regiao ? REGIOES[F.regiao] : Object.values(REGIOES).flat())
+    .map(u => [u, soma(u, "uf").aptos]).sort((a,b) => b[1]-a[1]).map(x => x[0]);
+  box.insertAdjacentHTML("afterbegin", `<div class="ab"><h3>Região</h3>${regs.map(r => linha(r, r, "regiao", F.regiao === r)).join("")}</div>` +
+    `<div class="ab"><h3>UF <span class="sub">(role)</span></h3><div class="rolagem">${ufs.map(u => linha(UF_NOME[u], u, "uf", F.uf === u)).join("")}</div></div>`);
+  box.querySelectorAll(".q[data-chave]").forEach(el => el.onclick = () => {
+    const k = el.dataset.k, era = detalhado();
+    if (el.dataset.chave === "regiao") { F.regiao = F.regiao === k ? null : k; F.uf = null; }
+    else { F.uf = F.uf === k ? null : k; }
+    F.mun = null; era !== detalhado() ? carregar(modo) : desenhar(); });
+}
+
+// ---------- bolhas: cada quintil de cada variável, 2022 no x e 2026 no y ----------------
+// Um candidato por vez (os dois primeiros, cada um com o par de 2022). Cada bolha obedece a
+// todos os filtros da tela, menos o da própria variável — a mesma regra dos quadros de quintis.
+let bolhaCand = 0, bolhaY = "pj";
+const escBolha = new Set();
+const COR_VAR = {renda:"#c27c2c", catolicos:"#8a5a9e", evangelicos:"#3f8f6b", sem_religiao:"#d06a9a",
+  preta_parda:"#7a6a3a", superior:"#2f8fb0", jovens:"#e0a019", idosos:"#7f8c8d"};
+function desenharBolhas(res){
+  const sec = document.getElementById("bolhas-sec"), svg = document.getElementById("bolhas");
+  const lista = (res && res.ord) || [], par = D ? paresAnt() : {};
+  const cands = lista.filter(c => par[c]).slice(0, 2);
+  if (!D || !D.meta.apuradas || !cands.length) { sec.hidden = true; return; }
+  sec.hidden = false;
+  const m = D.meta, cats = m.cats, catsA = catsAnt();
+  if (bolhaCand >= cands.length) bolhaCand = 0;
+  const c = cands[bolhaCand], cA = par[c];
+  document.getElementById("bolhas-cand").innerHTML = cands.map((x, i) =>
+    `<button class="${i===bolhaCand?"on":""}" data-i="${i}" style="${i===bolhaCand?`background:${corDe(x, lista)};border-color:${corDe(x, lista)}`:""}">${nomeCat(x)}</button>`).join("");
+  document.getElementById("bolhas-y").innerHTML = [["pj","projetado"],["ap","apurado"]].map(([k,t]) =>
+    `<button class="${k===bolhaY?"on":""}" data-k="${k}">${m.atual} ${t}</button>`).join("");
+  document.querySelectorAll("#bolhas-cand button").forEach(b => b.onclick = () => { bolhaCand = +b.dataset.i; desenharBolhas(res); });
+  document.querySelectorAll("#bolhas-y button").forEach(b => b.onclick = () => { bolhaY = b.dataset.k; desenharBolhas(res); });
+  // um ponto por variável × quintil
+  const pts = [];
+  for (const [v, t] of VARS) {
+    if (escBolha.has(v)) continue;
+    for (let q = 1; q <= 5; q++) {
+      const salvo = F.q[v]; F.q[v] = [q, q];
+      const s = somar(D.atual, [...cats.map(k => bolhaY + "_" + k), "aptos"]);
+      const sa = somar(D.anterior, catsA);
+      if (salvo == null) delete F.q[v]; else F.q[v] = salvo;
+      const y = pct(Object.fromEntries(cats.map(k => [k, s[bolhaY + "_" + k]])), cats)[c];
+      const x = pct(sa, catsA)[cA];
+      if (!isFinite(x) || !isFinite(y)) continue;
+      pts.push({v, t: tituloVar(t), q, x, y, n: s.aptos, sel: !!(F.q[v] && q >= F.q[v][0] && q <= F.q[v][1])});
+    }
+  }
+  // o recorte inteiro, como referência
+  const sT = somar(D.atual, cats.map(k => bolhaY + "_" + k)), saT = somar(D.anterior, catsA);
+  const ref = {x: pct(saT, catsA)[cA], y: pct(Object.fromEntries(cats.map(k => [k, sT[bolhaY + "_" + k]])), cats)[c]};
+  const W = 560, H = 440, mg = {l: 44, r: 14, t: 12, b: 36};
+  const todos = [...pts.flatMap(p => [p.x, p.y]), ref.x, ref.y].filter(isFinite);
+  if (!todos.length) { svg.innerHTML = ""; return; }
+  let lo = Math.max(0, Math.floor(Math.min(...todos) / 5) * 5 - 2), hi = Math.min(100, Math.ceil(Math.max(...todos) / 5) * 5 + 2);
+  // mesma escala nos dois eixos: a diagonal é "igual à eleição anterior"
+  const lado = Math.min(W - mg.l - mg.r, H - mg.t - mg.b);
+  const X = v => mg.l + (v - lo) / (hi - lo) * lado, Y = v => mg.t + lado - (v - lo) / (hi - lo) * lado;
+  const R = () => 8;   // só o bastante para o número do quintil
+  let g = "";
+  const passo = (hi - lo) > 40 ? 10 : 5;
+  for (let v = Math.ceil(lo / passo) * passo; v <= hi; v += passo) {
+    g += `<line x1="${X(v)}" x2="${X(v)}" y1="${mg.t}" y2="${mg.t + lado}" stroke="var(--line)"/>
+      <line x1="${mg.l}" x2="${mg.l + lado}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/>
+      <text x="${X(v)}" y="${mg.t + lado + 14}" text-anchor="middle">${v}%</text>
+      <text x="${mg.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v}%</text>`;
+  }
+  g += `<line x1="${X(lo)}" y1="${Y(lo)}" x2="${X(hi)}" y2="${Y(hi)}" stroke="var(--ink)" stroke-dasharray="4 4" opacity=".45"/>
+    <text x="${X(hi) - 4}" y="${Y(hi) + 14}" text-anchor="end">igual a ${m.anterior}</text>
+    <text x="${mg.l + lado / 2}" y="${H - 4}" text-anchor="middle">${nomeCat(cA)} — ${rotAnt(m)}</text>
+    <text transform="translate(11 ${mg.t + lado / 2}) rotate(-90)" text-anchor="middle">${nomeCat(c)} — ${m.atual} ${bolhaY === "pj" ? "projetado" : "apurado"}</text>`;
+  if (isFinite(ref.x) && isFinite(ref.y))
+    g += `<path d="M${X(ref.x)-7},${Y(ref.y)}h14M${X(ref.x)},${Y(ref.y)-7}v14" stroke="${corDe(c, lista)}" stroke-width="2.5"/>`;
+  pts.sort((a, b) => a.sel - b.sel);   // as do filtro por cima
+  pts.forEach((p, i) => {
+    g += `<g class="bolha" data-i="${i}" style="cursor:pointer"><circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${R(p.n)}" fill="${COR_VAR[p.v]}"
+      fill-opacity="${p.sel ? .9 : .55}" stroke="${p.sel ? "var(--ink)" : COR_VAR[p.v]}" stroke-width="${p.sel ? 2 : 1}"/>
+      <text x="${X(p.x)}" y="${Y(p.y) + 4}" text-anchor="middle" style="fill:#fff;font-weight:700;pointer-events:none">${p.q}</text></g>`;
+  });
+  svg.innerHTML = g;
+  const dica = document.getElementById("bolhas-dica"), caixa = document.getElementById("bolhas-caixa");
+  svg.querySelectorAll(".bolha").forEach(el => {
+    const p = pts[+el.dataset.i];
+    el.onmousemove = ev => { const b = caixa.getBoundingClientRect();
+      dica.hidden = false; dica.style.left = (ev.clientX - b.left + 12) + "px"; dica.style.top = (ev.clientY - b.top + 12) + "px";
+      dica.innerHTML = `<b>${p.t}: ${p.q}º quintil</b><br>${nomeCat(cA)}, ${rotAnt(m)}: ${fmt(p.x)}%<br>${nomeCat(c)}, ${m.atual} ${bolhaY === "pj" ? "projetado" : "apurado"}: ${fmt(p.y)}%`
+        + `<br>${(p.y - p.x >= 0 ? "+" : "") + fmt(p.y - p.x)} ponto(s) · ${Math.round(p.n).toLocaleString("pt-BR")} eleitores`; };
+    el.onmouseleave = () => { dica.hidden = true; };
+    el.onclick = ev => { const f = F.q[p.v];   // o mesmo clique dos quadros de quintis
+      if (ev.shiftKey && f) F.q[p.v] = [Math.min(f[0], p.q), Math.max(f[1], p.q)];
+      else if (f && f[0] === p.q && f[1] === p.q) delete F.q[p.v];
+      else F.q[p.v] = [p.q, p.q];
+      dica.hidden = true; desenhar(); };
+  });
+  document.getElementById("bolhas-leg").innerHTML = VARS.map(([v, t]) =>
+    `<span data-v="${v}" class="${escBolha.has(v) ? "off" : ""}"><i style="background:${COR_VAR[v]}"></i>${tituloVar(t)}</span>`).join("") +
+    `<span class="sub">número na bolha: quintil · cruz: o recorte inteiro — clique numa variável para escondê-la</span>`;
+  document.querySelectorAll("#bolhas-leg span[data-v]").forEach(sp => sp.onclick = () => {
+    const v = sp.dataset.v; escBolha.has(v) ? escBolha.delete(v) : escBolha.add(v); desenharBolhas(res); });
+  document.getElementById("bolhas-sub").innerHTML = `Cada bolha é um quintil de uma variável de perfil, com os filtros da tela
+    (menos o da própria variável). Acima da diagonal, ${nomeCat(c)} faz mais que ${nomeCat(cA)} em ${m.anterior}; abaixo, menos.
+    <b>Voto dos lugares, não das pessoas.</b> Clique numa bolha para filtrar.`;
+}
+
+function desenharLugares(res){
+  const tab = document.getElementById("lugares");
+  if (!D) { tab.innerHTML = ""; return; }
+  const m = D.meta, cats = m.cats, temAp = m.apuradas > 0, porZona = detalhado() && F.mun != null;
+  document.getElementById("t-lugares").textContent = porZona ? "Zonas eleitorais do município" : "Municípios";
+  const catsA = catsAnt(), A = D.anterior, gA = new Map();
+  for (let i = 0; i < A.zona.length; i++) {
+    if (!passa(A, i, porZona ? "zona" : "mun")) continue;
+    const k = porZona ? A.zona[i] : A.municipio[i];
+    if (!gA.has(k)) gA.set(k, Object.fromEntries(catsA.map(c=>[c,0])));
+    const g = gA.get(k); for (const c of catsA) g[c] += A[c][i] || 0;
+  }
+  const t = D.atual, grupos = new Map(), chave = i => porZona ? t.zona[i] : t.municipio[i];
+  const cols = ["aptos","secoes","apurada", ...(temAp ? [...cats.map(c=>"pj_"+c), ...cats.map(c=>"ap_"+c)] : [])];
+  for (let i = 0; i < t.zona.length; i++) {
+    if (!passa(t, i, porZona ? "zona" : "mun")) continue;
+    const k = chave(i); if (!grupos.has(k)) grupos.set(k, Object.fromEntries(cols.map(c=>[c,0])));
+    const g = grupos.get(k); for (const c of cols) g[c] += t[c][i] || 0;
+  }
+  const top = [...grupos.entries()].sort((a,b) => b[1].aptos - a[1].aptos).slice(0, 25);
+  const [c1, c2] = (res.ord && res.ord.length ? res.ord : cats).slice(0, 2);
+  const pr = paresAnt();
+  const [a1, a2] = c1 && pr[c1] ? [pr[c1], pr[c2]] : (res.ordA || catsA).slice(0, 2);
+  const pA = k => pct(gA.get(k) || Object.fromEntries(catsA.map(c=>[c,0])), catsA);
+  tab.innerHTML = `<tr><th>${porZona ? "zona" : "município"}</th><th>eleitores</th><th>apuradas</th>
+      ${c1 ? `<th>${nomeCat(c1)} proj.</th><th>${nomeCat(c2)} proj.</th><th>${nomeCat(c1)} apur.</th><th>${nomeCat(c2)} apur.</th>` : ""}
+      <th>${nomeCat(a1)} ${m.anterior}</th><th>${nomeCat(a2)} ${m.anterior}</th></tr>` +
+    top.map(([k, g]) => { const pj = pct(Object.fromEntries(cats.map(c=>[c,g["pj_"+c]])), cats),
+                                 ap = pct(Object.fromEntries(cats.map(c=>[c,g["ap_"+c]])), cats);
+      const sel = porZona ? F.zona === k : F.mun === k;
+      return `<tr class="clic" data-k="${k}" style="${sel ? "background:var(--accent-soft)" : ""}"><td>${porZona ? "zona " + k : m.municipios[k]}</td>
+        <td>${g.aptos.toLocaleString("pt-BR")}</td><td>${fmt(100*g.apurada/g.secoes,0)}%</td>
+        ${c1 ? `<td><b>${temAp && g.apurada ? fmt(pj[c1]) : "—"}</b>${temAp && g.apurada ? nAbs(g["pj_"+c1], "≈ ") : ""}</td>
+        <td><b>${temAp && g.apurada ? fmt(pj[c2]) : "—"}</b>${temAp && g.apurada ? nAbs(g["pj_"+c2], "≈ ") : ""}</td>
+        <td>${temAp && g.apurada ? fmt(ap[c1]) : "—"}${temAp && g.apurada ? nAbs(g["ap_"+c1]) : ""}</td>
+        <td>${temAp && g.apurada ? fmt(ap[c2]) : "—"}${temAp && g.apurada ? nAbs(g["ap_"+c2]) : ""}</td>` : ""}
+        <td class="sub">${fmt(pA(k)[a1])}${nAbs((gA.get(k)||{})[a1])}</td><td class="sub">${fmt(pA(k)[a2])}${nAbs((gA.get(k)||{})[a2])}</td></tr>`; }).join("");
+  tab.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => {
+    const k = +tr.dataset.k;
+    if (porZona) F.zona = F.zona === k ? null : k; else { F.mun = F.mun === k ? null : k; F.zona = null; }
+    desenhar(); });
+}
+
+function desenhar(){
+  desenharModo();
+  desenharTurno();
+  document.getElementById("aviso-ensaio").hidden = modo !== "ensaio";
+  desenharFiltros();
+  desenharFoco();
+  const res = desenharPrincipal() || {};
+  desenharChances(res);
+  desenharMapa(res);
+  desenharAberturas(res);
+  desenharBolhas(res);
+  desenharLugares(res);
+}
+
+// atualização automática: recarrega só os dados a cada 2 min no modo ao vivo; os filtros ficam
+// página de arquivo: sem atualização automática
+
+(async () => {
+  // abre no 2026; se ainda não há arquivo de 2026, abre no ensaio
+  carregar("1t2026");
+})();
+</script>
+</body>
+</html>

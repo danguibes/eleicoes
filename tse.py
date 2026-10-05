@@ -144,3 +144,21 @@ class Cliente:
             if len(self.n404) > self.max_404:
                 raise Bloqueado(f"{len(self.n404)} respostas 404 em 60 s "
                                 f"(última: {url}) — parando antes do TSE parar a gente")
+
+
+def pleito_2t(ciclo="ele2026", eleicao_1t=6257, base="https://resultados.tse.jus.br", spec="2026"):
+    """O 2º turno pela configuração do TSE, sem adivinhar código.
+
+    Em 05/10/2026 o `ele-c.json` já dizia que a eleição de Presidente do 2º turno é a
+    6258 (`cdt2` da 6257), mas ainda não listava o pleito do 2º turno — é ele que nomeia
+    o índice de seções e os boletins. Devolve None enquanto não estiver publicado."""
+    r = requests.get(f"{base}/oficial/comum/config/ele-c.json", timeout=30)
+    r.raise_for_status()
+    pls = [p for p in r.json().get("pl", []) if p.get("c") == ciclo]
+    e2 = next((e.get("cdt2") for p in pls for e in p.get("e", []) if str(e.get("cd")) == str(eleicao_1t)), None)
+    if not e2:
+        return None
+    for p in pls:
+        if any(str(e.get("cd")) == str(e2) for e in p.get("e", [])):
+            return Pleito("2026_2t", base, "oficial", ciclo, int(p["cd"]), int(e2), spec)
+    return None
