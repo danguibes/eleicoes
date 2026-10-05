@@ -83,7 +83,7 @@ def main(ao_vivo=None):
     if "/*__DADOS__*/null" in html:
         sys.exit("placeholder não substituído")
     # página de checagens: dado próprio, mesmo mecanismo de injeção
-    ck = OUT / "checagens_2022.json"
+    ck = OUT / "checagens.json"   # {"2022": ..., "2026": ...} (checagens.py)
     if ck.exists():
         t2 = Path("web/checagens_template.html").read_text(encoding="utf-8")
         h2 = t2.replace("/*__DADOS__*/null", ck.read_text(encoding="utf-8"))
