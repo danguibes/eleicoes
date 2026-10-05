@@ -396,3 +396,15 @@ E as falhas de antes da noite, que custaram tempo:
     (47,42%);
   - `requestAnimationFrame` não dispara com a aba oculta: o recálculo agenda
     com `setTimeout`.
+- **Boletins do Brasil inteiro, 1º turno de 2026:** 498.925 de 499.248 seções,
+  baixadas em ~4 h com dois processos (UFs disjuntas, 35 req/s cada). 5.708 de
+  5.717 municípios batem voto a voto com o arquivo `u`; faltam 0,06% dos votos,
+  de seções sem boletim publicado. Base em `data/raw/2026/secoes_1t_brasil.parquet`
+  (`base_secoes.py`).
+- **Checagens de 2026:** zero seções com soma diferente do comparecimento, zero
+  com comparecimento acima dos aptos; o Senado de SP soma o dobro do
+  comparecimento (duas vagas). A assinatura digital **não foi feita**, e a página
+  diz isso.
+- **Projeção do 2º turno** (`segundo.py`), na reprodução do 2º turno de 2022:
+  erro médio de 0,067 ponto; o intervalo de 90% com fator 1,5 cobriu o real nos
+  7 momentos. É calibração numa eleição só.
