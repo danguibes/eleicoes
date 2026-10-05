@@ -347,3 +347,52 @@ E as falhas de antes da noite, que custaram tempo:
    do comparecimento.**
 8. **Depois da noite:** baixar os boletins do país inteiro (≈6 h a 35 req/s) para
    as checagens e para a base do turno seguinte.
+
+---
+
+## 8. Depois do 1º turno (05/10/2026) — o que preparou o 2º
+
+- **Os boletins do país inteiro baixam em uma tarde** depois da apuração
+  (`coletar_brasil.py`, ~17 seções/s a 35 req/s). Mas o coletor de SP travou
+  de novo: um bloco de seções com auxiliar 404 treze horas depois ocupava a
+  frente da fila. A correção foi sorteio na fila, 404 para o fim e espera
+  crescente. Sobraram 569 das 103.656 seções de SP (0,5%) sem boletim publicado.
+- **Transição 1º → 2º turno de 2022, seção a seção** (`transicao.py`). As
+  mesmas 472 mil urnas e os mesmos 156,5 milhões de aptos nos dois turnos. A
+  regressão ecológica com linhas no simplex:
+  - **prevê bem**: 0,68 ponto de erro por município fora do ajuste, contra 1,68
+    de repetir o 1º turno;
+  - **identifica mal cada célula**: entre municípios, dava Tebet → 24% Lula e
+    branco → 44% Bolsonaro; **dentro de cada município** (só as seções dele,
+    puxadas para a UF), dá Tebet → 38%/46% e branco → 12%/35%. Os dois métodos
+    discordam em até 14 pontos (Ciro → Lula: 50 contra 36). A estimativa dentro
+    do município é estável em κ (0,02–0,5).
+- **Ensaio da noite do 2º turno de 2022** (`ensaio_2t.py`), por município, na
+  ordem real de chegada. Erro médio no percentual de Lula:
+
+  | variante | erro médio |
+  |---|---|
+  | contagem | 2,71 |
+  | base de 2018 | 0,69 |
+  | base do 1º turno | 0,51 |
+  | transição | 0,27 |
+  | **transição sabendo quais seções chegaram** | **0,04** |
+
+  As três primeiras tinham o mesmo viés de ~0,5 contra Lula no meio da noite. Ele
+  não vem da base: vem de **quais seções de cada município** já estão no parcial.
+- **O índice de seções diz quais são** (`conferir_indice.py`). Somando os
+  boletins das `st` primeiras seções do índice de cada município, o parcial
+  publicado sai voto a voto em 83–90% dos municípios de SP. O resto (0,2–0,6%
+  dos votos) são as seções sem boletim. O índice anda à frente do arquivo `u`,
+  nunca atrás (salvo dois momentos).
+- **Código do 2º turno:** a eleição de Presidente é a **6258** (`cdt2` da 6257,
+  no `ele-c.json`). O pleito do 2º turno ainda não estava publicado em 05/10.
+  `tse.pleito_2t()` o lê quando aparecer, sem supor 3221.
+- **Simulador** (`simulador.py`, `web/simulador.html`):
+  - o ponto de partida são as matrizes de 2022 de cada município;
+  - os candidatos novos entram por analogia escolhida pelo Danilo: Cury ←
+    Tebet, Renan ← Ciro, Caiado ← Soraya, Zema ← D'Avila;
+  - partida: **Lula 47,45% × Flávio 52,55%**; os dois métodos concordam no total
+    (47,42%);
+  - `requestAnimationFrame` não dispara com a aba oculta: o recálculo agenda
+    com `setTimeout`.
