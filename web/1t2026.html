@@ -717,6 +717,7 @@ function graficoQuintis(v, titulo, cortes, u, pontos, alvo, lista, m, temAp){
     if (temAp && dimsAb.ap) series.push({c, cor, dim: "ap", ys: val("ap")});
     if (temAp && dimsAb.pj) series.push({c, cor, dim: "pj", ys: val("pj")});
   }
+  for (let i = series.length - 1; i >= 0; i--) if (!series[i].ys.some(isFinite)) series.splice(i, 1);   // sem par na eleição anterior
   const todos = series.flatMap(s => s.ys).filter(isFinite);
   let lo = todos.length ? Math.min(...todos) : 0, hi = todos.length ? Math.max(...todos) : 1;
   if (delta) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
