@@ -125,8 +125,78 @@ class Noite:
                 "carg": [{"cd": "1", "agr": [{"par": [{"cand": cand}]}]}]}
 
 
+class Noite2:
+    """O 2º turno de 2022, nos endereços do 2º turno de 2026 (eleição 6258, pleito local 3221):
+    o índice de seções de cada UF e o arquivo `u` de cada município e de cada UF."""
+    INICIO = datetime(2022, 10, 30, 17, 0)
+    CAND = [13, 22]
+
+    def __init__(self, acel):
+        self.acel, self.t0 = acel, time.time()
+        s = pd.read_parquet(RAW / "tse" / "painel_2t_2022.parquet")
+        s = s[s.t_2t.notna()].assign(zona4=lambda d: d.zona % 10000).sort_values("t_2t")
+        self.por_uf = {}
+        for uf, g in s.groupby("uf"):
+            self.por_uf[uf.lower()] = (g.municipio.to_numpy(), g.zona4.to_numpy(), g.secao.to_numpy(), g.t_2t.to_numpy())
+        cols = ["aptos_2t", "abst_2t", "lula_2t", "bolsonaro_2t", "branco_2t", "nulo_2t"]
+        self.mun = {}
+        for (uf, mun), g in s.groupby(["uf", "municipio"]):
+            acum = np.cumsum(np.c_[np.ones(len(g)), g[cols].to_numpy(float)], axis=0)
+            self.mun[(uf.lower(), f"{int(mun):05d}")] = (g.t_2t.to_numpy(), acum, acum[-1])
+        print(f"2º turno: {len(s):,} seções, {len(self.mun):,} municípios", flush=True)
+
+    def agora(self):
+        return self.INICIO + timedelta(seconds=(time.time() - self.t0) * self.acel)
+
+    def cm_json(self):
+        abr = {}
+        for (uf, mun) in self.mun:
+            abr.setdefault(uf, []).append({"cd": mun})
+        return {"abr": [{"cd": uf.upper(), "mu": mus} for uf, mus in sorted(abr.items())]}
+
+    def cs_json(self, uf):
+        if uf not in self.por_uf:
+            return None
+        a = np.datetime64(self.agora())
+        mun, zona, secao, t = self.por_uf[uf]
+        arvore = {}
+        for m, z, s_, tt in zip(mun, zona, secao, t):
+            sec = {"ns": f"{s_:04d}"}
+            if tt <= a:
+                ts = pd.Timestamp(tt)
+                sec["da"], sec["ha"] = ts.strftime("%d/%m/%Y"), ts.strftime("%H:%M:%S")
+            arvore.setdefault(f"{m:05d}", {}).setdefault(f"{z:04d}", []).append(sec)
+        ag = self.agora()
+        return {"dg": ag.strftime("%d/%m/%Y"), "hg": ag.strftime("%H:%M:%S"), "idg": str(int(ag.timestamp())),
+                "abr": [{"cd": uf.upper(), "mu": [{"cd": m, "zon": [{"cd": z, "sec": ss} for z, ss in zs.items()]}
+                                                  for m, zs in arvore.items()]}]}
+
+    def u_json(self, uf, mun=None):
+        a = np.datetime64(self.agora())
+        if mun and (uf, mun) not in self.mun:
+            return None
+        itens = [self.mun[(uf, mun)]] if mun else [x for (u, _), x in self.mun.items() if u == uf]
+        if not itens:
+            return None
+        ap, tot = np.zeros(7), np.zeros(7)
+        for t, acum, tt in itens:
+            k = np.searchsorted(t, a, side="right")
+            if k:
+                ap += acum[k - 1]
+            tot += tt
+        st, est, abst = int(ap[0]), int(ap[1]), int(ap[2])
+        cand = [{"n": "13", "vap": str(int(ap[3]))}, {"n": "22", "vap": str(int(ap[4]))}]
+        ag = self.agora()
+        return {"ele": "6258", "dg": ag.strftime("%d/%m/%Y"), "hg": ag.strftime("%H:%M:%S"),
+                "s": {"ts": str(int(tot[0])), "st": str(st)},
+                "e": {"te": str(int(tot[1])), "est": str(est), "c": str(est - abst)},
+                "v": {"vb": str(int(ap[5])), "tvn": str(int(ap[6]))},
+                "carg": [{"cd": "1", "agr": [{"par": [{"cand": cand}]}]}]}
+
+
 class Handler(BaseHTTPRequestHandler):
     noite = None
+    noite2 = None
 
     def log_message(self, *a):
         pass
@@ -152,6 +222,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         n, p = self.noite, self.path.split("?")[0]
+        if self.noite2 is not None:
+            n2 = self.noite2
+            if re.fullmatch(r"/oficial/ele2026/6258/config/mun-e006258-cm\.json", p):
+                return self.responder(n2.cm_json())
+            if m := re.fullmatch(r"/oficial/ele2026/arquivo-urna/3221/config/([a-z]{2})/[a-z]{2}-p003221-cs\.json", p):
+                return self.responder(n2.cs_json(m.group(1)))
+            if m := re.fullmatch(r"/oficial/ele2026/6258/dados/([a-z]{2})/([a-z]{2})(\d{5})-c0001-e006258-u\.json", p):
+                return self.responder(n2.u_json(m.group(1), m.group(3)))
+            if m := re.fullmatch(r"/oficial/ele2026/6258/dados/([a-z]{2})/([a-z]{2})-c0001-e006258-u\.json", p):
+                return self.responder(n2.u_json(m.group(1)))
+            return self.responder(None)
         if m := re.fullmatch(r"/oficial/ele2026/arquivo-urna/3220/config/sp/sp-p003220-cs\.json", p):
             return self.responder(n.cs_json())
         if m := re.fullmatch(r"/oficial/ele2026/arquivo-urna/3220/dados/sp/(\d{5})/(\d{4})/(\d{4})/p003220-sp-m\d{5}-z\d{4}-s\d{4}-aux\.json", p):
@@ -174,8 +255,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--acel", type=float, default=15)
     ap.add_argument("--porta", type=int, default=8800)
+    ap.add_argument("--turno", type=int, default=1, help="2: serve o 2º turno de 2022 nos endereços do 2º turno de 2026")
     a = ap.parse_args()
-    Handler.noite = Noite(a.acel)
+    if a.turno == 2:
+        Handler.noite2 = Noite2(a.acel)
+    else:
+        Handler.noite = Noite(a.acel)
     srv = ThreadingHTTPServer(("127.0.0.1", a.porta), Handler)
     print(f"TSE de mentira em http://127.0.0.1:{a.porta} — relógio de 2022 a {a.acel:g}x", flush=True)
     srv.serve_forever()

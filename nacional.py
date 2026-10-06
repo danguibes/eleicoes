@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from tse import PLEITOS, Bloqueado, Cliente
+from tse import PLEITOS, Bloqueado, Cliente, obter
 
 RAW = Path("data/raw")
 
@@ -72,7 +72,7 @@ def ler_u(corpo):
 
 class Nacional:
     def __init__(self, pleito, taxa=15, cargo=1):
-        self.p = PLEITOS[pleito]
+        self.p = obter(pleito)
         self.cli = Cliente(taxa=taxa)
         self.cargo = cargo
         self.dir = RAW / pleito / "nacional"
@@ -146,7 +146,7 @@ class Nacional:
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pleito", choices=sorted(PLEITOS), required=True)
+    ap.add_argument("--pleito", required=True, help=f"{sorted(PLEITOS)} ou 2026_2t (código lido do TSE)")
     ap.add_argument("--taxa", type=float, default=15)
     ap.add_argument("--intervalo", type=int, default=60)
     ap.add_argument("--uma-vez", action="store_true")

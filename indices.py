@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from tse import PLEITOS, Bloqueado, Cliente, pleito_2t
+from tse import Bloqueado, Cliente, obter
 
 RAW = Path("data/raw")
 UFS = ["ac", "al", "am", "ap", "ba", "ce", "df", "es", "go", "ma", "mg", "ms", "mt", "pa", "pb",
@@ -43,9 +43,7 @@ def main():
     ap.add_argument("--taxa", type=float, default=5)
     ap.add_argument("--intervalo", type=int, default=30)
     a = ap.parse_args()
-    p = PLEITOS.get(a.pleito) or (pleito_2t() if a.pleito == "2026_2t" else None)
-    if p is None:
-        sys.exit("pleito do 2º turno ainda não publicado na configuração do TSE (ele-c.json)")
+    p = obter(a.pleito)
     cli = Cliente(taxa=a.taxa)
     d = RAW / a.pleito / "indices"
     d.mkdir(parents=True, exist_ok=True)

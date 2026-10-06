@@ -73,6 +73,9 @@ PLEITOS = {
 import os as _os
 if _os.environ.get("TSE_FALSO"):
     PLEITOS["2026"] = Pleito("2026", "http://127.0.0.1:8800", "oficial", "ele2026", 3220, 6257, "2022")
+# Ensaio do 2º turno contra o tse_falso.py --turno 2: nome e pasta próprios, para nada se misturar com a
+# noite de verdade. O pleito 3221 é só local — o de verdade sai do ele-c.json (pleito_2t()).
+PLEITOS["falso_2t"] = Pleito("falso_2t", "http://127.0.0.1:8800", "oficial", "ele2026", 3221, 6258, "2022")
 
 
 class Bloqueado(Exception):
@@ -162,3 +165,16 @@ def pleito_2t(ciclo="ele2026", eleicao_1t=6257, base="https://resultados.tse.jus
         if any(str(e.get("cd")) == str(e2) for e in p.get("e", [])):
             return Pleito("2026_2t", base, "oficial", ciclo, int(p["cd"]), int(e2), spec)
     return None
+
+
+def obter(nome):
+    """O pleito pelo nome; "2026_2t" vem da configuração do TSE na hora (pleito_2t)."""
+    if nome in PLEITOS:
+        return PLEITOS[nome]
+    if nome == "2026_2t":
+        p = pleito_2t()
+        if p is None:
+            raise SystemExit("pleito do 2º turno ainda não publicado na configuração do TSE (ele-c.json)")
+        PLEITOS[nome] = p
+        return p
+    raise SystemExit(f"pleito desconhecido: {nome}")

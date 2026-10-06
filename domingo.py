@@ -41,6 +41,34 @@ def registrar(pleito, res, hora):
     arq.write_text(json.dumps(h, ensure_ascii=False), encoding="utf-8")
 
 
+def publicar_2t(a):
+    """2º turno: refaz o painel quando o arquivo dos municípios (nacional.py) ou o índice de
+    seções (indices.py) mudam; publica no máximo a cada 2 min."""
+    import painel_2t
+    raiz = Path("data/raw") / a.pleito
+    vigiados = [raiz / "nacional" / "municipios.parquet", raiz / "indices" / "chegadas.parquet"]
+    visto = {p: 0 for p in vigiados}
+    ultimo_push, pendente = 0.0, None
+    print("publicador do 2º turno pronto", flush=True)
+    while True:
+        t = time.time()
+        novo = [p for p in vigiados if p.exists() and p.stat().st_mtime > visto[p]]
+        if novo and vigiados[0].exists():
+            for p in novo:
+                visto[p] = p.stat().st_mtime
+            try:
+                d = painel_2t.montar("2026t2", ano_base=a.base, n_boot=a.boot, pleito=a.pleito, saida=a.saida)
+                ic = d["ic"].get("total", {}).get("total", {})
+                pendente = f"Brasil {d['meta']['apuradas']:,}/{d['meta']['secoes']:,}" + (f" · Lula {ic['lula']}" if ic else "")
+                print(f"{datetime.now():%H:%M}  {pendente}; rodada em {time.time() - t:.0f} s", flush=True)
+            except Exception as e:
+                print(f"   painel do 2º turno: {e!r}", flush=True)
+        if pendente and not a.sem_publicar and time.time() - ultimo_push >= 120:
+            publicar(f"2º turno {datetime.now():%H:%M}: {pendente}")
+            ultimo_push, pendente = time.time(), None
+        time.sleep(max(5, a.intervalo - (time.time() - t)))
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
@@ -53,7 +81,12 @@ def main():
     ap.add_argument("--boot", type=int, default=50, help="reamostragens do painel por rodada")
     ap.add_argument("--ensaio", action="store_true")
     ap.add_argument("--acelerar", type=float, default=60, help="ensaio: minutos de 2022 por minuto real")
+    ap.add_argument("--turno", type=int, default=1)
+    ap.add_argument("--base", choices=["2022", "2026"], default="2026", help="2º turno: 1º turno por seção de qual ano")
+    ap.add_argument("--saida", help="2º turno: nome do arquivo do painel (o ensaio não sobrescreve o da noite)")
     a = ap.parse_args()
+    if a.turno == 2:
+        return publicar_2t(a)
 
     import exportar
     import projecao

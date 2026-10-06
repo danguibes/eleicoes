@@ -31,7 +31,7 @@ from datetime import datetime
 from pathlib import Path
 
 import bu
-from tse import PLEITOS, Bloqueado, Cliente
+from tse import PLEITOS, Bloqueado, Cliente, obter
 
 VALIDOS = {"Recebido", "Totalizado"}
 ESPERA_CDN = 240   # s entre a hora do índice e o pedido do auxiliar (medido: ~5 min de defasagem)  # descarta Rejeitado, Excluído, Sem arquivo
@@ -45,7 +45,7 @@ class Coletor:
     def __init__(self, pleito, uf, municipios, taxa, trabalhadores):
         self.depois = {}   # seção -> quando pedir de novo, depois de um 404
         self.falhas = {}   # seção -> quantos 404 já deu
-        self.p = PLEITOS[pleito]
+        self.p = obter(pleito)
         self.uf = uf
         self.municipios = set(municipios) if municipios else None
         self.cli = Cliente(taxa=taxa)
@@ -244,7 +244,7 @@ class Coletor:
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pleito", choices=sorted(PLEITOS), required=True)
+    ap.add_argument("--pleito", required=True, help=f"{sorted(PLEITOS)} ou 2026_2t (código lido do TSE)")
     ap.add_argument("--uf", default="sp")
     ap.add_argument("--mun", nargs="*", help="códigos TSE de 5 dígitos; vazio = UF inteira")
     ap.add_argument("--taxa", type=float, default=20, help="requisições por segundo (TSE: máx. 100)")

@@ -70,7 +70,7 @@ def anterior_2t(ano_base):
         {"lula": "haddad18_2t", "bolsonaro": "bolsonaro18_2t"}, "2018"
 
 
-def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t"):
+def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=None):
     ano_base = ano_base or ("2022" if modo == "ensaio2t" else "2026")
     sec, linhas, adv = base(ano_base)
     cats = ["lula", adv, "bn"]
@@ -186,7 +186,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t"):
         "amostras_pct": amostras_pct,
     }
     WEB.mkdir(parents=True, exist_ok=True)
-    nome = WEB / f"{modo}_brasil_presidente.json"
+    nome = WEB / f"{saida or modo}_brasil_presidente.json"   # ensaio contra o tse_falso: arquivo próprio
     nome.write_text(json.dumps(_limpo(dados), allow_nan=False, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     t = ic.get("total", {}).get("total", {})
     print(f"{nome}: {nome.stat().st_size / 1e6:.1f} MB; {dados['meta']['apuradas']:,}/{dados['meta']['secoes']:,} seções; "

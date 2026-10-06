@@ -408,3 +408,27 @@ E as falhas de antes da noite, que custaram tempo:
 - **Projeção do 2º turno** (`segundo.py`), na reprodução do 2º turno de 2022:
   erro médio de 0,067 ponto; o intervalo de 90% com fator 1,5 cobriu o real nos
   7 momentos. É calibração numa eleição só.
+- **Noite do 2º turno montada e ensaiada de ponta a ponta** (06/10/2026).
+  `noite.py --turno 2` sobe três processos, mais o coletor de boletins de SP na
+  noite real:
+  - `nacional.py`: arquivo `u` da eleição 6258;
+  - `indices.py`: índice de seções das 28 UFs;
+  - `domingo.py --turno 2`, que usa `painel_2t.py` e, por ele, `segundo.py`.
+
+  Ensaio contra `tse_falso.py --turno 2`, que serve o 2º turno de 2022 em todas as
+  UFs com um pleito local `falso_2t` e pasta própria:
+
+  | varredura | seções | intervalo de Lula |
+  |---|---|---|
+  | 1ª | 9% | 50,65–51,20 |
+  | 2ª | 57% | 50,71–51,11 |
+  | 3ª | 95% | 50,70–51,10 (central 50,898) |
+
+  O real foi 50,90. Nenhum 404, rodada do painel em 7–10 s. A varredura dos 5.710
+  municípios leva ~4 min a 25 req/s.
+- **A reamostragem a partir da matriz central** (400 iterações em vez de 1.500)
+  manteve a calibração (fator 1,5: 7 de 7). O intervalo, porém, chega a ±0,05
+  ponto no meio da noite, e por isso ganhou um **piso de ±0,2**.
+- **O código do pleito do 2º turno ainda não está publicado.** `tse.obter("2026_2t")`
+  o lê do `ele-c.json` quando a noite sobe; se não houver, o processo para com
+  mensagem clara, e o `noite.py` tenta de novo em 20 s.
