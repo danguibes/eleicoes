@@ -76,21 +76,23 @@ def projetar(M, linhas, n_boot=100, seed=0):
     votos = ap[:, :3].sum(1)
     lam = (votos / (votos + mu.K_ENCOLHE))[:, None]
 
-    def uma(idx):
-        Tn, Tuf = ajustar(Xr[idx], Y[idx], w[idx], ufs[idx])
+    def uma(idx, T0=None, iters=1500):
+        Tn, Tuf = ajustar(Xr[idx], Y[idx], w[idx], ufs[idx], T0=T0, iters=iters)
         T = np.stack([Tuf.get(u, Tn) for u in ufs])                     # municípios × linhas × 4
         P = np.einsum("ml,mlc->mc", Xf, T) + np.where(tem[:, None], lam * (Y - np.einsum("ml,mlc->mc", Xr, T)), 0)
         P = np.clip(P, 0, None)
         P /= np.maximum(P.sum(1, keepdims=True), 1e-12)
-        return ap + P * resto
+        return ap + P * resto, Tn, Tuf
 
     o = np.where(tem)[0]
-    central = uma(o)
+    central, Tn, Tuf = uma(o)
+    projetar.ultima = (Tn, Tuf)      # para quem prevê seção a seção (o detalhe de SP)
     grupos = {u: o[ufs[o] == u] for u in np.unique(ufs[o])}
     amostras = []
     for _ in range(n_boot):
         us = rng.choice(list(grupos), len(grupos), replace=True)     # UFs inteiras: o erro é regional
-        amostras.append(uma(np.concatenate([grupos[u] for u in us])))
+        # partindo da matriz central: na noite, 60 reamostragens do zero levavam ~3 min
+        amostras.append(uma(np.concatenate([grupos[u] for u in us]), T0=Tn, iters=400)[0])
     return central, np.array(amostras)
 
 

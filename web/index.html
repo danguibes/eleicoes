@@ -108,8 +108,8 @@
 <div class="wrap">
 <header>
   <div>
-    <h1>Eleições 2026 — apuração e projeção</h1>
-    <p class="sub" id="subtitulo">Brasil por município; São Paulo urna a urna.
+    <h1>Eleições 2026 — 2º turno: apuração e projeção</h1>
+    <p class="sub" id="subtitulo">Lula × Flávio Bolsonaro, 25/10/2026. Brasil por município, cada seção comparada com ela mesma no 1º turno.
       <a href="metodo.html">Como funciona, o que foi medido e o que não passou na régua →</a> ·
       <a href="checagens.html">Checagens dos dados →</a> ·
       <a href="simulador.html"><b>Simulador do 2º turno →</b></a> · <a href="1t2026.html">1º turno de 2026 (consulta) →</a></p>
@@ -126,9 +126,10 @@
 <div class="foco" id="foco"></div>
 
 <section id="aviso-ensaio" class="aviso-ensaio" hidden>
-  <p class="sub"><b>Modo ensaio.</b> A eleição de 2022 reproduzida urna a urna, parada no momento em que uma parte das
-  urnas tinha chegado ao TSE, com 2018 fazendo o papel de eleição anterior. Serve para ver o painel funcionando — e
-  conferir a projeção contra um resultado que já se conhece — antes de domingo.</p>
+  <p class="sub"><b>Modo ensaio.</b> O 2º turno de 2022 reproduzido na ordem real de chegada das urnas, parado no momento em
+  que um quarto delas tinha chegado ao TSE, com o 1º turno de 2022 como base (cada seção comparada com ela mesma) e o 2º turno
+  de 2018 como eleição anterior. Os nomes são os de 2022: Lula × Bolsonaro. Serve para ver o painel funcionando — e conferir a
+  projeção contra um resultado que já se conhece (Lula 50,90%) — antes de 25/10.</p>
 </section>
 
 <section>
@@ -204,7 +205,9 @@ const VARS = [["renda","Renda do entorno","R$"],["catolicos","Católicos no ento
   ["sem_religiao","Sem religião no entorno","%"],
   ["preta_parda","Pretos e pardos no entorno","%"],["superior","Superior completo na urna","%"],["jovens","Jovens (16–24) na urna","%"],["idosos","60+ na urna","%"]];
 const fmt = (x, d=1) => (x==null||isNaN(x)) ? "—" : x.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
-const MODOS = [["2026","2026 — ao vivo"],["ensaio","Ensaio com 2022"]];
+// 2º turno: o 1º turno de 2026 está congelado em 1t2026.html
+const MODOS = [["2026t2","2º turno — ao vivo"],["ensaio2t","Ensaio com 2022"]];
+const ehEnsaio = () => modo && modo.startsWith("ensaio");
 
 const REGIOES = {"Norte":["AC","AM","AP","PA","RO","RR","TO"], "Nordeste":["AL","BA","CE","MA","PB","PE","PI","RN","SE"],
   "Centro-Oeste":["DF","GO","MS","MT"], "Sudeste":["ES","MG","RJ","SP"], "Sul":["PR","RS","SC"], "Exterior":["ZZ"]};
@@ -220,14 +223,16 @@ const F = {cargo:"presidente", regiao:null, uf:null, mun:null, zona:null, q:{}, 
 // boletins de urna (detalhe por local, mas atrasados: na noite de 2026 o TSE publicava o
 // boletim 20 a 40 min depois de listar a seção).
 const porMunSP = () => detalhado() && F.cargo !== "presidente" && F.fonte === "mun";
-const detalhado = () => F.uf === "SP";
+// o detalhe por local de SP é do 1º turno; no 2º, SP é o nacional filtrado (até o painel por local do 2º turno existir)
+const detalhado = () => F.uf === "SP" && !(D && D.meta && D.meta.turno === 2) && !(modo && modo.endsWith("t2"));
 let escondidos = new Set();
 
 // Cor por identidade, não por posição: Lula e o PT sempre vermelhos, o principal
 // adversário (o primeiro não petista da lista) sempre azul, os demais em ordem.
 // Por posição, Bolsonaro saía vermelho no estado de SP, onde ficou em primeiro.
 const PETISTAS = new Set(["lula", "lula22", "haddad18"]);
-function ehPT(c){ return PETISTAS.has(c) || /\(PT\)$/.test(nomeCat(c)); }
+// lula_1t, lula22_2t, haddad18_2t: as colunas da comparação também são do PT
+function ehPT(c){ return PETISTAS.has(c) || /^(lula|haddad)/.test(c) || /\(PT\)$/.test(nomeCat(c)); }
 function corDe(c, lista){
   if (ehPT(c)) return "var(--c1)";
   const outros = lista.filter(x => !ehPT(x) && x !== "outros" && x !== "outros_ant" && x !== "bn");
@@ -240,7 +245,11 @@ function corDe(c, lista){
 function temTurno2(){ return D && D.meta.cats_anterior_2t && D.meta.cats_anterior_2t.length > 0; }
 function catsAnt(){ return F.turno === 2 && temTurno2() ? D.meta.cats_anterior_2t : D.meta.cats_anterior; }
 function paresAnt(){ return F.turno === 2 && temTurno2() ? D.meta.pares_2t : D.meta.pares; }
-function rotAnt(m){ return `${m.anterior}, ${F.turno === 2 && temTurno2() ? "2º turno" : "1º turno"}`; }
+function rotAnt(m){
+  // no 2º turno, as duas comparações são de eleições diferentes: 1º turno de 2026 e 2º turno de 2022
+  if (m.rotulos_anterior) return m.rotulos_anterior[F.turno === 2 && temTurno2() ? "2" : "1"];
+  return `${m.anterior}, ${F.turno === 2 && temTurno2() ? "2º turno" : "1º turno"}`;
+}
 
 function nomeCat(c){
   if (c.endsWith("_2t")) return nomeCat(c.slice(0, -3));
@@ -390,7 +399,15 @@ function desenharChances(res){
   const onde = cargo === "presidente" ? "no Brasil inteiro" : "no estado inteiro";
   const p = x => { const v = 100*x/n; return v >= 99.5 ? "> 99%" : v <= 0.5 ? "< 1%" : fmt(v,0) + "%"; };
   let cards, c1, c2, titDif, marcas;
-  if (cargo === "senador") {
+  if (D.meta.turno === 2) {
+    // 2º turno: dois nomes, vence quem tiver mais da metade dos válidos
+    [c1, c2] = ord;
+    const vence = Object.fromEntries(ord.map(c => [c, 0]));
+    for (const s of S) vence[s[idx(c1)] >= s[idx(c2)] ? c1 : c2]++;
+    cards = [c1, c2].map(c => `<div><b style="color:${corDe(c, ord)}">${p(vence[c])}</b><span>de ${nomeCat(c)} ${eleicao ? "vencer a eleição" : "terminar à frente aqui"}</span></div>`).join("");
+    titDif = `${nomeCat(c1)} − ${nomeCat(c2)} (pontos)`;
+    marcas = [50];
+  } else if (cargo === "senador") {
     // 2026: duas vagas por estado, sem 2º turno — vencem os dois mais votados
     const eleito = Object.fromEntries(ord.map(c => [c, 0]));
     for (const s of S) {
@@ -432,9 +449,13 @@ function desenharChances(res){
     document.getElementById("ch-dif-t").textContent = titDif;
     curva(document.getElementById("ch-dif"), ds, v => (v > 0 ? "+" : "") + v);
   } else { document.getElementById("ch-dif").innerHTML = ""; document.getElementById("ch-dif-t").textContent = ""; }
-  document.getElementById("ch-nota").innerHTML = `Chances <b>segundo o modelo</b>. No ensaio de 2022 o intervalo de 90% do Brasil cobriu o
+  document.getElementById("ch-nota").innerHTML = (D.meta.turno === 2
+    ? `Chances <b>segundo o modelo</b>. No ensaio com o 2º turno de 2022 (cada seção comparada com ela mesma no 1º turno), a projeção
+      errou em média 0,07 ponto, e o intervalo de 90% com o fator de ${fmt(D.meta.fator_ic, 1)} cobriu o resultado nos 7 momentos testados,
+      de 1% a 90% das seções. É uma eleição só: se as migrações de 2026 forem menos homogêneas que as de 2022, o intervalo fica curto.`
+    : `Chances <b>segundo o modelo</b>. No ensaio de 2022 o intervalo de 90% do Brasil cobriu o
     resultado real em 89% das conferências, e a projeção ficou ~0,9 ponto abaixo de Lula até a metade da noite: "85%" quer dizer que um
-    modelo tão bom quanto este foi em 2022 erraria mais ou menos 1 vez em 7. A curva tracejada é a normal equivalente; quando as duas
+    modelo tão bom quanto este foi em 2022 erraria mais ou menos 1 vez em 7.`) + ` A curva tracejada é a normal equivalente; quando as duas
     divergem, a distribuição do modelo é assimétrica e a normal subestima um dos lados.` +
     (D.meta.escopo === "sp_mun" ? ` <b>Governador e senador por município não têm ensaio próprio:</b> o fator de calibração é o do
     Presidente no Brasil por município, e a reamostragem é por 40 grupos de municípios vizinhos em vez de UFs. A chance aqui é menos
@@ -523,9 +544,9 @@ async function desenharMapa(res){
 // ---------- quadros ---------------------------------------------------------------
 function desenharTurno(){
   const el = document.getElementById("turno"); if (!D) { el.innerHTML = ""; return; }
-  const ok = temTurno2();
-  el.innerHTML = `<span class="sub" style="align-self:center">comparar com ${D.meta.anterior}:</span>` +
-    [[1,"1º turno"],[2,"2º turno"]].map(([k,t]) => `<button class="${F.turno===k && (k===1 || ok)?"on":""}" data-t="${k}" ${k===2 && !ok ? "disabled title='O 2º turno de 2022 de governador está no arquivo estadual de 900 MB, que não foi baixado; senador não tem 2º turno.'" : ""}>${t}</button>`).join("");
+  const ok = temTurno2(), R = D.meta.rotulos_anterior;
+  el.innerHTML = `<span class="sub" style="align-self:center">comparar com${R ? "" : " " + D.meta.anterior}:</span>` +
+    [[1, R ? R["1"] : "1º turno"],[2, R ? R["2"] : "2º turno"]].map(([k,t]) => `<button class="${F.turno===k && (k===1 || ok)?"on":""}" data-t="${k}" ${k===2 && !ok ? "disabled title='O 2º turno de 2022 de governador está no arquivo estadual de 900 MB, que não foi baixado; senador não tem 2º turno.'" : ""}>${t}</button>`).join("");
   el.querySelectorAll("button").forEach(b => b.onclick = () => { F.turno = +b.dataset.t; desenhar(); });
 }
 
@@ -587,7 +608,8 @@ function desenharFoco(){
   if (F.zona != null) partes.push(["zona", "zona " + F.zona]);
   for (const [v, [lo, hi]] of Object.entries(F.q)) partes.push([v, tituloVar(VARS.find(x=>x[0]===v)[1]) + ": " + textoFaixa(lo, hi)]);
   const el = document.getElementById("foco");
-  if (!partes.length) { el.innerHTML = `<span class="sub">Sem recorte: Brasil inteiro, por município. Escolha São Paulo em UF para o detalhe por local de votação, os quintis e governador e senador.</span>`; return; }
+  if (!partes.length) { el.innerHTML = `<span class="sub">Sem recorte: Brasil inteiro, por município.${m && m.turno === 2 ? ""
+    : " Escolha São Paulo em UF para o detalhe por local de votação, os quintis e governador e senador."}</span>`; return; }
   el.innerHTML = `<span class="sub">Recorte:</span>` + partes.map(([k,t]) =>
     `<span class="chip">${t}<button data-k="${k}" title="tirar este filtro">×</button></span>`).join("") +
     ` <button class="limpar" id="limpar">limpar tudo</button>`;
@@ -626,7 +648,7 @@ function desenharPrincipal(){
   document.getElementById("barra-ap").style.width = (100*s.apurada/s.secoes) + "%";
   document.getElementById("progresso").textContent = temAp
     ? `${s.apurada.toLocaleString("pt-BR")} de ${s.secoes.toLocaleString("pt-BR")} seções apuradas no recorte (${fmt(100*s.apurada/s.secoes)}%) · `
-      + `comparecimento nas apuradas ${fmt(100*s.comp_ap/s.aptos_ap)}% · ${m.modo==="ensaio" ? "momento do ensaio: " : "atualizado às "}${m.hora}`
+      + `comparecimento nas apuradas ${fmt(100*s.comp_ap/s.aptos_ap)}% · ${String(m.modo).startsWith("ensaio") ? "momento do ensaio: " : "atualizado às "}${m.hora}`
     : `Aguardando as primeiras urnas. ${s.secoes.toLocaleString("pt-BR")} seções e ${s.aptos.toLocaleString("pt-BR")} eleitores no recorte.`;
   const pj = temAp ? pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c]])), cats) : {};
   const ic = chaveIC();
@@ -648,7 +670,7 @@ function desenharPrincipal(){
       <td>${temAp && !cedo ? `<span class="big">${fmt(pj[c])}%</span>${faixa && faixa[c] ? `<span class="ic">${fmt(faixa[c][0])} – ${fmt(faixa[c][1])}</span>` : ""}${nAbs(s["pj_"+c], "≈ ")}` : "—"}</td>
       <td>${temAp ? fmt(ap[c])+"%" + nAbs(s["ap_"+c]) : "—"}</td>
       <td>${par[c] ? `${fmt(pa[par[c]])}% <span class="ic">${nomeCat(par[c])}</span>${nAbs(sa[par[c]])}` : "—"}</td></tr>`).join("") +
-    `<tr><td class="sub">demais de ${rotAnt(m)}</td><td></td><td></td><td class="ic">${catsA.filter(c=>c!=="bn" && !Object.values(par).includes(c))
+    `<tr><td class="sub">demais de ${rotAnt(m)}</td><td></td><td></td><td class="ic">${catsA.filter(c=>!c.startsWith("bn") && !Object.values(par).includes(c))
         .map(c => nomeCat(c)+" "+fmt(pa[c])+"%").join(" · ")}</td></tr>`;
   document.getElementById("nota-ic").innerHTML = !temAp ? "" : cedo
     ? "Projeção só a partir de 1% das seções do recorte: antes disso não há de onde medir o deslocamento."
@@ -962,7 +984,7 @@ function desenharLugares(res){
 function desenhar(){
   desenharModo();
   desenharTurno();
-  document.getElementById("aviso-ensaio").hidden = modo !== "ensaio";
+  document.getElementById("aviso-ensaio").hidden = !ehEnsaio();
   desenharFiltros();
   desenharFoco();
   const res = desenharPrincipal() || {};
@@ -974,12 +996,12 @@ function desenhar(){
 }
 
 // atualização automática: recarrega só os dados a cada 2 min no modo ao vivo; os filtros ficam
-setInterval(() => { if (modo === "2026" && !document.hidden) carregar(modo); }, 120000);
+setInterval(() => { if (modo && modo.startsWith("2026") && !document.hidden) carregar(modo); }, 120000);
 
 (async () => {
   // abre no 2026; se ainda não há arquivo de 2026, abre no ensaio
-  const r = await fetch("dados/2026_brasil_presidente.json", {method:"HEAD", cache:"no-store"});
-  carregar(r.ok ? "2026" : "ensaio");
+  const r = await fetch("dados/2026t2_brasil_presidente.json", {method:"HEAD", cache:"no-store"});
+  carregar(r.ok ? "2026t2" : "ensaio2t");
 })();
 </script>
 </body>
