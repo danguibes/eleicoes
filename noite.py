@@ -65,15 +65,15 @@ def noite_2t(a):
             time.sleep(60)
     LOGS.mkdir(parents=True, exist_ok=True)
     py = sys.executable
-    # somam 70 req/s, abaixo do teto de 100 do TSE
+    # somam 75 req/s, abaixo do teto de 100 do TSE. O nacional manda (no ensaio, 4 min por varredura a 25 req/s)
     cmds = {
-        "nacional2t": [py, "nacional.py", "--pleito", p, "--taxa", "25", "--intervalo", "30"],
+        "nacional2t": [py, "nacional.py", "--pleito", p, "--taxa", "45", "--intervalo", "30"],
         "indices2t": [py, "indices.py", "--pleito", p, "--taxa", "5", "--intervalo", "30"],
         "publicador2t": [py, "domingo.py", "--turno", "2", "--pleito", p, "--boot", "40"]
                         + (["--base", "2022", "--saida", "falso2t", "--sem-publicar"] if a.falso else []),
     }
     if not a.falso:
-        cmds["sp2t"] = [py, "coletor.py", "--pleito", p, "--uf", "sp", "--taxa", "40", "--trabalhadores", "8", "--intervalo", "30"]
+        cmds["sp2t"] = [py, "coletor.py", "--pleito", p, "--uf", "sp", "--taxa", "25", "--trabalhadores", "8", "--intervalo", "30"]
     supervisionar(cmds)
 
 
