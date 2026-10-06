@@ -94,6 +94,8 @@
   .tri{display:grid;grid-template-rows:repeat(3,7px);gap:2px}
   .tri div{position:relative;background:var(--grid);border-radius:2px}
   .tri i{position:absolute;left:0;top:0;bottom:0;border-radius:2px}
+  .tri.duo{grid-template-rows:repeat(2,8px)}
+  .tri.duo div::after{content:"";position:absolute;left:50%;top:-1px;bottom:-1px;border-left:1px solid var(--mut)}
   .leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:6px 0 2px}
   .leg span{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
   .leg span.off{opacity:.35}
@@ -162,7 +164,10 @@
 </section>
 
 <section>
-  <h2 id="t-aberturas">Por perfil do lugar</h2>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <h2 id="t-aberturas">Por perfil do lugar</h2>
+    <div class="modo" id="vista-ab"></div>
+  </div>
   <p class="sub" id="sub-aberturas">Urnas em quintis — cinco grupos com o mesmo número de eleitores no estado —, pelo perfil do eleitorado da
   seção (TSE) ou do entorno do local de votação (Censo 2022). Cada quintil tem 20% dos eleitores de 2026 — não dos locais,
   nem dos moradores. <b>É o voto das urnas desses lugares, não o voto das pessoas
@@ -652,6 +657,38 @@ function desenharPrincipal(){
   return {pj, ap, pa, ord, cedo};
 }
 
+// Vista dos quadros de perfil, região e UF: os valores (eleição anterior, apurado, projetado)
+// ou a variação em pontos percentuais (apurado − anterior, projetado − anterior), que põe a
+// ênfase na mudança e não no nível.
+let vistaAb = "valores";
+const ESCALA_DELTA = 15;   // pontos que enchem meia barra
+function barrasTri(c, cor, pa, ap, pj, par, m, escala){
+  const a = pa[par[c]];
+  if (vistaAb === "delta") {
+    const d1 = ap[c] - a, d2 = pj[c] - a;
+    const meia = x => { if (!isFinite(x)) return "";
+      const w = Math.min(50, Math.abs(x) / ESCALA_DELTA * 50);
+      return `<i style="left:${x >= 0 ? 50 : 50 - w}%;width:${w}%;background:${cor};opacity:OP"></i>`; };
+    return `<div class="tri duo" title="${nomeCat(c)}: apurado − ${m.anterior} ${fmtD(d1)} · projetado − ${m.anterior} ${fmtD(d2)} pontos">
+      <div>${meia(d1).replace("OP", ".55")}</div><div>${meia(d2).replace("OP", "1")}</div></div>`;
+  }
+  const w = x => isNaN(x) ? 0 : Math.min(100, x / escala * 100);
+  return `<div class="tri" title="${nomeCat(c)}: ${m.anterior} ${fmt(a)}% · apurado ${fmt(ap[c])}% · projetado ${fmt(pj[c])}%">
+    <div><i style="width:${w(a)}%;background:${cor};opacity:.35"></i></div>
+    <div><i style="width:${w(ap[c])}%;background:${cor};opacity:.65"></i></div>
+    <div><i style="width:${w(pj[c])}%;background:${cor}"></i></div></div>`;
+}
+function fmtD(x){ return isFinite(x) ? (x > 0 ? "+" : x < 0 ? "−" : "") + fmt(Math.abs(x)) : "—"; }
+function valorTri(c, cor, pa, ap, pj, par, temAp){
+  const x = vistaAb === "delta" ? fmtD(pj[c] - pa[par[c]]) : fmt(temAp ? pj[c] : pa[par[c]], 0) + "%";
+  return `<span style="color:${cor}">${x}</span>`;
+}
+function desenharVistaAb(podeDelta){
+  if (!podeDelta) vistaAb = "valores";
+  document.getElementById("vista-ab").innerHTML = [["valores","valores"],["delta","variação (pontos)"]].map(([k, t]) =>
+    `<button class="${k === vistaAb ? "on" : ""}" data-k="${k}" ${k === "delta" && !podeDelta ? "disabled title=\"sem votos apurados do candidato ainda\"" : ""}>${t}</button>`).join("");
+  document.querySelectorAll("#vista-ab button").forEach(b => b.onclick = () => { vistaAb = b.dataset.k; desenhar(); });
+}
 function desenharAberturas(res){
   const box = document.getElementById("aberturas");
   if (!D) { box.innerHTML = ""; return; }
@@ -664,9 +701,13 @@ function desenharAberturas(res){
   const par = semAtual ? Object.fromEntries(lista.map(c=>[c,c])) : paresAnt();
   const alvo = lista.slice(0, 2).filter(c => !escondidos.has(c));
   res = {...res, ord: lista};
+  desenharVistaAb(temAp && !semAtual);
   document.getElementById("leg-ab").innerHTML = lista.slice(0,2).map((c,i) =>
     `<span data-c="${c}" class="${escondidos.has(c)?"off":""}"><i style="background:${corDe(c, lista)}"></i>${nomeCat(c)}</span>`).join("") +
-    `<span class="sub">barras de cima para baixo: ${rotAnt(m)} · ${m.atual} apurado · ${m.atual} projetado; número à direita: ${m.apuradas ? "projetado" : m.anterior} — clique no nome para esconder</span>`;
+    (vistaAb === "delta"
+      ? `<span class="sub">variação em pontos percentuais sobre ${rotAnt(m)} — barra de cima: ${m.atual} apurado; de baixo: ${m.atual} projetado;
+         à direita do traço, ganho; à esquerda, perda (meia barra = ${ESCALA_DELTA} pontos); número: projetado − ${m.anterior} — clique no nome para esconder</span>`
+      : `<span class="sub">barras de cima para baixo: ${rotAnt(m)} · ${m.atual} apurado · ${m.atual} projetado; número à direita: ${m.apuradas ? "projetado" : m.anterior} — clique no nome para esconder</span>`);
   document.querySelectorAll("#leg-ab span[data-c]").forEach(sp => sp.onclick = () => {
     const c = sp.dataset.c; escondidos.has(c) ? escondidos.delete(c) : escondidos.add(c); desenharAberturas(res); });
   box.innerHTML = VARS.map(([v, t, u]) => {
@@ -683,15 +724,8 @@ function desenharAberturas(res){
       const pj = s ? pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c]])), cats) : {};
       const ap = s ? pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats) : {};
       const pa = pct(sa, catsA);
-      const barras = alvo.map((c) => { const cor = corDe(c, res.ord || []);
-        const w = x => isNaN(x) ? 0 : Math.min(100, x/70*100);
-        return `<div class="tri" title="${nomeCat(c)}: ${m.anterior} ${fmt(pa[par[c]])}% · apurado ${fmt(ap[c])}% · projetado ${fmt(pj[c])}%">
-          <div><i style="width:${w(pa[par[c]])}%;background:${cor};opacity:.35"></i></div>
-          <div><i style="width:${w(ap[c])}%;background:${cor};opacity:.65"></i></div>
-          <div><i style="width:${w(pj[c])}%;background:${cor}"></i></div></div>`; }).join("");
-      const vals = alvo.map(c => { const i = (res.ord||[]).indexOf(c);
-        const x = temAp ? pj[c] : pa[par[c]];
-        return `<span style="color:${corDe(c, res.ord || [])}">${fmt(x,0)}%</span>`; }).join("<br>");
+      const barras = alvo.map(c => barrasTri(c, corDe(c, res.ord || []), pa, ap, pj, par, m, 70)).join("");
+      const vals = alvo.map(c => valorTri(c, corDe(c, res.ord || []), pa, ap, pj, par, temAp)).join("<br>");
       const dentro = F.q[v] && q >= F.q[v][0] && q <= F.q[v][1];
       return `<div class="q ${dentro?"sel":""}" data-v="${v}" data-q="${q}"><span class="rot">${rot(q)}</span><div style="display:grid;gap:4px">${barras}</div><span class="val">${vals}</span></div>`;
     }).join("");
@@ -716,12 +750,8 @@ function desenharRegioes(res, box){
     for (let i = 0; i < t.municipio.length; i++) if (t[chave][i] === k && passa(t, i, chave)) for (const c of cols) s[c] += t[c][i] || 0; return s; };
   const linha = (rot, k, chave, sel) => { const s = soma(k, chave);
     const pj = pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c] || 0])), cats), ap = pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats), pa = pct(s, catsA);
-    const w = x => isNaN(x) ? 0 : Math.min(100, x/75*100);
-    const barras = alvo.map(c => { const cor = corDe(c, lista); return `<div class="tri">
-      <div><i style="width:${w(pa[par[c]])}%;background:${cor};opacity:.35"></i></div>
-      <div><i style="width:${w(ap[c])}%;background:${cor};opacity:.65"></i></div>
-      <div><i style="width:${w(pj[c])}%;background:${cor}"></i></div></div>`; }).join("");
-    const vals = alvo.map(c => `<span style="color:${corDe(c, lista)}">${fmt(temAp ? pj[c] : pa[par[c]],0)}%</span>`).join("<br>");
+    const barras = alvo.map(c => barrasTri(c, corDe(c, lista), pa, ap, pj, par, m, 75)).join("");
+    const vals = alvo.map(c => valorTri(c, corDe(c, lista), pa, ap, pj, par, temAp)).join("<br>");
     return `<div class="q ${sel?"sel":""}" data-chave="${chave}" data-k="${k}"><span class="rot">${rot}</span><div style="display:grid;gap:4px">${barras}</div><span class="val">${vals}</span></div>`; };
   const regs = Object.keys(REGIOES).filter(r => !F.regiao || r === F.regiao);
   const ufs = (F.regiao ? REGIOES[F.regiao] : Object.values(REGIOES).flat())
