@@ -192,14 +192,47 @@
   cor, renda, alfabetização e religião. O sexo quase não casa porque quase não varia entre locais.</p>
 </section>
 
+<section id="segundo-turno">
+  <h2>O 2º turno: cada seção contra ela mesma no 1º turno <span class="tag">MEDIDO</span></h2>
+  <p class="sub">No 2º turno a melhor base para uma urna não é a eleição de quatro anos antes: é ela mesma, três semanas antes. As seções e
+  os eleitores são os mesmos nos dois turnos (em 2022, 472 mil seções e 156,5 milhões de aptos, iguais). O que o 1º turno não diz é para
+  onde vai cada eleitor — de Tebet, de Ciro, de quem anulou, de quem não foi votar. A projeção aprende isso na própria noite: a
+  <b>matriz de transição</b> do 1º para o 2º turno, estimada nas urnas que já chegaram, aplicada às que faltam.</p>
+  <h3 style="font-size:14px;margin:18px 0 6px">Saber quais urnas chegaram tira o viés</h3>
+  <p class="sub">O arquivo por município do TSE dá a soma das seções já apuradas, não quais são. O <b>índice de seções</b> de cada UF diz
+  quais chegaram e quando — e as primeiras do índice são as que estão na soma (conferido voto a voto nos boletins de SP do 1º turno de 2026:
+  83–90% dos municípios exatos; o resto são seções sem boletim publicado). Ensaio na noite do 2º turno de 2022, na ordem real de chegada,
+  erro médio da parte de Lula nos válidos:</p>
+  <div class="scroll"><table>
+    <tr><th>variante</th><th>erro médio</th></tr>
+    <tr><td>contagem</td><td>2,71</td></tr>
+    <tr><td>modelo do 1º turno, com 2018 como base</td><td>0,69</td></tr>
+    <tr><td>o mesmo modelo, com o 1º turno de 2022 como base</td><td>0,51</td></tr>
+    <tr><td>matriz de transição entre municípios</td><td>0,27</td></tr>
+    <tr><td><b>matriz de transição sabendo quais seções chegaram</b></td><td><b>0,04–0,07</b></td></tr>
+  </table></div>
+  <p class="note">As três primeiras tinham o mesmo viés de ~0,5 ponto contra Lula no meio da noite — o mesmo que apareceu ao vivo no 1º
+  turno de 2026, e no ensaio do 1º turno de 2022. Ele não vinha da base: vinha de as primeiras urnas de cada município não se parecerem com
+  as últimas. Comparando cada urna com ela mesma, some. O intervalo de 90% (reamostragem de UFs inteiras × 1,5) cobriu o resultado nos 7
+  momentos testados, de 1% a 90% das seções; como chega a ±0,05 ponto no meio da noite, tem piso de ±0,2. <b>É uma eleição só</b>: se as
+  migrações de 2026 forem menos homogêneas que as de 2022, o intervalo fica curto.</p>
+  <p class="note"><b>SP por local de votação</b>, boletim a boletim (aí se sabe exatamente quais seções chegaram): matriz do estado e uma por
+  zona, mais o desvio do próprio local. Ensaio com o 2º turno de 2022 em SP: erro médio de 0,03 ponto — Lula 44,77% com 1% das seções, para
+  um real de 44,76%.</p>
+  <p class="note"><b>Ensaio de ponta a ponta</b> (06/10/2026): um servidor nesta máquina serviu a noite do 2º turno de 2022 nos endereços do 2º
+  turno de 2026, e os coletores e o publicador rodaram contra ele: com 9% das seções, Lula entre 50,65 e 51,20; com 95%, projeção central de
+  50,898 — real, 50,90. As migrações de 2022, estimadas seção a seção, também são o ponto de partida do <a href="simulador.html">simulador</a>.</p>
+</section>
+
 <section>
   <h2>O que ainda não foi feito</h2>
   <ul class="emobra">
     <li>Governador e senador sem ensaio próprio (2018 desses cargos não foi baixado): o intervalo e as chances usam o fator do Presidente.</li>
     <li>O 2º turno de 2022 para governador de SP (arquivo estadual de 900 MB, não baixado).</li>
     <li>Perfil do eleitorado (TSE) fora de SP: fora do estado, os quintis de perfil são do Censo, por município.</li>
-    <li>A correção do viés das urnas tardias (~0,9 ponto em 2022): exigiria saber a hora típica de chegada de cada lugar, que para 2026 existe
-      (a de 2022) mas não dá para validar — 2018 não tem hora de chegada nos arquivos.</li>
+    <li>A correção do viés das urnas tardias no <b>1º turno</b> (~0,9 ponto em 2022, e de novo ao vivo em 2026). No 2º turno ele foi resolvido
+      comparando cada urna com ela mesma no 1º turno (acima).</li>
+    <li>A verificação da assinatura digital dos boletins (ver <a href="checagens.html">checagens</a>).</li>
   </ul>
 </section>
 

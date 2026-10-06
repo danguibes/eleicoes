@@ -29,7 +29,35 @@ aparece marcado como dado.
 - **Modo ensaio**: a noite de 2022 reproduzida urna a urna, parada em 25% das
   urnas, com 2018 como eleição anterior.
 
-## A noite da eleição
+## O 2º turno (25/10/2026)
+
+Só Presidente, Lula × Flávio. A página principal virou a do 2º turno; o 1º turno ficou congelado em
+[`1t2026.html`](https://danguibes.github.io/eleicoes/1t2026.html), e as migrações de 2022 são o ponto de
+partida do [simulador](https://danguibes.github.io/eleicoes/simulador.html).
+
+```bash
+python noite.py --turno 2              # a noite: código do pleito lido do ele-c.json do TSE
+python tse_falso.py --turno 2 --acel 15 # ensaio: o 2º turno de 2022 servido nesta máquina…
+python noite.py --turno 2 --falso      # …e a noite contra ele (pleito local falso_2t, não publica)
+```
+
+| processo | o que faz | ritmo |
+|---|---|---|
+| `nacional.py` | arquivo `u` de cada município, eleição 6258 | 45 req/s |
+| `indices.py` | índice de seções das 28 UFs: **quais** urnas chegaram | 5 req/s |
+| `coletor.py --uf sp` | boletins de SP, urna a urna | 25 req/s |
+| `domingo.py --turno 2` | `painel_2t.py` (Brasil) e `painel_2t_sp.py` (SP por local) | a cada 30 s |
+
+**Cada seção contra ela mesma no 1º turno** (`segundo.py`): a matriz de transição 1º → 2º turno
+(`transicao.py`) é aprendida nas urnas que já chegaram e aplicada ao 1º turno das que faltam. Ensaio na
+noite do 2º turno de 2022, erro médio da parte de Lula: contagem 2,71; o modelo do 1º turno 0,51–0,69;
+**0,04–0,07** sabendo quais seções chegaram. Em SP por local, 0,03. Intervalo de 90% com fator 1,5 e piso
+de ±0,2 ponto; uma eleição só de calibração.
+
+Base: os boletins do 1º turno de 2026 do Brasil inteiro (`coletar_brasil.py` → `base_secoes.py`): 498.925 de
+499.248 seções, 5.708 de 5.717 municípios batendo voto a voto com o TSE.
+
+## A noite do 1º turno
 
 ```bash
 python noite.py                    # 2026: os dois coletores e o publicador
