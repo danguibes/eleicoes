@@ -224,7 +224,10 @@ const F = {cargo:"presidente", regiao:null, uf:null, mun:null, zona:null, q:{}, 
 // boletim 20 a 40 min depois de listar a seção).
 const porMunSP = () => detalhado() && F.cargo !== "presidente" && F.fonte === "mun";
 // o detalhe por local de SP é do 1º turno; no 2º, SP é o nacional filtrado (até o painel por local do 2º turno existir)
-const detalhado = () => F.uf === "SP" && !(D && D.meta && D.meta.turno === 2) && !(modo && modo.endsWith("t2"));
+// SP abre o painel por local de votação; no 2º turno, se ele ainda não existir, fica o nacional filtrado
+let semDetalheSP = false;
+const detalhado = () => F.uf === "SP" && !semDetalheSP;
+const ehT2 = () => modo && modo.endsWith("t2");
 let escondidos = new Set();
 
 // Cor por identidade, não por posição: Lula e o PT sempre vermelhos, o principal
@@ -260,12 +263,17 @@ function nomeCat(c){
 }
 
 async function carregar(m){
+  semDetalheSP = false;   // a cada carga tenta de novo: o painel por local de SP pode ter aparecido
   modo = m;
-  if (!detalhado()) F.cargo = "presidente";
+  if (!detalhado() || ehT2()) F.cargo = "presidente";   // 2º turno: só Presidente
   let arq = detalhado() ? `dados/${m}_${F.cargo}.json` : `dados/${m}_brasil_presidente.json`;
   if (porMunSP()) arq = `dados/${m}_sp_${F.cargo}.json`;
   let r = await fetch(arq, {cache:"no-store"});
   if (!r.ok && porMunSP()) r = await fetch(`dados/${m}_${F.cargo}.json`, {cache:"no-store"});
+  if (!r.ok && detalhado() && ehT2()) {   // sem painel por local ainda: o nacional, filtrado em SP
+    semDetalheSP = true;
+    r = await fetch(`dados/${m}_brasil_presidente.json`, {cache:"no-store"});
+  }
   if (!r.ok) { D = null; desenhar(); return; }
   D = await r.json();
   if (D.mun) {
@@ -564,7 +572,7 @@ function desenharFiltros(){
       `<option value="${v}" ${String(v)===String(val)?"selected":""}>${t}</option>`).join("")}</select></label>`;
   const ufsReg = F.regiao ? REGIOES[F.regiao] : Object.values(REGIOES).flat();
   const munsVis = detalhado() ? muns : (F.uf ? muns.filter(([c]) => D.mun.uf[D.mun.municipio.indexOf(+c)] === F.uf) : []);
-  let h = sel("f-cargo","Cargo",[["presidente","Presidente"],["governador","Governador (SP)"],["senador","Senador (SP)"]], F.cargo, !detalhado());
+  let h = sel("f-cargo","Cargo",[["presidente","Presidente"],["governador","Governador (SP)"],["senador","Senador (SP)"]], F.cargo, !detalhado() || ehT2());
   h += sel("f-regiao","Região",[["","Brasil"], ...Object.keys(REGIOES).map(r => [r, r])], F.regiao ?? "");
   h += sel("f-uf","UF",[["","todas"], ...ufsReg.map(u => [u, UF_NOME[u]])], F.uf ?? "");
   h += sel("f-mun","Município",[["", F.uf || detalhado() ? "todos" : "escolha a UF"], ...munsVis.map(([c,n]) => [c, n])], F.mun ?? "", !munsVis.length);

@@ -45,9 +45,11 @@ def publicar_2t(a):
     """2º turno: refaz o painel quando o arquivo dos municípios (nacional.py) ou o índice de
     seções (indices.py) mudam; publica no máximo a cada 2 min."""
     import painel_2t
+    import painel_2t_sp
     raiz = Path("data/raw") / a.pleito
     vigiados = [raiz / "nacional" / "municipios.parquet", raiz / "indices" / "chegadas.parquet"]
-    visto = {p: 0 for p in vigiados}
+    bu_sp = raiz / "sp" / "secoes.jsonl"      # boletins de SP: o painel por local de votação
+    visto = {p: 0 for p in vigiados + [bu_sp]}
     ultimo_push, pendente = 0.0, None
     print("publicador do 2º turno pronto", flush=True)
     while True:
@@ -63,6 +65,16 @@ def publicar_2t(a):
                 print(f"{datetime.now():%H:%M}  {pendente}; rodada em {time.time() - t:.0f} s", flush=True)
             except Exception as e:
                 print(f"   painel do 2º turno: {e!r}", flush=True)
+        # SP por local: só na noite de verdade (o tse_falso não tem boletins do 2º turno); ~30 s por rodada,
+        # e os boletins chegam devagar — refaz a cada 3 min no máximo
+        if a.saida is None and bu_sp.exists() and bu_sp.stat().st_mtime > visto[bu_sp] and time.time() - getattr(publicar_2t, "sp_t", 0) > 180:
+            visto[bu_sp] = bu_sp.stat().st_mtime
+            publicar_2t.sp_t = time.time()
+            try:
+                d = painel_2t_sp.montar("2026t2", n_boot=30, pleito=a.pleito)
+                pendente = (pendente + " · " if pendente else "") + f"SP {d['meta']['apuradas']:,}/{d['meta']['secoes']:,}"
+            except Exception as e:
+                print(f"   painel de SP do 2º turno: {e!r}", flush=True)
         if pendente and not a.sem_publicar and time.time() - ultimo_push >= 120:
             publicar(f"2º turno {datetime.now():%H:%M}: {pendente}")
             ultimo_push, pendente = time.time(), None
