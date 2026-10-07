@@ -99,6 +99,26 @@ de 2022: no pico o TSE recebeu 5.022 urnas num minuto. Baixando dois arquivos po
 urna a 70 req/s, a coleta nacional urna a urna atrasaria 25 min em média e 1 h no
 pior momento. Os totais por município se varrem inteiros em ~6 min e ficam em dia.
 
+## Perfis do município (para recortar, não para prever)
+
+Além dos quintis do Censo, o Brasil por município tem sete perfis de outras fontes públicas
+(`perfil_extra.py`), que **não entram no modelo**: servem para olhar o voto já dado.
+
+| perfil | o que é | fonte |
+|---|---|---|
+| Bolsa Família | % da população em famílias beneficiárias, set/2026 | MDS, VIS DATA (API pública) |
+| Adm. pública no PIB | % do valor adicionado na administração pública, 2021 | IBGE, PIB dos Municípios (tab. 5938) |
+| Agropecuária no PIB | % do valor adicionado na agropecuária, 2021 | idem |
+| PIB per capita | PIB 2023 ÷ população do Censo 2022 | idem |
+| Esgoto em rede geral | % dos domicílios, 2022 | Censo 2022 (tab. 6805) |
+| População rural | %, 2022 | Censo 2022 (tab. 10211) |
+| Tamanho | habitantes, 2022 | Censo 2022 (tab. 4714) |
+
+Funcionalismo público por município não existe no IBGE (o Cadastro Central de Empresas por natureza
+jurídica só desce até UF): o peso da administração pública no PIB faz esse papel. IDH municipal oficial só
+existe para 2010 (Atlas Brasil, sem download por script). Os filtros de região e UF aceitam qualquer
+combinação ("Brasil sem o Sudeste"); o intervalo do conjunto sai da soma das reamostragens de cada UF.
+
 ## Arquivos-base
 
 O `cdn.tse.jus.br` recusa script em qualquer IP (403 daqui e do GitHub Actions;

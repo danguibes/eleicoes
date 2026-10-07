@@ -41,7 +41,9 @@ REGIAO = {**{u: "Norte" for u in ["AC", "AM", "AP", "PA", "RO", "RR", "TO"]},
           **{u: "Sudeste" for u in ["ES", "MG", "RJ", "SP"]},
           **{u: "Sul" for u in ["PR", "RS", "SC"]}, "ZZ": "Exterior"}
 BASE22 = {13: "lula22", 22: "bolsonaro22", 15: "tebet22", 12: "ciro22"}
-VARS = ["renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda", "superior", "jovens", "idosos"]
+VARS = ["renda", "catolicos", "evangelicos", "sem_religiao", "preta_parda", "superior", "jovens", "idosos",
+        # do município, de outras fontes públicas (perfil_extra.py): para recortar, não entram no modelo
+        "bolsa_familia", "setor_publico", "agro", "pib_pc", "saneamento", "rural", "populacao"]
 
 
 def detalhe_mun(ano="2022"):
@@ -124,7 +126,7 @@ def montar(modo, frac=0.25, n_boot=200):
     for c in cats_2t:
         M[c] = M[c].fillna(0)
     # perfil do município pelo Censo 2022 e quintis nacionais pesados pelo eleitorado
-    perfil = pd.read_parquet(RAW / "ibge" / "municipios_BR.parquet").drop(columns=["CD_MUN", "populacao"])
+    perfil = pd.read_parquet(RAW / "ibge" / "municipios_BR.parquet").drop(columns=["CD_MUN"])
     M = M.merge(perfil, on="municipio", how="left")
     cortes = {}
     for v in VARS:
@@ -151,7 +153,7 @@ def montar(modo, frac=0.25, n_boot=200):
         M[c] = M[c].fillna(0)
     M["regiao"] = M.uf.map(REGIAO)
     temAp = M[[f"ap_{c}" for c in cats]].to_numpy().sum() > 0
-    ic, validos, amostras_q, amostras_pct = {}, [c for c in cats if c != "bn"], {}, {}
+    ic, validos, amostras_q, amostras_pct, amostras_uf = {}, [c for c in cats if c != "bn"], {}, {}, {}
     if temAp:
         linha, por, por_nomes = projetar_grupos(M, cats, n_boot)
         for j, c in enumerate(cats):
@@ -159,6 +161,9 @@ def montar(modo, frac=0.25, n_boot=200):
         # intervalo por Brasil, região e UF; amostras por quintil para qualquer faixa
         iv = [cats.index(c) for c in validos]
         amostras_q = {v: np.rint(por[f"q_{v}"][1:][:, :, iv]).astype(int).tolist() for v in VARS}
+        # votos de cada reamostragem por UF: a página soma qualquer conjunto de UFs ("Brasil sem o Sudeste")
+        amostras_uf = {por_nomes["uf"][g]: np.rint(por["uf"][1:, g, :][:, iv]).astype(int).tolist()
+                       for g in range(por["uf"].shape[1])}
         # reamostragens em % dos válidos, alargadas pelo fator em torno da projeção central —
         # é delas que saem as chances e as curvas da página
         amostras_pct = {}
@@ -192,6 +197,7 @@ def montar(modo, frac=0.25, n_boot=200):
         "ic": ic,
         "amostras_q": amostras_q,
         "amostras_pct": amostras_pct,
+        "amostras_uf": amostras_uf,
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = WEB / f"{modo}_brasil_presidente.json"

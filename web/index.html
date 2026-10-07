@@ -102,6 +102,15 @@
   .leg i{display:inline-block;width:12px;height:8px;border-radius:2px}
   tr.clic{cursor:pointer} tr.clic:hover td{background:var(--grid)}
   .vazio{color:var(--mut);font-size:13px;padding:10px 0}
+  details.multi{position:relative}
+  details.multi summary{list-style:none;cursor:pointer;font-size:13.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 26px 5px 8px;min-width:170px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none;letter-spacing:0}
+  details.multi summary::after{content:"▾";position:absolute;right:9px;top:6px;color:var(--mut)}
+  details.multi summary::-webkit-details-marker{display:none}
+  .multi-caixa{position:absolute;z-index:20;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px;box-shadow:0 6px 18px rgba(0,0,0,.15);width:min(92vw,420px);text-transform:none;letter-spacing:0;color:var(--ink);font-size:13px}
+  .multi-reg{padding:4px 0;border-top:1px solid var(--grid)}
+  .multi-reg > label{display:flex;gap:6px;align-items:center}
+  .multi-ufs{display:flex;flex-wrap:wrap;gap:4px 10px;padding:3px 0 2px 22px}
+  .multi-ufs label{display:flex;gap:3px;align-items:center;font-size:12.5px}
   .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
 </style>
 <body>
@@ -203,7 +212,20 @@ const NOMES = {lula:"Lula", flavio:"Flávio Bolsonaro", cury:"Augusto Cury", cai
 const CORES = ["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)","var(--c7)"];
 const VARS = [["renda","Renda do entorno","R$"],["catolicos","Católicos no entorno","%"],["evangelicos","Evangélicos no entorno","%"],
   ["sem_religiao","Sem religião no entorno","%"],
-  ["preta_parda","Pretos e pardos no entorno","%"],["superior","Superior completo na urna","%"],["jovens","Jovens (16–24) na urna","%"],["idosos","60+ na urna","%"]];
+  ["preta_parda","Pretos e pardos no entorno","%"],["superior","Superior completo na urna","%"],["jovens","Jovens (16–24) na urna","%"],["idosos","60+ na urna","%"],
+  // do município, de outras fontes públicas (perfil_extra.py) — só no Brasil por município
+  ["bolsa_familia","Bolsa Família no município","%"],["setor_publico","Adm. pública no PIB do município","%"],
+  ["agro","Agropecuária no PIB do município","%"],["pib_pc","PIB per capita do município","R$"],
+  ["saneamento","Esgoto em rede geral no município","%"],["rural","População rural no município","%"],
+  ["populacao","Tamanho do município","hab"]];
+// as variáveis que o arquivo carregado tem (o painel por local de SP não tem as do município)
+const varsAtivas = () => VARS.filter(([v]) => D && D.meta && D.meta.cortes && D.meta.cortes[v]);
+// valor de troca de faixa, na unidade da variável
+function fmtUnid(x, u, estreito){
+  if (u === "R$") return "R$ " + Math.round(x).toLocaleString("pt-BR");
+  if (u === "hab") return x >= 1e6 ? fmt(x / 1e6, 1) + " mi" : x >= 1e4 ? Math.round(x / 1e3) + " mil" : fmt(x / 1e3, 1) + " mil";
+  return fmt(x, estreito ? 1 : 0) + "%";
+}
 const fmt = (x, d=1) => (x==null||isNaN(x)) ? "—" : x.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 // 2º turno: o 1º turno de 2026 está congelado em 1t2026.html
 const MODOS = [["2026t2","2º turno — ao vivo"],["ensaio2t","Ensaio com 2022"]];
@@ -218,7 +240,24 @@ const UF_NOME = {AC:"Acre",AL:"Alagoas",AM:"Amazonas",AP:"Amapá",BA:"Bahia",CE:
 let D = null, modo = null;
 // o estado inteiro da tela. uf "SP" carrega o painel detalhado por local (3 cargos, quintis);
 // qualquer outro recorte usa o nacional por município (camada rápida, só Presidente)
-const F = {cargo:"presidente", regiao:null, uf:null, mun:null, zona:null, q:{}, turno:1, fonte:"mun"};
+const F = {cargo:"presidente", ufs:null, mun:null, zona:null, q:{}, turno:1, fonte:"mun"};
+// ufs: Set das UFs marcadas, ou null para o Brasil inteiro. "Brasil sem o Sudeste" é desmarcar o Sudeste.
+const TODAS_UFS = () => Object.values(REGIOES).flat();
+function normalizarUfs(){ if (F.ufs && F.ufs.size === TODAS_UFS().length) F.ufs = null; }   // vazio fica vazio: "nenhuma"
+const ufUnica = () => F.ufs && F.ufs.size === 1 ? [...F.ufs][0] : null;
+function regiaoExata(){ if (!F.ufs) return null;
+  return Object.keys(REGIOES).find(r => REGIOES[r].length === F.ufs.size && REGIOES[r].every(u => F.ufs.has(u))) || null; }
+function descreverUfs(){
+  if (!F.ufs) return "Brasil";
+  if (!F.ufs.size) return "nenhuma UF";
+  const regs = Object.keys(REGIOES), dentro = regs.filter(r => REGIOES[r].every(u => F.ufs.has(u)));
+  const tocadas = regs.filter(r => REGIOES[r].some(u => F.ufs.has(u)));
+  if (tocadas.length === dentro.length) {          // só regiões inteiras
+    const fora = regs.filter(r => !dentro.includes(r));
+    return fora.length && fora.length < dentro.length ? "Brasil sem " + fora.join(" e ") : dentro.join(" + ");
+  }
+  return F.ufs.size <= 3 ? [...F.ufs].map(u => UF_NOME[u]).join(", ") : `${F.ufs.size} UFs`;
+}
 // Governador e senador de SP têm duas fontes: o arquivo por município do TSE (em dia) e os
 // boletins de urna (detalhe por local, mas atrasados: na noite de 2026 o TSE publicava o
 // boletim 20 a 40 min depois de listar a seção).
@@ -226,7 +265,7 @@ const porMunSP = () => detalhado() && F.cargo !== "presidente" && F.fonte === "m
 // o detalhe por local de SP é do 1º turno; no 2º, SP é o nacional filtrado (até o painel por local do 2º turno existir)
 // SP abre o painel por local de votação; no 2º turno, se ele ainda não existir, fica o nacional filtrado
 let semDetalheSP = false;
-const detalhado = () => F.uf === "SP" && !semDetalheSP;
+const detalhado = () => ufUnica() === "SP" && !semDetalheSP;
 const ehT2 = () => modo && modo.endsWith("t2");
 let escondidos = new Set();
 
@@ -290,8 +329,7 @@ async function carregar(m){
 // ---------- filtro: a única fonte de todos os quadros --------------------------
 function passa(t, i, ignorar){
   if (t.uf) {
-    if (F.uf != null && ignorar !== "uf" && t.uf[i] !== F.uf) return false;
-    if (F.regiao != null && ignorar !== "regiao" && t.regiao[i] !== F.regiao) return false;
+    if (F.ufs && ignorar !== "uf" && !F.ufs.has(t.uf[i])) return false;
   }
   if (F.mun != null && ignorar !== "mun" && t.municipio[i] !== F.mun) return false;
   if (F.zona != null && ignorar !== "zona" && t.zona[i] !== F.zona) return false;
@@ -313,16 +351,17 @@ function pct(s, cats){ const v = cats.filter(c => !c.startsWith("bn")); const to
 
 // intervalo só existe para o total e para recortes de uma dimensão
 function chaveIC(){
-  if (!detalhado()) {   // nacional: Brasil, uma região, uma UF ou uma faixa de quintis
+  if (!detalhado()) {   // nacional: Brasil, qualquer conjunto de UFs, ou uma faixa de quintis
     const nq = Object.keys(F.q).length;
-    if (nq) {   // faixa de quintis só vale sozinha: com região/UF junto, não há intervalo
-      if (nq > 1 || F.mun != null || F.uf != null || F.regiao != null) return null;
+    if (nq) {   // faixa de quintis só vale sozinha: com UF junto, não há intervalo
+      if (nq > 1 || F.mun != null || F.ufs) return null;
       const [v, [lo, hi]] = Object.entries(F.q)[0]; return ["faixa", v, lo, hi];
     }
     if (F.mun != null) return null;
-    if (F.uf != null) return F.regiao == null || REGIOES[F.regiao].includes(F.uf) ? ["uf", F.uf] : null;
-    if (F.regiao != null) return ["regiao", F.regiao];
-    return ["total", "total"];
+    if (!F.ufs) return ["total", "total"];
+    if (ufUnica()) return ["uf", ufUnica()];
+    if (regiaoExata()) return ["regiao", regiaoExata()];
+    return ["conj", [...F.ufs]];   // soma as reamostragens das UFs marcadas
   }
   const ativos = (F.mun!=null) + (F.zona!=null) + Object.keys(F.q).length;
   if (ativos === 0) return ["total","total"];
@@ -334,15 +373,26 @@ function chaveIC(){
 }
 // Intervalo de uma faixa de quintis: soma as amostras do bootstrap de cada quintil
 // da faixa e mede a dispersão — mesma regra do servidor (meia-largura × fator).
-function icFaixa(v, lo, hi, ponto){
-  const A = D.amostras_q && D.amostras_q[v]; if (!A || !A.length) return null;
-  const validos = D.meta.cats.filter(c => c !== "bn");
-  const pcts = A.map(amostra => { const s = validos.map((_, j) => { let x = 0; for (let q = lo; q <= hi; q++) x += amostra[q][j]; return x; });
-    const tot = s.reduce((a,b)=>a+b,0); return s.map(x => 100*x/tot); });
+function brutoDe(k){
+  const validos = D.meta.cats.filter(c => !c.startsWith("bn"));
+  let somas = null;
+  if (k[0] === "faixa") {
+    const A = D.amostras_q && D.amostras_q[k[1]]; if (!A || !A.length) return null;
+    somas = A.map(a => validos.map((_, j) => { let x = 0; for (let q = k[2]; q <= k[3]; q++) x += a[q][j]; return x; }));
+  } else if (k[0] === "conj") {
+    const U = D.amostras_uf; if (!U) return null;
+    const ufs = k[1].filter(u => U[u]); if (!ufs.length) return null;
+    somas = U[ufs[0]].map((_, b) => validos.map((_, j) => ufs.reduce((x, u) => x + U[u][b][j], 0)));
+  } else return null;
+  return {validos, pcts: somas.map(s => { const t = s.reduce((a, b) => a + b, 0); return s.map(x => 100 * x / t); })};
+}
+function icFaixa(k, ponto){
+  const B = brutoDe(k); if (!B) return null;
+  const {validos, pcts} = B;
   const out = {};
   validos.forEach((c, j) => { const col = pcts.map(p => p[j]).sort((a,b)=>a-b);
     const p5 = col[Math.floor(.05*(col.length-1))], p95 = col[Math.ceil(.95*(col.length-1))];
-    const meia = (p95 - p5)/2 * D.meta.fator_ic; out[c] = [ponto[c]-meia, ponto[c]+meia]; });
+    const meia = Math.max((p95 - p5)/2 * D.meta.fator_ic, D.meta.piso_ic || 0); out[c] = [ponto[c]-meia, ponto[c]+meia]; });
   return out;
 }
 
@@ -351,10 +401,9 @@ function icFaixa(v, lo, hi, ponto){
 function amostrasDoRecorte(pj){
   const k = chaveIC(); if (!k || !D.amostras_pct) return null;
   const validos = D.meta.cats.filter(c => !c.startsWith("bn"));
-  if (k[0] === "faixa") {
-    const A = D.amostras_q && D.amostras_q[k[1]]; if (!A || !A.length) return null;
-    const bruto = A.map(a => { const s = validos.map((_, j) => { let x = 0; for (let q = k[2]; q <= k[3]; q++) x += a[q][j]; return x; });
-      const t = s.reduce((x,y)=>x+y,0); return s.map(x => 100*x/t); });
+  if (k[0] === "faixa" || k[0] === "conj") {
+    const B = brutoDe(k); if (!B) return null;
+    const bruto = B.pcts;
     const med = validos.map((_, j) => { const c = bruto.map(r => r[j]).sort((a,b)=>a-b); return c[Math.floor(c.length/2)]; });
     return {validos, S: bruto.map(r => r.map((x, j) => pj[validos[j]] + D.meta.fator_ic * (x - med[j])))};
   }
@@ -393,7 +442,7 @@ function desenharChances(res){
   sec.hidden = false;
   if (cedo || !A) {
     document.getElementById("ch-sub").textContent = cedo ? "A partir de 1% das seções do recorte."
-      : "Há chance calculada para o Brasil, cada região, cada UF, o estado de SP e uma faixa de quintis de uma variável — não para combinações de filtros.";
+      : "Há chance calculada para o Brasil, qualquer conjunto de UFs, o estado de SP e uma faixa de quintis de uma variável — não para combinações de UF com quintis.";
     ["ch-cards","ch-curvas","ch-dif","ch-leg","ch-nota","ch-dif-t"].forEach(id => document.getElementById(id).innerHTML = ""); return;
   }
   const {validos, S} = A, n = S.length;
@@ -402,7 +451,7 @@ function desenharChances(res){
   const cargo = D.meta.cargo;
   // a eleição inteira: Presidente no Brasil sem filtro; governador e senador no estado de SP sem filtro
   const eleicao = cargo === "presidente"
-    ? !detalhado() && !F.uf && !F.regiao && !Object.keys(F.q).length
+    ? !detalhado() && !F.ufs && !Object.keys(F.q).length
     : detalhado() && F.mun == null && F.zona == null && !Object.keys(F.q).length;
   const onde = cargo === "presidente" ? "no Brasil inteiro" : "no estado inteiro";
   const p = x => { const v = 100*x/n; return v >= 99.5 ? "> 99%" : v <= 0.5 ? "< 1%" : fmt(v,0) + "%"; };
@@ -517,7 +566,7 @@ async function desenharMapa(res){
     const lim = mapaModo === "mudanca" ? 15 : 40, tt = Math.min(1, Math.abs(x.v) / lim);
     return misturar(neutro, x.v >= 0 ? verm : azul, 0.15 + 0.85 * tt); };
   // escopo do desenho: UF escolhida (ou SP no detalhado) aproxima; senão o Brasil
-  const ufEsc = detalhado() ? "SP" : F.uf;
+  const ufEsc = detalhado() ? "SP" : ufUnica();
   const ufDe = k => detalhado() ? "SP" : (D.mun.uf[D.mun.municipio.indexOf(k)]);
   let caminhos = "";
   for (const [k, d] of Object.entries(M.mun)) {
@@ -535,7 +584,7 @@ async function desenharMapa(res){
   svg.setAttribute("viewBox", `${bb.x - folga} ${bb.y - folga} ${bb.width + 2*folga} ${bb.height + 2*folga}`);
   svg.querySelectorAll("path.m").forEach(el => el.onclick = () => {
     const k = +el.dataset.k, era = detalhado();
-    if (F.mun === k) F.mun = null; else { F.mun = k; if (!detalhado() && D.mun) F.uf = ufDe(k); }
+    if (F.mun === k) F.mun = null; else { F.mun = k; if (!detalhado() && D.mun) F.ufs = new Set([ufDe(k)]); }
     era !== detalhado() ? carregar(modo) : desenhar(); });
   document.getElementById("mapa-modo").innerHTML = [["lider","Quem lidera"],["mudanca","Mudança desde "+m.anterior],["apurado","Apurado"]]
     .map(([k,tx]) => `<button class="${k===mapaModo?"on":""}" data-k="${k}" ${k!=="lider" && !temAp ? "disabled" : ""}>${tx}</button>`).join("");
@@ -570,16 +619,21 @@ function desenharFiltros(){
   const zonas = D ? [...new Set(D.atual.zona.filter((z,i) => F.mun==null || D.atual.municipio[i]===F.mun))].sort((a,b)=>a-b) : [];
   const sel = (id, rot, ops, val, dis) => `<label class="f">${rot}<select id="${id}" ${dis?"disabled":""}>${ops.map(([v,t]) =>
       `<option value="${v}" ${String(v)===String(val)?"selected":""}>${t}</option>`).join("")}</select></label>`;
-  const ufsReg = F.regiao ? REGIOES[F.regiao] : Object.values(REGIOES).flat();
-  const munsVis = detalhado() ? muns : (F.uf ? muns.filter(([c]) => D.mun.uf[D.mun.municipio.indexOf(+c)] === F.uf) : []);
+  const uu = ufUnica();
+  const munsVis = detalhado() ? muns : (uu && D.mun ? muns.filter(([c]) => D.mun.uf[D.mun.municipio.indexOf(+c)] === uu) : []);
   let h = sel("f-cargo","Cargo",[["presidente","Presidente"],["governador","Governador (SP)"],["senador","Senador (SP)"]], F.cargo, !detalhado() || ehT2());
-  h += sel("f-regiao","Região",[["","Brasil"], ...Object.keys(REGIOES).map(r => [r, r])], F.regiao ?? "");
-  h += sel("f-uf","UF",[["","todas"], ...ufsReg.map(u => [u, UF_NOME[u]])], F.uf ?? "");
-  h += sel("f-mun","Município",[["", F.uf || detalhado() ? "todos" : "escolha a UF"], ...munsVis.map(([c,n]) => [c, n])], F.mun ?? "", !munsVis.length);
+  const marcada = u => !F.ufs || F.ufs.has(u);
+  h += `<label class="f">Região e UF<details class="multi" id="f-ufs" ${multiAberto ? "open" : ""}><summary>${descreverUfs()}</summary><div class="multi-caixa">
+    <div class="linha" style="margin-bottom:6px"><button class="limpar" data-acao="todas">todas</button><button class="limpar" data-acao="nenhuma">nenhuma</button></div>
+    ${Object.entries(REGIOES).map(([r, us]) => { const n = us.filter(marcada).length;
+      return `<div class="multi-reg"><label><input type="checkbox" data-reg="${r}" ${n === us.length ? "checked" : ""} ${n && n < us.length ? "data-meio=1" : ""}><b>${r}</b></label>
+        <div class="multi-ufs">${us.map(u => `<label title="${UF_NOME[u]}"><input type="checkbox" data-uf="${u}" ${marcada(u) ? "checked" : ""}>${u}</label>`).join("")}</div></div>`; }).join("")}
+    </div></details></label>`;
+  h += sel("f-mun","Município",[["", uu || detalhado() ? "todos" : "escolha uma UF"], ...munsVis.map(([c,n]) => [c, n])], F.mun ?? "", !munsVis.length);
   if (detalhado() && F.cargo !== "presidente") h += sel("f-fonte","Fonte",[["mun","por município (em dia)"],["bu","por local (boletins de urna)"]], F.fonte);
   if (detalhado() && !(D && D.mun)) h += sel("f-zona","Zona",[["","todas"], ...zonas.map(z => [z, z])], F.zona ?? "");
   let hs = "";   // sliders numa segunda linha, todos juntos
-  for (const [v, t] of VARS) { const [lo, hi] = F.q[v] || [1, 5];
+  for (const [v, t] of varsAtivas()) { const [lo, hi] = F.q[v] || [1, 5];
     hs += `<div class="sl" data-v="${v}">${t.replace(" no entorno","").replace(" na urna","")}
       <span class="val">${textoFaixa(lo, hi)}</span>
       <div class="trilho"><div class="fundo"></div><div class="faixa" style="left:${6+(lo-1)/4*88}%;width:${(hi-lo)/4*88}%"></div>
@@ -588,11 +642,16 @@ function desenharFiltros(){
       <div class="marcas"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div></div>`; }
   document.getElementById("barra-filtros").innerHTML = `<div class="linha">${h}</div><div class="linha linha-sl">${hs}</div>`;
   document.getElementById("f-cargo").onchange = e => { F.cargo = e.target.value; carregar(modo); };
-  document.getElementById("f-regiao").onchange = e => { const era = detalhado(); F.regiao = e.target.value || null;
-    if (F.uf && F.regiao && !REGIOES[F.regiao].includes(F.uf)) F.uf = null; F.mun = null; F.zona = null; F.q = {};
-    era !== detalhado() ? carregar(modo) : desenhar(); };
-  document.getElementById("f-uf").onchange = e => { const era = detalhado(); F.uf = e.target.value || null;
-    F.mun = null; F.zona = null; F.q = {}; era !== detalhado() ? carregar(modo) : desenhar(); };
+  const caixa = document.getElementById("f-ufs");
+  caixa.ontoggle = () => { multiAberto = caixa.open; };
+  caixa.querySelectorAll("input[data-meio]").forEach(i => { i.indeterminate = true; });
+  const mudarUfs = (fn) => { const era = detalhado(); F.ufs = new Set(F.ufs || TODAS_UFS()); fn(F.ufs); normalizarUfs();
+    F.mun = null; F.zona = null; era !== detalhado() ? carregar(modo) : desenhar(); };
+  caixa.querySelectorAll("input[data-uf]").forEach(i => i.onchange = () => mudarUfs(s => i.checked ? s.add(i.dataset.uf) : s.delete(i.dataset.uf)));
+  caixa.querySelectorAll("input[data-reg]").forEach(i => i.onchange = () => mudarUfs(s => REGIOES[i.dataset.reg].forEach(u => i.checked ? s.add(u) : s.delete(u))));
+  caixa.querySelectorAll("button[data-acao]").forEach(b => b.onclick = (ev) => { ev.preventDefault();
+    const era = detalhado(); F.ufs = b.dataset.acao === "todas" ? null : new Set(); F.mun = null; F.zona = null;
+    era !== detalhado() ? carregar(modo) : desenhar(); });
   document.getElementById("f-mun").onchange = e => { F.mun = e.target.value ? +e.target.value : null; F.zona = null; desenhar(); };
   const ff = document.getElementById("f-fonte");
   if (ff) ff.onchange = e => { F.fonte = e.target.value; F.zona = null; F.q = {}; carregar(modo); };
@@ -610,20 +669,19 @@ function desenharFiltros(){
 
 function desenharFoco(){
   const m = D ? D.meta : null, partes = [];
-  if (F.regiao != null) partes.push(["regiao", F.regiao]);
-  if (F.uf != null) partes.push(["uf", UF_NOME[F.uf]]);
+  if (F.ufs) partes.push(["uf", F.ufs.size ? descreverUfs() : "nenhuma UF marcada"]);
   if (F.mun != null) partes.push(["mun", m.municipios[F.mun]]);
   if (F.zona != null) partes.push(["zona", "zona " + F.zona]);
-  for (const [v, [lo, hi]] of Object.entries(F.q)) partes.push([v, tituloVar(VARS.find(x=>x[0]===v)[1]) + ": " + textoFaixa(lo, hi)]);
+  for (const [v, [lo, hi]] of Object.entries(F.q)) { const def = VARS.find(x=>x[0]===v); if (def) partes.push([v, tituloVar(def[1]) + ": " + textoFaixa(lo, hi)]); }
   const el = document.getElementById("foco");
   if (!partes.length) { el.innerHTML = `<span class="sub">Sem recorte: Brasil inteiro, por município.${m && m.turno === 2 ? ""
-    : " Escolha São Paulo em UF para o detalhe por local de votação, os quintis e governador e senador."}</span>`; return; }
+    : " Marque só São Paulo em UF para o detalhe por local de votação, os quintis e governador e senador."}</span>`; return; }
   el.innerHTML = `<span class="sub">Recorte:</span>` + partes.map(([k,t]) =>
     `<span class="chip">${t}<button data-k="${k}" title="tirar este filtro">×</button></span>`).join("") +
     ` <button class="limpar" id="limpar">limpar tudo</button>`;
   el.querySelectorAll(".chip button").forEach(b => b.onclick = () => {
     const k = b.dataset.k, era = detalhado();
-    if (k==="regiao") { F.regiao=null; } else if (k==="uf") { F.uf=null; F.mun=null; F.zona=null; F.q={}; }
+    if (k==="uf") { F.ufs=null; F.mun=null; F.zona=null; }
     else if (k==="mun") { F.mun=null; F.zona=null; } else if (k==="zona") F.zona=null; else delete F.q[k];
     era !== detalhado() ? carregar(modo) : desenhar(); });
   document.getElementById("limpar").onclick = () => { const era = detalhado(); limpar(); era !== detalhado() ? carregar(modo) : desenhar(); };
@@ -638,7 +696,8 @@ const SUB_SPMUN = `Municípios de SP em quintis — cinco grupos com o mesmo nú
   município no Censo 2022. <b>É o voto dos municípios desse perfil, não o voto das pessoas desse grupo.</b> Para o detalhe por local de
   votação, troque a fonte para "boletins de urna". Clique para filtrar; com Shift, estende a faixa.`;
 function tituloVar(t){ return detalhado() && !(D && D.mun) ? t : t.replace("(16–24) na urna", "(15–24) no município").replace(" do entorno", " do município").replace(" no entorno", " no município").replace(" na urna", " no município"); }
-function limpar(){ F.regiao=null; F.uf=null; F.mun=null; F.zona=null; F.q={}; }
+function limpar(){ F.ufs=null; F.mun=null; F.zona=null; F.q={}; }
+let multiAberto = false;
 function textoFaixa(lo, hi){ return lo === 1 && hi === 5 ? "todos" : lo === hi ? lo + "º quintil" : lo + "º ao " + hi + "º"; }
 
 function desenharPrincipal(){
@@ -651,7 +710,7 @@ function desenharPrincipal(){
   const s = somar(D.atual, colsAt);
   const sa = somar(D.anterior, [...catsA, "comparecimento", "aptos"]);
   const pa = pct(sa, catsA);
-  const onde = F.mun != null ? m.municipios[F.mun] : F.uf ? UF_NOME[F.uf] : F.regiao ? F.regiao : "Brasil";
+  const onde = F.mun != null ? m.municipios[F.mun] : descreverUfs();
   document.getElementById("t-principal").innerHTML = `${F.cargo[0].toUpperCase()+F.cargo.slice(1)} — ${onde}, ${m.atual}`;
   document.getElementById("barra-ap").style.width = (100*s.apurada/s.secoes) + "%";
   document.getElementById("progresso").textContent = temAp
@@ -660,7 +719,7 @@ function desenharPrincipal(){
     : `Aguardando as primeiras urnas. ${s.secoes.toLocaleString("pt-BR")} seções e ${s.aptos.toLocaleString("pt-BR")} eleitores no recorte.`;
   const pj = temAp ? pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c]])), cats) : {};
   const ic = chaveIC();
-  const faixa = !ic || !temAp ? null : ic[0] === "faixa" ? icFaixa(ic[1], ic[2], ic[3], pj)
+  const faixa = !ic || !temAp ? null : (ic[0] === "faixa" || ic[0] === "conj") ? icFaixa(ic, pj)
               : (D.ic[ic[0]] ? D.ic[ic[0]][ic[1]] : null);
   const ap = temAp ? pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats) : {};
   const cedo = temAp && s.apurada/s.secoes < 0.01;
@@ -764,7 +823,7 @@ function graficoQuintis(v, titulo, cortes, u, pontos, alvo, lista, m, temAp){
       <text x="${mg.l - 5}" y="${Y(y) + 3.5}" text-anchor="end">${delta ? (y > 0 ? "+" : y < 0 ? "−" : "") + Math.abs(y) : y + "%"}</text>`;
   }
   const estreito = u !== "R$" && (cortes[3] - cortes[0]) < 30;
-  const fc = x => u === "R$" ? "R$ " + Math.round(x).toLocaleString("pt-BR") : fmt(x, estreito ? 1 : 0) + "%";
+  const fc = x => fmtUnid(x, u, estreito);
   for (let q = 1; q <= 5; q++) s += `<text x="${X(q)}" y="${H - 24}" text-anchor="middle" style="fill:var(--ink)">${q}º</text>`;
   for (let k = 0; k < 4; k++) {   // troca de faixa, entre um quintil e o seguinte
     const x = (X(k + 1) + X(k + 2)) / 2;
@@ -807,7 +866,7 @@ function desenharAberturas(res){
      ${vistaAb === "delta" ? "" : "Região e UF seguem em barras."}</span>`;
   document.querySelectorAll("#leg-ab span[data-c]").forEach(sp => sp.onclick = () => {
     const c = sp.dataset.c; escondidos.has(c) ? escondidos.delete(c) : escondidos.add(c); desenharAberturas(res); });
-  box.innerHTML = VARS.map(([v, t, u]) => {
+  box.innerHTML = varsAtivas().map(([v, t, u]) => {
     const pontos = [1,2,3,4,5].map(q => {
       const salvo = F.q[v]; F.q[v] = [q, q];        // o quintil desta coluna + os outros filtros
       const s = temAp ? somar(D.atual, [...cats.map(c=>"pj_"+c), ...cats.map(c=>"ap_"+c)]) : null;
@@ -835,21 +894,24 @@ function desenharRegioes(res, box){
   const lista = res.ord || [], alvo = lista.slice(0, 2).filter(c => !escondidos.has(c));
   const t = D.atual, cols = [...cats.map(c=>"ap_"+c), ...(temAp ? cats.map(c=>"pj_"+c) : []), ...catsA, "aptos"];
   const soma = (k, chave) => { const s = Object.fromEntries(cols.map(c=>[c,0]));
-    for (let i = 0; i < t.municipio.length; i++) if (t[chave][i] === k && passa(t, i, chave)) for (const c of cols) s[c] += t[c][i] || 0; return s; };
+    for (let i = 0; i < t.municipio.length; i++) if (t[chave][i] === k && passa(t, i, "uf")) for (const c of cols) s[c] += t[c][i] || 0; return s; };
   const linha = (rot, k, chave, sel) => { const s = soma(k, chave);
     const pj = pct(Object.fromEntries(cats.map(c=>[c, s["pj_"+c] || 0])), cats), ap = pct(Object.fromEntries(cats.map(c=>[c, s["ap_"+c]])), cats), pa = pct(s, catsA);
     const barras = alvo.map(c => barrasTri(c, corDe(c, lista), pa, ap, pj, par, m, 75)).join("");
     const vals = alvo.map(c => valorTri(c, corDe(c, lista), pa, ap, pj, par, temAp)).join("<br>");
     return `<div class="q ${sel?"sel":""}" data-chave="${chave}" data-k="${k}"><span class="rot">${rot}</span><div style="display:grid;gap:4px">${barras}</div><span class="val">${vals}</span></div>`; };
-  const regs = Object.keys(REGIOES).filter(r => !F.regiao || r === F.regiao);
-  const ufs = (F.regiao ? REGIOES[F.regiao] : Object.values(REGIOES).flat())
-    .map(u => [u, soma(u, "uf").aptos]).sort((a,b) => b[1]-a[1]).map(x => x[0]);
-  box.insertAdjacentHTML("afterbegin", `<div class="ab"><h3>Região</h3>${regs.map(r => linha(r, r, "regiao", F.regiao === r)).join("")}</div>` +
-    `<div class="ab"><h3>UF <span class="sub">(role)</span></h3><div class="rolagem">${ufs.map(u => linha(UF_NOME[u], u, "uf", F.uf === u)).join("")}</div></div>`);
-  box.querySelectorAll(".q[data-chave]").forEach(el => el.onclick = () => {
-    const k = el.dataset.k, era = detalhado();
-    if (el.dataset.chave === "regiao") { F.regiao = F.regiao === k ? null : k; F.uf = null; }
-    else { F.uf = F.uf === k ? null : k; }
+  // as barras de região e UF mostram todas, com as marcadas em destaque: o filtro de UF não as esconde
+  const regs = Object.keys(REGIOES);
+  const ufs = TODAS_UFS().map(u => [u, soma(u, "uf").aptos]).sort((a,b) => b[1]-a[1]).map(x => x[0]);
+  const regSel = r => F.ufs && REGIOES[r].every(u => F.ufs.has(u));
+  box.insertAdjacentHTML("afterbegin", `<div class="ab"><h3>Região <span class="sub">(clique: só ela; Ctrl: soma ou tira)</span></h3>${regs.map(r => linha(r, r, "regiao", regSel(r))).join("")}</div>` +
+    `<div class="ab"><h3>UF <span class="sub">(role)</span></h3><div class="rolagem">${ufs.map(u => linha(UF_NOME[u], u, "uf", F.ufs && F.ufs.has(u))).join("")}</div></div>`);
+  box.querySelectorAll(".q[data-chave]").forEach(el => el.onclick = (ev) => {
+    const k = el.dataset.k, era = detalhado(), alvo_ = el.dataset.chave === "regiao" ? REGIOES[k] : [k];
+    const ja = F.ufs && alvo_.every(u => F.ufs.has(u));
+    if (ev.ctrlKey || ev.metaKey) {            // soma ou tira do conjunto
+      F.ufs = new Set(F.ufs || TODAS_UFS()); alvo_.forEach(u => ja ? F.ufs.delete(u) : F.ufs.add(u)); normalizarUfs();
+    } else F.ufs = ja && F.ufs.size === alvo_.length ? null : new Set(alvo_);   // só ela; de novo, volta ao Brasil
     F.mun = null; era !== detalhado() ? carregar(modo) : desenhar(); });
 }
 
@@ -859,7 +921,9 @@ function desenharRegioes(res, box){
 let bolhaCand = 0, bolhaY = "pj";
 const escBolha = new Set();
 const COR_VAR = {renda:"#c27c2c", catolicos:"#8a5a9e", evangelicos:"#3f8f6b", sem_religiao:"#d06a9a",
-  preta_parda:"#7a6a3a", superior:"#2f8fb0", jovens:"#e0a019", idosos:"#7f8c8d"};
+  preta_parda:"#7a6a3a", superior:"#2f8fb0", jovens:"#e0a019", idosos:"#7f8c8d",
+  bolsa_familia:"#c0392b", setor_publico:"#34495e", agro:"#6b8e23", pib_pc:"#b8860b", saneamento:"#1abc9c",
+  rural:"#8d6e63", populacao:"#5d6d7e"};
 function desenharBolhas(res){
   const sec = document.getElementById("bolhas-sec"), svg = document.getElementById("bolhas");
   const lista = (res && res.ord) || [], par = D ? paresAnt() : {};
@@ -877,7 +941,7 @@ function desenharBolhas(res){
   document.querySelectorAll("#bolhas-y button").forEach(b => b.onclick = () => { bolhaY = b.dataset.k; desenharBolhas(res); });
   // um ponto por variável × quintil
   const pts = [];
-  for (const [v, t] of VARS) {
+  for (const [v, t] of varsAtivas()) {
     if (escBolha.has(v)) continue;
     for (let q = 1; q <= 5; q++) {
       const salvo = F.q[v]; F.q[v] = [q, q];
@@ -936,7 +1000,7 @@ function desenharBolhas(res){
       else F.q[p.v] = [p.q, p.q];
       dica.hidden = true; desenhar(); };
   });
-  document.getElementById("bolhas-leg").innerHTML = VARS.map(([v, t]) =>
+  document.getElementById("bolhas-leg").innerHTML = varsAtivas().map(([v, t]) =>
     `<span data-v="${v}" class="${escBolha.has(v) ? "off" : ""}"><i style="background:${COR_VAR[v]}"></i>${tituloVar(t)}</span>`).join("") +
     `<span class="sub">número na bolha: quintil · cruz: o recorte inteiro — clique numa variável para escondê-la</span>`;
   document.querySelectorAll("#bolhas-leg span[data-v]").forEach(sp => sp.onclick = () => {

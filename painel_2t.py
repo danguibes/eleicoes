@@ -124,7 +124,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
     cats_2t = list(a2.columns)
     for c in cats_2t:
         M[c] = M[c].fillna(0)
-    perfil = pd.read_parquet(RAW / "ibge" / "municipios_BR.parquet").drop(columns=["CD_MUN", "populacao"])
+    perfil = pd.read_parquet(RAW / "ibge" / "municipios_BR.parquet").drop(columns=["CD_MUN"])
     M = M.merge(perfil, on="municipio", how="left")
     cortes = {}
     for v in VARS:
@@ -134,7 +134,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
         x = M[v].to_numpy(float)
         M[f"q_{v}"] = np.where(np.isnan(x), 0, 1 + np.searchsorted(cortes[v], x, side="right")).astype(int)
     M["regiao"] = M.uf.map(REGIAO).fillna("Exterior")
-    ic, amostras_q, amostras_pct = {}, {}, {}
+    ic, amostras_q, amostras_pct, amostras_uf = {}, {}, {}, {}
     for c, k in zip(cats, ["ap_lula", "ap_adv", "ap_bn"]):
         M[f"ap_{c}"] = M[k]
     if temAp:
@@ -163,6 +163,10 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
             q = np.maximum(M[f"q_{v}"].to_numpy(int), 0)
             amostras_q[v] = np.rint(np.stack([np.stack([np.bincount(q, Lb[:, j], 6) for j in range(2)], axis=1)
                                               for Lb in L[1:]])).astype(int).tolist()
+        # votos de cada reamostragem por UF: a página soma qualquer conjunto de UFs ("Brasil sem o Sudeste")
+        uf_cod, uf_nomes = pd.factorize(M.uf)
+        S_uf = np.stack([np.stack([np.bincount(uf_cod, Lb[:, j], len(uf_nomes)) for j in range(2)], axis=1) for Lb in L[1:]])
+        amostras_uf = {uf_nomes[g]: np.rint(S_uf[:, g, :]).astype(int).tolist() for g in range(len(uf_nomes))}
     col = lambda cs: {c: [round(float(x), 1) if isinstance(x, (float, np.floating)) else (x if isinstance(x, str) else int(x))
                           for x in M[c].fillna(0)] for c in cs}
     M["apuradas"] = M.st
@@ -176,7 +180,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
                  "anterior": f"{ano_at}, 1º turno", "atual": f"{ano_at}, 2º turno",
                  "rotulos_anterior": {"1": f"1º turno de {ano_at}", "2": f"2º turno de {ano_ant2}"},
                  "hora": hora, "gerado": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                 "cats": cats, "cats_anterior": cats_ant, "pares": pares, "fator_ic": sg.FATOR,
+                 "cats": cats, "cats_anterior": cats_ant, "pares": pares, "fator_ic": sg.FATOR, "piso_ic": PISO,
                  "cats_anterior_2t": cats_2t, "pares_2t": pares_2t, "cortes": cortes, "nomes": nomes_cat,
                  "secoes": int(M.secoes.sum()), "apuradas": int(M.apuradas.sum()), "indice_falta": falta_idx,
                  "municipios": nomes_municipios()},
@@ -184,6 +188,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
         "ic": ic,
         "amostras_q": amostras_q,
         "amostras_pct": amostras_pct,
+        "amostras_uf": amostras_uf,
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = WEB / f"{saida or modo}_brasil_presidente.json"   # ensaio contra o tse_falso: arquivo próprio

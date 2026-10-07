@@ -29,17 +29,19 @@ def main():
         copiados.append(destino.name)
     h = (WEB / "index.html").read_text(encoding="utf-8")
     trocas = [
-        # só o modo congelado (e o ensaio de 2022, que não muda)
-        (r'const MODOS = \[\["2026","2026 — ao vivo"\],', f'const MODOS = [["{a.prefixo}","{a.titulo}"],'),
+        # só o modo congelado (o painel ao vivo é o do 2º turno desde 06/10/2026)
+        (r'const MODOS = \[\["2026t2","2º turno — ao vivo"\],\["ensaio2t","Ensaio com 2022"\]\];',
+         f'const MODOS = [["{a.prefixo}","{a.titulo}"]];'),
         # sem atualização automática
-        (r'setInterval\(\(\) => \{ if \(modo === "2026".*?\n', "// página de arquivo: sem atualização automática\n"),
+        (r'setInterval\(\(\) => \{ if \(modo && modo.startsWith\("2026"\).*?\n', "// página de arquivo: sem atualização automática\n"),
         # abre no congelado
-        (r'const r = await fetch\("dados/2026_brasil_presidente.json".*?\n\s*carregar\(r.ok \? "2026" : "ensaio"\);',
+        (r'const r = await fetch\("dados/2026t2_brasil_presidente.json".*?\n\s*carregar\(r.ok \? "2026t2" : "ensaio2t"\);',
          f'carregar("{a.prefixo}");'),
         (r"<title>[^<]*</title>", f"<title>Eleições — {a.titulo}</title>"),
-        (r'<h1>Eleições 2026 — apuração e projeção</h1>',
-         f'<h1>{a.titulo}</h1>\n    <p class="aviso-arquivo">Página de consulta, congelada: o código e os dados como estavam '
-         f'ao fim da apuração. O painel ao vivo está em <a href="index.html">index.html</a>.</p>'),
+        (r'<h1>Eleições 2026 — 2º turno: apuração e projeção</h1>\s*<p class="sub" id="subtitulo">[^<]*',
+         f'<h1>{a.titulo}</h1>\n    <p class="aviso-arquivo">Página de consulta: os dados como ficaram ao fim da apuração, com os '
+         f'recortes de perfil acrescentados depois. O painel ao vivo está em <a href="index.html">index.html</a>.</p>\n'
+         f'    <p class="sub" id="subtitulo">Brasil por município; São Paulo urna a urna. '),
     ]
     for padrao, novo in trocas:
         h, n = re.subn(padrao, novo, h, count=1, flags=re.S)

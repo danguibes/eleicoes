@@ -131,7 +131,9 @@ cada eleitor fez), e nenhuma pesquisa entra aqui.</p>
 
 <script>
 const VARS = [["renda","Renda"],["catolicos","Católicos"],["evangelicos","Evangélicos"],["sem_religiao","Sem religião"],
-  ["preta_parda","Pretos e pardos"],["superior","Superior completo"],["jovens","Jovens (15–24)"],["idosos","60+"]];
+  ["preta_parda","Pretos e pardos"],["superior","Superior completo"],["jovens","Jovens (15–24)"],["idosos","60+"],
+  ["bolsa_familia","Bolsa Família"],["setor_publico","Adm. pública no PIB"],["agro","Agropecuária no PIB"],["pib_pc","PIB per capita"],
+  ["saneamento","Esgoto em rede geral"],["rural","População rural"],["populacao","Tamanho do município"]];
 let S, N, nM, R, base = "dentro", variavel = "renda";
 let alvoV = {}, alvoS = {}, alvoQ = [null,null,null,null,null], a = {}, b = {}, c = [0,0,0,0,0];
 const sig = x => 1 / (1 + Math.exp(-x)), logit = p => Math.log(p / (1 - p));
@@ -273,7 +275,8 @@ function tabQ(s){ return `<tr><td>simulado</td><td><b>${fmt(s.sim)}%</b></td></t
   <tr><td class="nota">1º turno</td><td class="nota">${fmt(s.v1)}%</td></tr><tr><td class="nota">2022, 2º turno</td><td class="nota">${fmt(s.v22)}%</td></tr>`; }
 function desenharQuintis(out){
   const box = document.getElementById("quintis"), cortes = S.meta.cortes[variavel];
-  const unid = variavel === "renda" ? (x => "R$ " + Math.round(x).toLocaleString("pt-BR")) : (x => fmt(x, 0) + "%");
+  const unid = variavel === "renda" || variavel === "pib_pc" ? (x => "R$ " + Math.round(x).toLocaleString("pt-BR"))
+    : variavel === "populacao" ? (x => x >= 1e6 ? fmt(x / 1e6, 1) + " mi hab." : Math.round(x / 1e3) + " mil hab.") : (x => fmt(x, 0) + "%");
   box.innerHTML = [0,1,2,3,4].map(q => {
     const s = soma(out, m => Q(m) === q + 1), ini = quintilTerceiros(q, 0), atual = quintilTerceiros(q, c[q]);
     const faixa = q === 0 ? "até " + unid(cortes[0]) : q === 4 ? "acima de " + unid(cortes[3]) : unid(cortes[q-1]) + "–" + unid(cortes[q]);

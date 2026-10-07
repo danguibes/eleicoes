@@ -432,3 +432,21 @@ E as falhas de antes da noite, que custaram tempo:
 - **O código do pleito do 2º turno ainda não está publicado.** `tse.obter("2026_2t")`
   o lê do `ele-c.json` quando a noite sobe; se não houver, o processo para com
   mensagem clara, e o `noite.py` tenta de novo em 20 s.
+
+## 9. Perfis de outras fontes (07/10/2026)
+
+- **API do IBGE** (`servicodados.ibge.gov.br/api/v3/agregados`): o catálogo inteiro sai numa chamada, e os
+  metadados de cada tabela dizem até que nível territorial ela desce. O que mordeu:
+  - **"-" é zero**, não vazio: 33 municípios sem população rural e 26 sem esgoto eram zeros lidos
+    como faltantes;
+  - **o PIB por setor, por município, só vai até 2021** na API (2022 e 2023 vêm "..."), embora o PIB
+    total de 2023 já esteja lá;
+  - **o Cadastro Central de Empresas por natureza jurídica só desce até UF**: não há funcionalismo
+    público por município; o peso da administração pública no PIB é o substituto, com o nome dizendo
+    o que é.
+- **Bolsa Família**: a API pública do MDS (`aplicacoes.mds.gov.br/sagi/servicos/misocial`, Solr) dá
+  pessoas beneficiárias e população do Censo 2022 por município e mês, por script.
+- **IDH municipal**: o oficial é de 2010, e o endereço antigo do Atlas Brasil não responde; ficou de fora.
+- **Filtro de UF como conjunto**: "Brasil sem o Sudeste" é desmarcar o Sudeste. O intervalo de qualquer
+  conjunto sai das reamostragens por UF somadas no navegador (`amostras_uf`), a mesma conta das faixas
+  de quintis.

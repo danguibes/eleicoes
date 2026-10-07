@@ -107,7 +107,7 @@ def montar(cargo, n_boot=200):
     M["b_comp"] = M.b_comp.fillna(M.b_comp.median())
     for c in cats_ant:
         M[f"b_{c}"] = M[c] + 1
-    perfil = pd.read_parquet(RAW / "ibge" / "municipios_BR.parquet").drop(columns=["CD_MUN", "populacao"])
+    perfil = pd.read_parquet(RAW / "ibge" / "municipios_BR.parquet").drop(columns=["CD_MUN"])
     M = M.merge(perfil, on="municipio", how="left")
     cortes = {}
     for v in VARS:   # quintis do estado, pesados pelo eleitorado de 2026
