@@ -107,7 +107,9 @@ def municipios_2t():
                          "26b_secoes": u.st, "26b_total": u.ts})
 
 
-def main(so_2t=None):
+def main(so_2t=None, secoes_2t=True):
+    """secoes_2t=False: na noite, só o resumo e os destaques (pequenos); os arquivos de seção do 2º turno
+    (~10 MB no fim da noite, somadas as UFs) vão a cada 30 min, senão o histórico do git incharia."""
     sys.stdout.reconfigure(encoding="utf-8")
     so_2t = ("--so-2t" in sys.argv) if so_2t is None else so_2t
     WEB.mkdir(parents=True, exist_ok=True)
@@ -119,7 +121,7 @@ def main(so_2t=None):
     fixas = [c for c in cols if not c.startswith("26b")]
     tem26b = s["26b_ap"].notna()
     # --- o 2º turno de 2026 por UF, à parte (é o que muda na noite)
-    for uf, g in s[tem26b].groupby("uf"):
+    for uf, g in (s[tem26b].groupby("uf") if secoes_2t else []):
         (WEB / f"{uf.lower()}_26b.json").write_text(json.dumps(
             {c: g[c].astype(int).tolist() for c in ["zona", "secao"] + [f"26b_{k}" for k in CAMPOS]}, separators=(",", ":")), encoding="utf-8")
     # --- um arquivo por UF, seção a seção (−1 = sem dado), só 2022 e o 1º turno de 2026: fixo

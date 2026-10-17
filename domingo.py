@@ -80,7 +80,10 @@ def publicar_2t(a):
             publicar_2t.nv_t = time.time()
             try:
                 import naovotos
-                naovotos.main(so_2t=True)
+                completo = time.time() - getattr(publicar_2t, "nv_sec_t", 0) > 1800
+                naovotos.main(so_2t=True, secoes_2t=completo)
+                if completo:
+                    publicar_2t.nv_sec_t = time.time()
             except Exception as e:
                 print(f"   não-votos: {e!r}", flush=True)
         if pendente and not a.sem_publicar and time.time() - ultimo_push >= 120:
