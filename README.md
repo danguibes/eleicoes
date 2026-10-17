@@ -99,6 +99,23 @@ de 2022: no pico o TSE recebeu 5.022 urnas num minuto. Baixando dois arquivos po
 urna a 70 req/s, a coleta nacional urna a urna atrasaria 25 min em média e 1 h no
 pior momento. Os totais por município se varrem inteiros em ~6 min e ficam em dia.
 
+## Não-votos seção a seção
+
+[`naovotos.html`](https://danguibes.github.io/eleicoes/naovotos.html) (`naovotos.py`) compara abstenção,
+brancos e nulos entre o 1º e o 2º turnos de 2022 e de 2026, por UF, município e seção, ordenando pelas
+maiores diferenças ou pela seção mais diferente do próprio município.
+
+- A seção de 2026 casa com a de 2022 pelo número em 92% dos casos. Quando os aptos mudaram mais de 20%
+  (7% das casadas), a seção **não é comparável** e fica fora por padrão.
+- **2º turno de 2026:** na noite, por seção em SP (boletins) e por município nas outras UFs. Com o 2º
+  turno no par, cada município compara só as seções já apuradas nele, as mesmas nas quatro eleições.
+  Por seção no país inteiro na manhã seguinte:
+
+```bash
+python coletar_brasil.py --pleito 2026_2t --taxa 35 --pular sp   # ~4 h
+python naovotos.py --so-2t
+```
+
 ## Perfis do município (para recortar, não para prever)
 
 Além dos quintis do Censo, o Brasil por município tem sete perfis de outras fontes públicas

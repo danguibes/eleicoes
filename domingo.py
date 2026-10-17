@@ -75,6 +75,14 @@ def publicar_2t(a):
                 pendente = (pendente + " · " if pendente else "") + f"SP {d['meta']['apuradas']:,}/{d['meta']['secoes']:,}"
             except Exception as e:
                 print(f"   painel de SP do 2º turno: {e!r}", flush=True)
+        # não-votos seção a seção (naovotos.html): só o 2º turno, o resumo e os destaques, a cada 5 min
+        if a.saida is None and vigiados[0].exists() and time.time() - getattr(publicar_2t, "nv_t", 0) > 300:
+            publicar_2t.nv_t = time.time()
+            try:
+                import naovotos
+                naovotos.main(so_2t=True)
+            except Exception as e:
+                print(f"   não-votos: {e!r}", flush=True)
         if pendente and not a.sem_publicar and time.time() - ultimo_push >= 120:
             publicar(f"2º turno {datetime.now():%H:%M}: {pendente}")
             ultimo_push, pendente = time.time(), None
