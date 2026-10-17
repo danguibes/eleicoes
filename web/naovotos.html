@@ -88,7 +88,8 @@ const fmt = (x, d=1) => (x == null || !isFinite(x)) ? "—" : x.toLocaleString("
 const fd = x => !isFinite(x) ? "—" : (x > 0 ? "+" : x < 0 ? "−" : "") + fmt(Math.abs(x));
 const nf = x => Math.round(x).toLocaleString("pt-BR");
 let R = null, DEST = null, UFD = {}, carregando = null;
-const E = {a: "22a", b: "26a", med: "abst", nivel: "mun", uf: "", soComp: true, minAp: 50, ord: "sobe", mun: null, busca: "", ext: false};
+// visao "par": de A para B; "turnos": a mudança do 1º para o 2º turno em 2026 contra a mesma mudança em 2022
+const E = {visao: "par", a: "22a", b: "26a", med: "abst", nivel: "mun", uf: "", soComp: true, minAp: 50, ord: "sobe", mun: null, busca: "", ext: false};
 
 // taxa de uma medida a partir dos quatro números de uma eleição (−1 = sem dado)
 function taxa(ap, co, br, nu, med){
@@ -150,7 +151,9 @@ function desenharControles(){
   const ufs = Object.keys(UF_NOME).sort((a, b) => UF_NOME[a].localeCompare(UF_NOME[b], "pt"));
   const munsUf = E.uf && R ? R.mun.municipio.map((m, i) => [m, R.mun.uf[i]]).filter(([, u]) => u === E.uf)
     .map(([m]) => [m, R.meta.municipios[m] || m]).sort((a, b) => String(a[1]).localeCompare(String(b[1]), "pt")) : [];
-  let h = sel("c-a", "De", els, E.a) + sel("c-b", "Para", els, E.b) + sel("c-med", "Medida", MED.map(([k, t]) => [k, t]), E.med);
+  let h = sel("c-visao", "Comparar", [["par", "duas eleições"], ["turnos", "entre turnos: 2026 × 2022"]], E.visao);
+  if (E.visao === "par") h += sel("c-a", "De", els, E.a) + sel("c-b", "Para", els, E.b);
+  h += sel("c-med", "Medida", MED.map(([k, t]) => [k, t]), E.med);
   h += sel("c-nivel", "Linhas", [["uf", "UFs"], ["mun", "municípios"], ["sec", "seções (urnas)"]], E.nivel);
   h += sel("c-uf", "UF", [["", E.nivel === "sec" ? "Brasil: as maiores" : "Brasil"], ...ufs.map(u => [u, UF_NOME[u]])], E.uf);
   if (E.nivel === "sec" && E.uf) h += sel("c-mun", "Município", [["", "todos"], ...munsUf], E.mun ?? "");
@@ -162,6 +165,7 @@ function desenharControles(){
   if (E.nivel !== "uf") h += `<label class="f">Buscar<input type="search" id="c-busca" placeholder="município ou local" value="${E.busca}"></label>`;
   document.getElementById("controles").innerHTML = h;
   const on = (id, fn, ev = "onchange") => { const el = document.getElementById(id); if (el) el[ev] = fn; };
+  on("c-visao", e => { E.visao = e.target.value; desenhar(); });
   on("c-a", e => { E.a = e.target.value; desenhar(); });
   on("c-b", e => { E.b = e.target.value; desenhar(); });
   on("c-med", e => { E.med = e.target.value; desenhar(); });
@@ -189,7 +193,7 @@ async function linhas(){
   const out = [];
   const serie = r => Object.keys(EL).map(e => taxa(r[e+"_ap"], r[e+"_co"], r[e+"_br"], r[e+"_nu"], E.med));
   // com o 2º turno de 2026 no par, município e UF comparam as MESMAS seções: as já apuradas nele (_r)
-  const com26b = E.a === "26b" || E.b === "26b";
+  const com26b = E.visao === "turnos" ? temDado("26b") : (E.a === "26b" || E.b === "26b");
   const serieAg = r => Object.keys(EL).map(e => { const s_ = com26b && e !== "26b" ? "_r" : "";
     return taxa(r[`${e}_ap${s_}`], r[`${e}_co${s_}`], r[`${e}_br${s_}`], r[`${e}_nu${s_}`], E.med); });
   if (E.nivel === "uf" || E.nivel === "mun") {
@@ -205,7 +209,7 @@ async function linhas(){
     return out;
   }
   if (!E.uf) {   // seções do Brasil inteiro: as maiores mudanças, pré-calculadas
-    const d = DEST && DEST.d[`${E.a}-${E.b}-${E.med}`];
+    const d = DEST && DEST.d[E.visao === "turnos" ? (temDado("26b") ? `tt-${E.med}` : `22a-22b-${E.med}`) : `${E.a}-${E.b}-${E.med}`];
     if (!d) return null;
     for (let i = 0; i < d.municipio.length; i++) {
       const r = Object.fromEntries(Object.keys(d).map(c => [c, d[c][i]]));
@@ -233,13 +237,20 @@ async function desenharTabela(){
   if (carregando) { tab.innerHTML = `<tr><td class="vazio">Baixando as seções de ${UF_NOME[carregando]}…</td></tr>`; return; }
   let L = await linhas();
   const medNome = MED.find(x => x[0] === E.med);
-  document.getElementById("t-tab").textContent = `${E.ord === "desce" ? "Maiores quedas" : E.ord === "rel" ? "Mais diferentes do próprio município" : "Maiores diferenças"}: ${medNome[1]}, de ${EL[E.a]} para ${EL[E.b]}`;
+  document.getElementById("t-tab").textContent = `${E.ord === "desce" ? "Maiores quedas" : E.ord === "rel" ? "Mais diferentes do próprio município" : "Maiores diferenças"}: ${medNome[1]}, ` +
+    (E.visao === "turnos" ? (temDado("26b") ? "mudança entre os turnos de 2026 menos a mesma mudança em 2022" : "do 1º para o 2º turno de 2022 (o de 2026 entra em 25/10)")
+                          : `de ${EL[E.a]} para ${EL[E.b]}`);
   if (L === null) { tab.innerHTML = `<tr><td class="vazio">Para seções do Brasil inteiro há destaques pré-calculados de abstenção, brancos e nulos e não-votos.
     Para brancos ou nulos separados, escolha uma UF.</td></tr>`; desenharHist([]); return; }
-  const cruza = E.a.slice(0, 2) !== E.b.slice(0, 2);   // 2022 × 2026: a seção precisa ser a mesma urna
+  const turnos = E.visao === "turnos", t26 = temDado("26b");
+  // 2022 × 2026: a seção precisa ser a mesma urna (na visão entre turnos, a parte de 2022 também)
+  const cruza = turnos || E.a.slice(0, 2) !== E.b.slice(0, 2);
   L = L.filter(r => r.ap >= E.minAp && (!cruza || E.nivel !== "sec" || !E.soComp || r.comp === 1));
   if (E.busca) { const b = E.busca.toLowerCase(); L = L.filter(r => (r.nome + " " + (r.local || "")).toLowerCase().includes(b)); }
-  for (const r of L) r.d = r.s[iE(E.b)] - r.s[iE(E.a)];
+  for (const r of L) {
+    if (turnos) { r.d22 = r.s[1] - r.s[0]; r.d26 = r.s[3] - r.s[2]; r.d = t26 ? r.d26 - r.d22 : r.d22; }
+    else r.d = r.s[iE(E.b)] - r.s[iE(E.a)];
+  }
   L = L.filter(r => isFinite(r.d));
   if (E.nivel === "sec") {   // diferença do município, para "mais diferente do município"
     const mm = new Map();
@@ -251,12 +262,14 @@ async function desenharTabela(){
   desenharHist(L);
   const mostra = L.slice(0, 300);
   const cls = d => d > 0 ? "sobe" : d < 0 ? "desce" : "";
+  const colA = turnos ? "1º → 2º de 2022" : EL[E.a], colB = turnos ? "1º → 2º de 2026" : EL[E.b];
   tab.innerHTML = `<tr><th>${E.nivel === "uf" ? "UF" : E.nivel === "mun" ? "município" : "seção"}</th><th>aptos</th>
-      <th>${EL[E.a]}</th><th>${EL[E.b]}</th><th class="ord">diferença (pontos)</th>${E.nivel === "sec" ? "<th>município</th>" : ""}
+      <th>${colA}</th><th>${colB}</th><th class="ord">${turnos ? (t26 ? "2026 − 2022 (pontos)" : "2022 (pontos)") : "diferença (pontos)"}</th>${E.nivel === "sec" ? "<th>município</th>" : ""}
       <th>${Object.keys(EL).map(e => e.replace("22", "22·").replace("26", "26·").replace("a", "1º").replace("b", "2º")).join(" · ")}</th></tr>` +
     mostra.map(r => `<tr class="${E.nivel !== "sec" ? "clic" : ""}" data-k="${E.nivel === "uf" ? r.uf : r.mun ?? ""}">
       <td>${r.nome}${r.local ? `<span class="peq">${r.local}</span>` : ""}${E.nivel === "sec" && !r.comp && E.a.slice(0,2) !== E.b.slice(0,2) ? `<span class="peq">não comparável com 2022</span>` : ""}</td>
-      <td>${nf(r.ap)}</td><td>${fmt(r.s[iE(E.a)])}%</td><td>${fmt(r.s[iE(E.b)])}%</td>
+      <td>${nf(r.ap)}</td>${turnos ? `<td class="${cls(r.d22)}">${fd(r.d22)}</td><td class="${cls(r.d26)}">${fd(r.d26)}</td>`
+        : `<td>${fmt(r.s[iE(E.a)])}%</td><td>${fmt(r.s[iE(E.b)])}%</td>`}
       <td class="${cls(r.d)}">${fd(r.d)}</td>
       ${E.nivel === "sec" ? `<td>${fd(r.dm)}<span class="peq">${E.ord === "rel" ? "seção − município: " + fd(r.rel) : ""}</span></td>` : ""}
       <td class="serie">${r.s.map(x => fmt(x)).join(" · ")}</td></tr>`).join("");
@@ -264,7 +277,8 @@ async function desenharTabela(){
     (L.length > 300 ? "; as 300 primeiras na ordem escolhida." : ".") + ` Medida: ${medNome[1]}, ${medNome[2]}.`;
   document.getElementById("n-tab").innerHTML = (E.nivel === "sec" && !E.uf
       ? "Brasil inteiro: as 250 maiores altas e as 250 maiores quedas do país, entre seções comparáveis com 100 ou mais aptos, sem o exterior. Escolha uma UF para todas as seções dela. "
-      : "") + "A última coluna é a medida nas quatro eleições, na ordem: 1º e 2º turnos de 2022, 1º e 2º de 2026 — o padrão de cada lugar ao longo do tempo." +
+      : "") + (turnos ? "<b>Entre turnos:</b> a seção é a mesma nos dois turnos de cada ano (mesmo cadastro, mesmos aptos). A pergunta é se a mudança de 3 semanas em 2026 foi diferente da mudança de 3 semanas em 2022 no mesmo lugar: uma seção onde a abstenção sempre sobe no 2º turno não aparece; uma onde subiu só em 2026, aparece. " : "") +
+      "A última coluna é a medida nas quatro eleições, na ordem: 1º e 2º turnos de 2022, 1º e 2º de 2026 — o padrão de cada lugar ao longo do tempo." +
       (E.nivel !== "sec" && (E.a === "26b" || E.b === "26b") ? " <b>Com o 2º turno de 2026 no par, cada município e UF compara só as seções já apuradas nele</b> — as mesmas nas quatro eleições." : "") +
       (E.nivel !== "sec" ? " Clique numa linha para descer um nível." : "");
   tab.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => {

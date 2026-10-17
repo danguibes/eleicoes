@@ -45,6 +45,8 @@ class Coletor:
     def __init__(self, pleito, uf, municipios, taxa, trabalhadores):
         self.depois = {}   # seção -> quando pedir de novo, depois de um 404
         self.falhas = {}   # seção -> quantos 404 já deu
+        self.espera = ESPERA_CDN   # o coletor do país na noite espera mais (coletor_brasil_noite.py)
+        self.em_voo = 8
         self.p = obter(pleito)
         self.uf = uf
         self.municipios = set(municipios) if municipios else None
@@ -167,7 +169,7 @@ class Coletor:
             if q == "encerrado":
                 return True
             try:
-                return (datetime.now() - datetime.strptime(q, "%d/%m/%Y %H:%M:%S")).total_seconds() >= ESPERA_CDN
+                return (datetime.now() - datetime.strptime(q, "%d/%m/%Y %H:%M:%S")).total_seconds() >= self.espera
             except ValueError:
                 return True
         verdes = len(novas)
@@ -207,7 +209,7 @@ class Coletor:
         try:
             # poucos em voo: no primeiro 404 a rodada para, e só os que já estavam no ar
             # podem somar 404 (com 16 eram 16 por rodada e a trava disparava em 1 min; com 8, no pior caso 16 por minuto)
-            with ThreadPoolExecutor(min(self.trab, 8)) as ex:
+            with ThreadPoolExecutor(min(self.trab, self.em_voo)) as ex:
                 fut = {ex.submit(self.buscar_secao, *k): k for k in novas}
                 for f in as_completed(fut):
                     k = fut[f]

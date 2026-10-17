@@ -168,6 +168,17 @@ def main(so_2t=None):
             idx = pd.concat([d.nlargest(250), d.nsmallest(250)]).index
             dest[f"{a_}-{b_}-{med}"] = {c: s.loc[idx, c].fillna(-1).astype(int).tolist()
                                        for c in ["municipio", "zona", "secao", "local"] + cols} | {"uf": s.loc[idx, "uf"].tolist()}
+    # entre turnos: a mudança 1º→2º de 2026 menos a de 2022, na mesma seção (comparável com 2022)
+    ok = s[[f"{e}_ap" for e in ELEICOES]].notna().all(axis=1) & (s["26b_ap"] >= 100) & (s.comparavel == 1) & (s.uf != "ZZ")
+    ok &= (s[[f"{e}_co" for e in ELEICOES]] > 0).all(axis=1)
+    if ok.sum():
+        g = s[ok]
+        t_ = {e: taxas(g, e) for e in ELEICOES}
+        for med in ("abst", "bn", "nv"):
+            d = (t_["26b"][med] - t_["26a"][med]) - (t_["22b"][med] - t_["22a"][med])
+            idx = pd.concat([d.nlargest(250), d.nsmallest(250)]).index
+            dest[f"tt-{med}"] = {c: s.loc[idx, c].fillna(-1).astype(int).tolist()
+                                 for c in ["municipio", "zona", "secao", "local"] + cols} | {"uf": s.loc[idx, "uf"].tolist()}
     (WEB / "destaques.json").write_text(json.dumps({"meta": {"eleicoes": ELEICOES}, "d": dest}, ensure_ascii=False,
                                                    separators=(",", ":")), encoding="utf-8")
     t = {e: taxas(s.assign(**{c: s[c] for c in cols}).loc[s[f"{e}_ap"].notna()].sum(numeric_only=True).to_frame().T, e) for e in ELEICOES}
