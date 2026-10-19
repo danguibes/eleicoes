@@ -18,7 +18,21 @@
   .regua div{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
   .regua b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
   .regua span{color:var(--mut);font-size:12px}
-  .controles{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .fixa{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 6px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .controles{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:flex-end}
+  .foco{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:26px;margin-top:6px;font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px}
+  .chip button{border:none;background:transparent;color:var(--mut);font-size:15px;cursor:pointer;padding:0 5px}
+  .limpar{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:3px 10px;cursor:pointer;font:inherit;font-size:12.5px}
+  .modo{display:flex;gap:6px;flex-wrap:wrap}
+  .modo button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:4px 10px;cursor:pointer}
+  .modo button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #mapa path.m{stroke:var(--card);stroke-width:.25;cursor:pointer}
+  #mapa path.m:hover{stroke:var(--ink);stroke-width:1}
+  #mapa path.u{fill:none;stroke:var(--ink);stroke-width:.6;opacity:.55;pointer-events:none}
+  #mapa path.sel{stroke:var(--ink);stroke-width:1.6}
+  .escala{display:inline-block;width:140px;height:9px;border-radius:2px;vertical-align:middle;margin:0 6px}
+  .leg{font-size:12px;color:var(--mut);margin-top:6px}
   label.f{display:flex;flex-direction:column;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;gap:2px}
   select,input[type=number],input[type=search]{font:inherit;font-size:13.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 8px}
   input[type=number]{width:80px}
@@ -60,7 +74,16 @@
   <p class="nota" id="nota-26b" style="margin-top:8px"></p>
 </section>
 
-<div class="controles" id="controles"></div>
+<div class="fixa"><div class="controles" id="controles"></div><div class="foco" id="foco"></div></div>
+
+<section id="mapa-sec">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+    <div><h2 id="t-mapa">Mapa</h2><p class="sub" id="s-mapa"></p></div>
+    <div class="modo" id="mapa-modo"></div>
+  </div>
+  <svg id="mapa" style="width:100%;max-height:640px;display:block;margin-top:8px"></svg>
+  <div class="leg" id="mapa-leg"></div>
+</section>
 
 <section>
   <h2 id="t-dist">Distribuição das diferenças</h2>
@@ -87,7 +110,8 @@ const UF_NOME = {AC:"Acre",AL:"Alagoas",AM:"Amazonas",AP:"Amapá",BA:"Bahia",CE:
 const fmt = (x, d=1) => (x == null || !isFinite(x)) ? "—" : x.toLocaleString("pt-BR", {minimumFractionDigits:d, maximumFractionDigits:d});
 const fd = x => !isFinite(x) ? "—" : (x > 0 ? "+" : x < 0 ? "−" : "") + fmt(Math.abs(x));
 const nf = x => Math.round(x).toLocaleString("pt-BR");
-let R = null, DEST = null, UFD = {}, carregando = null;
+let R = null, DEST = null, UFD = {}, carregando = null, MAPA = null, mapaModo = "delta";
+const PADRAO = {minAp: 50, soComp: true};
 // visao "par": de A para B; "turnos": a mudança do 1º para o 2º turno em 2026 contra a mesma mudança em 2022
 const E = {visao: "par", a: "22a", b: "26a", med: "abst", nivel: "mun", uf: "", soComp: true, minAp: 50, ord: "sobe", mun: null, busca: "", ext: false};
 
@@ -173,10 +197,10 @@ function desenharControles(){
   on("c-uf", e => { E.uf = e.target.value; E.mun = null; desenhar(); });
   on("c-mun", e => { E.mun = e.target.value ? +e.target.value : null; desenhar(); });
   on("c-ord", e => { E.ord = e.target.value; desenhar(); });
-  on("c-min", e => { E.minAp = +e.target.value || 0; desenharTabela(); });
-  on("c-comp", e => { E.soComp = e.target.checked; desenharTabela(); });
-  on("c-ext", e => { E.ext = e.target.checked; desenharTabela(); });
-  on("c-busca", e => { E.busca = e.target.value; desenharTabela(); }, "oninput");
+  on("c-min", e => { E.minAp = +e.target.value || 0; desenharFoco(); desenharMapa(); desenharTabela(); });
+  on("c-comp", e => { E.soComp = e.target.checked; desenharFoco(); desenharTabela(); });
+  on("c-ext", e => { E.ext = e.target.checked; desenharFoco(); desenharTabela(); });
+  on("c-busca", e => { E.busca = e.target.value; desenharFoco(); desenharTabela(); }, "oninput");
 }
 
 // ---------- linhas: UF, município ou seção, com a medida nas quatro eleições
@@ -284,7 +308,7 @@ async function desenharTabela(){
   tab.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => {
     const k = tr.dataset.k; if (!k) return;
     if (E.nivel === "uf") { E.uf = k; E.nivel = "mun"; } else { E.mun = +k; E.uf = R.mun.uf[R.mun.municipio.indexOf(+k)]; E.nivel = "sec"; }
-    desenhar(); window.scrollTo({top: document.getElementById("controles").offsetTop, behavior: "smooth"}); });
+    desenhar(); window.scrollTo({top: document.getElementById("mapa-sec").offsetTop - 120, behavior: "smooth"}); });
 }
 function desenharHist(L){
   const svg = document.getElementById("hist"), W = 900, H = 160, mg = {l: 40, r: 10, t: 8, b: 26};
@@ -306,7 +330,95 @@ function desenharHist(L){
   s += `<text x="${mg.l}" y="${mg.t + 10}">${ymax.toLocaleString("pt-BR")}</text>`;
   svg.innerHTML = s;
 }
-function desenhar(){ desenharCartoes(); desenharControles(); desenharTabela(); }
+function desenharFoco(){
+  const partes = [];
+  if (E.uf) partes.push(["uf", UF_NOME[E.uf]]);
+  if (E.mun != null) partes.push(["mun", R.meta.municipios[E.mun] || E.mun]);
+  if (E.busca) partes.push(["busca", `busca: “${E.busca}”`]);
+  if (E.minAp !== PADRAO.minAp) partes.push(["min", `aptos ≥ ${E.minAp}`]);
+  if (E.nivel === "sec" && !E.soComp) partes.push(["comp", "inclui seções não comparáveis"]);
+  if (E.ext && !E.uf) partes.push(["ext", "com o exterior"]);
+  const el = document.getElementById("foco");
+  if (!partes.length) { el.innerHTML = `<span class="sub">Sem recorte: Brasil inteiro${E.ext ? "" : ", sem o exterior"}. Clique numa UF ou num município no mapa ou na tabela para descer.</span>`; return; }
+  el.innerHTML = `<span class="sub">Recorte:</span>` + partes.map(([k, t]) => `<span class="chip">${t}<button data-k="${k}" title="tirar este filtro">×</button></span>`).join("") +
+    ` <button class="limpar" id="limpar">limpar tudo</button>`;
+  el.querySelectorAll(".chip button").forEach(b => b.onclick = () => {
+    const k = b.dataset.k;
+    if (k === "uf") { E.uf = ""; E.mun = null; if (E.nivel === "sec") E.nivel = "mun"; }
+    else if (k === "mun") { E.mun = null; }
+    else if (k === "busca") E.busca = "";
+    else if (k === "min") E.minAp = PADRAO.minAp;
+    else if (k === "comp") E.soComp = true;
+    else if (k === "ext") E.ext = false;
+    desenhar(); });
+  document.getElementById("limpar").onclick = () => { E.uf = ""; E.mun = null; E.busca = ""; E.minAp = PADRAO.minAp; E.soComp = true; E.ext = false;
+    if (E.nivel === "sec") E.nivel = "mun"; desenhar(); };
+}
+
+// ---------- mapa por município: a diferença da seleção (ou o nível), escala simétrica
+function misturar(c1, c2, t){ const a = [1,3,5].map(i => parseInt(c1.slice(i, i+2), 16)), b = [1,3,5].map(i => parseInt(c2.slice(i, i+2), 16));
+  return "#" + a.map((x, i) => Math.round(x + (b[i] - x) * t).toString(16).padStart(2, "0")).join(""); }
+const escuro = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light";
+function valoresMun(){
+  // a mesma conta da tabela de municípios: com o 2º turno de 2026, só as seções já apuradas nele
+  const turnos = E.visao === "turnos", t26 = temDado("26b");
+  const com26b = turnos ? t26 : (E.a === "26b" || E.b === "26b");
+  const g = agregar("mun"), out = new Map();
+  for (const [k, r] of g) {
+    if (com26b && !(r["26b_ap"] > 0)) continue;
+    const s = Object.keys(EL).map(e => { const s_ = com26b && e !== "26b" ? "_r" : "";
+      return taxa(r[`${e}_ap${s_}`], r[`${e}_co${s_}`], r[`${e}_br${s_}`], r[`${e}_nu${s_}`], E.med); });
+    const d = turnos ? (t26 ? (s[3] - s[2]) - (s[1] - s[0]) : s[1] - s[0]) : s[iE(E.b)] - s[iE(E.a)];
+    const nivel = turnos ? s[t26 ? 3 : 1] : s[iE(E.b)];
+    if (r[(turnos ? (t26 ? "26b" : "22b") : E.b) + "_ap"] >= E.minAp) out.set(k, {d, nivel, s});
+  }
+  return out;
+}
+async function desenharMapa(){
+  if (!MAPA) { const r_ = await fetch("dados/mapa_br.json"); MAPA = await r_.json(); }
+  const V = valoresMun(), turnos = E.visao === "turnos", t26 = temDado("26b");
+  const medNome = MED.find(x => x[0] === E.med)[1];
+  const ufMun = new Map(R.mun.municipio.map((m, i) => [m, R.mun.uf[i]]));
+  const vals = [...V.values()].map(v => mapaModo === "delta" ? Math.abs(v.d) : v.nivel).filter(isFinite).sort((a, b) => a - b);
+  const p95 = vals.length ? vals[Math.floor(.95 * (vals.length - 1))] : 1;
+  const lim = Math.max(1, Math.ceil(p95)), lo = mapaModo === "delta" ? 0 : (vals[Math.floor(.05 * (vals.length - 1))] || 0);
+  const sobe = escuro() ? "#e08a5f" : "#b5542f", desce = escuro() ? "#6cc5ad" : "#2f7a6b", neutro = escuro() ? "#2a2d31" : "#efece7",
+        fora = escuro() ? "#202225" : "#f6f4f1", acc = escuro() ? "#7fb4d4" : "#1f4f7a";
+  const cor = v => { if (!v) return fora;
+    if (mapaModo === "nivel") { if (!isFinite(v.nivel)) return fora; return misturar(neutro, acc, Math.min(1, Math.max(0, (v.nivel - lo) / Math.max(lim - lo, 1e-9)))); }
+    if (!isFinite(v.d)) return fora;
+    return misturar(neutro, v.d >= 0 ? sobe : desce, 0.12 + 0.88 * Math.min(1, Math.abs(v.d) / lim)); };
+  let caminhos = "";
+  for (const [k, d] of Object.entries(MAPA.mun)) {
+    const kk = +k, uf = ufMun.get(kk);
+    if (E.uf && uf !== E.uf) continue;
+    const v = V.get(kk);
+    const txt = v ? `${mapaModo === "delta" ? fd(v.d) + " pontos" : fmt(v.nivel) + "%"} · ${v.s.map(x => fmt(x)).join(" · ")}` : "sem dado no recorte";
+    caminhos += `<path class="m${E.mun === kk ? " sel" : ""}" data-k="${kk}" d="${d}" fill="${cor(v)}"><title>${R.meta.municipios[kk] || kk} (${uf || "?"}): ${txt}</title></path>`;
+  }
+  const bordas = E.uf ? (MAPA.uf[E.uf] ? `<path class="u" d="${MAPA.uf[E.uf]}"/>` : "") : Object.values(MAPA.uf).map(d => `<path class="u" d="${d}"/>`).join("");
+  const svg = document.getElementById("mapa");
+  svg.innerHTML = `<g id="mapa-g">${caminhos}${bordas}</g>`;
+  const bb = document.getElementById("mapa-g").getBBox(), folga = Math.max(bb.width, bb.height) * 0.02;
+  svg.setAttribute("viewBox", `${bb.x - folga} ${bb.y - folga} ${bb.width + 2 * folga} ${bb.height + 2 * folga}`);
+  svg.querySelectorAll("path.m").forEach(el => el.onclick = () => {
+    const k = +el.dataset.k;
+    if (E.mun === k) { E.mun = null; E.nivel = "mun"; } else { E.mun = k; E.uf = ufMun.get(k) || E.uf; E.nivel = "sec"; }
+    desenhar(); });
+  const rotB = turnos ? (t26 ? "2º turno de 2026" : "2º turno de 2022") : EL[E.b];
+  document.getElementById("mapa-modo").innerHTML = [["delta", "diferença"], ["nivel", `nível em ${rotB}`]].map(([k, t]) =>
+    `<button class="${k === mapaModo ? "on" : ""}" data-k="${k}">${t}</button>`).join("");
+  document.querySelectorAll("#mapa-modo button").forEach(b => b.onclick = () => { mapaModo = b.dataset.k; desenharMapa(); });
+  document.getElementById("t-mapa").textContent = `Mapa: ${medNome}`;
+  document.getElementById("s-mapa").textContent = (mapaModo === "delta"
+      ? (turnos ? (t26 ? "Mudança entre os turnos de 2026 menos a de 2022, por município." : "Mudança do 1º para o 2º turno de 2022, por município (a de 2026 entra em 25/10).")
+                : `De ${EL[E.a]} para ${EL[E.b]}, por município.`)
+      : `${medNome} em ${rotB}, por município.`) + (E.uf ? ` ${UF_NOME[E.uf]}; tire a UF no × para voltar ao Brasil.` : "") + " Clique num município para ver as seções dele.";
+  document.getElementById("mapa-leg").innerHTML = mapaModo === "delta"
+    ? `queda de ${lim}+ pontos <span class="escala" style="background:linear-gradient(90deg,${desce},${neutro},${sobe})"></span> alta de ${lim}+ pontos · cinza claro: sem dado no recorte (ou abaixo do mínimo de aptos)`
+    : `${fmt(lo, 0)}% <span class="escala" style="background:linear-gradient(90deg,${neutro},${acc})"></span> ${lim}% ou mais · cinza claro: sem dado no recorte`;
+}
+function desenhar(){ desenharCartoes(); desenharControles(); desenharFoco(); desenharMapa(); desenharTabela(); }
 // no domingo do 2º turno: recarrega o resumo a cada 2 min enquanto chegam urnas (as seções de UF ficam em cache)
 setInterval(async () => { if (document.hidden || !R || !R.meta.secoes_26b && !temDado("26b") && new Date() < new Date("2026-10-25T16:00:00-03:00")) return;
   R = await json("dados/naovotos/resumo.json"); UFD = {}; DEST = await json("dados/naovotos/destaques.json"); desenhar(); }, 120000);
