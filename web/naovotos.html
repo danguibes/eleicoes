@@ -118,6 +118,7 @@ const fd = x => !isFinite(x) ? "—" : (x > 0 ? "+" : x < 0 ? "−" : "") + fmt(
 const nf = x => Math.round(x).toLocaleString("pt-BR");
 let R = null, DEST = null, UFD = {}, carregando = null, MAPA = null, mapaModo = "delta";
 const PADRAO = {minAp: 50, soComp: true};
+let ORD_COL = null, ORD_DIR = -1;   // clique no cabeçalho: coluna e sentido (−1 decrescente, 1 crescente)
 // visao "par": de A para B; "turnos": a mudança do 1º para o 2º turno em 2026 contra a mesma mudança em 2022
 const E = {visao: "par", a: "22a", b: "26a", med: "abst", nivel: "mun", uf: "", soComp: true, minAp: 50, ord: "sobe", mun: null, busca: "", ext: false};
 
@@ -212,7 +213,7 @@ function desenharControles(){
   on("c-nivel", e => { E.nivel = e.target.value; if (E.nivel !== "sec" && E.ord === "rel") E.ord = "sobe"; E.mun = null; desenhar(); });
   on("c-uf", e => { E.uf = e.target.value; E.mun = null; desenhar(); });
   on("c-mun", e => { E.mun = e.target.value ? +e.target.value : null; desenhar(); });
-  on("c-ord", e => { E.ord = e.target.value; desenhar(); });
+  on("c-ord", e => { E.ord = e.target.value; ORD_COL = null; desenhar(); });
   on("c-min", e => { E.minAp = +e.target.value || 0; desenharFoco(); desenharMapa(); desenharTabela(); });
   on("c-comp", e => { E.soComp = e.target.checked; desenharFoco(); desenharTabela(); });
   on("c-ext", e => { E.ext = e.target.checked; desenharFoco(); desenharTabela(); });
@@ -298,18 +299,34 @@ async function desenharTabela(){
     for (const r of L) { const x = mm.get(r.mun) || [0, 0]; x[0] += r.d * r.ap; x[1] += r.ap; mm.set(r.mun, x); }
     for (const r of L) { const x = mm.get(r.mun); r.dm = x[0] / x[1]; r.rel = r.d - r.dm; }
   }
-  const chave = {sobe: r => -r.d, desce: r => r.d, abs: r => -Math.abs(r.d), rel: r => -Math.abs(r.rel)}[E.ord];
-  L.sort((a, b) => chave(a) - chave(b));
+  const eA = turnos ? (t26 ? "26a" : "22a") : E.a, eB = turnos ? (t26 ? "26b" : "22b") : E.b;
+  const sufDe = (r, e) => r.suf && e !== "26b" ? r.suf : "";
+  for (const r of L) { r.vB = votos(r.raw, eB, sufDe(r, eB)); r.vA = votos(r.raw, eA, sufDe(r, eA)); }
+  // valor de cada coluna, para ordenar pelo cabeçalho
+  const COLS = {nome: r => r.nome + " " + (r.local || ""), ap: r => r.ap,
+    a: r => turnos ? r.d22 : r.s[iE(E.a)], b: r => turnos ? r.d26 : r.s[iE(E.b)], d: r => r.d, dm: r => r.dm,
+    lula: r => r.vB[0], dlula: r => r.vB[0] - r.vA[0]};
+  if (ORD_COL && !(ORD_COL in COLS) || (ORD_COL === "dm" && E.nivel !== "sec")) ORD_COL = null;
+  if (ORD_COL) {
+    const f = COLS[ORD_COL];
+    L.sort((x, y) => { const a = f(x), b = f(y);
+      if (typeof a === "string") return ORD_DIR * a.localeCompare(b, "pt");
+      const fa = isFinite(a), fb = isFinite(b);   // sem dado vai sempre para o fim
+      if (!fa || !fb) return fa ? -1 : fb ? 1 : 0;
+      return ORD_DIR * (a - b); });
+  } else {
+    const chave = {sobe: r => -r.d, desce: r => r.d, abs: r => -Math.abs(r.d), rel: r => -Math.abs(r.rel)}[E.ord];
+    L.sort((a, b) => chave(a) - chave(b));
+  }
   desenharHist(L);
   const mostra = L.slice(0, 300);
   const cls = d => d > 0 ? "sobe" : d < 0 ? "desce" : "";
   const colA = turnos ? "1º → 2º de 2022" : EL[E.a], colB = turnos ? "1º → 2º de 2026" : EL[E.b];
-  const eA = turnos ? (t26 ? "26a" : "22a") : E.a, eB = turnos ? (t26 ? "26b" : "22b") : E.b;
-  const sufDe = (r, e) => r.suf && e !== "26b" ? r.suf : "";
-  for (const r of mostra) { r.vB = votos(r.raw, eB, sufDe(r, eB)); r.vA = votos(r.raw, eA, sufDe(r, eA)); }
-  tab.innerHTML = `<tr><th>${E.nivel === "uf" ? "UF" : E.nivel === "mun" ? "município" : "seção"}</th><th>aptos</th>
-      <th>${colA}</th><th>${colB}</th><th class="ord">${turnos ? (t26 ? "2026 − 2022 (pontos)" : "2022 (pontos)") : "diferença (pontos)"}</th>${E.nivel === "sec" ? "<th>município</th>" : ""}
-      <th title="votos válidos em ${EL[eB]}"><span class="lula">Lula</span> · <span class="adv">${ADV[eB]}</span></th><th title="parte de Lula nos válidos, ${EL[eB]} − ${EL[eA]}">Δ Lula</th>
+  // cabeçalho clicável: a seta marca a coluna e o sentido
+  const th = (k, conteudo, tit = "") => `<th data-col="${k}" class="${ORD_COL === k || (!ORD_COL && k === "d") ? "ord" : ""}" title="${tit || "clique para ordenar"}">${conteudo}${ORD_COL === k ? (ORD_DIR < 0 ? " ▼" : " ▲") : ""}</th>`;
+  tab.innerHTML = `<tr>${th("nome", E.nivel === "uf" ? "UF" : E.nivel === "mun" ? "município" : "seção")}${th("ap", "aptos")}
+      ${th("a", colA)}${th("b", colB)}${th("d", turnos ? (t26 ? "2026 − 2022 (pontos)" : "2022 (pontos)") : "diferença (pontos)")}${E.nivel === "sec" ? th("dm", "município") : ""}
+      ${th("lula", `<span class="lula">Lula</span> · <span class="adv">${ADV[eB]}</span>`, `parte de Lula nos válidos em ${EL[eB]} — clique para ordenar`)}${th("dlula", "Δ Lula", `parte de Lula nos válidos, ${EL[eB]} − ${EL[eA]} — clique para ordenar`)}
       <th>${Object.keys(EL).map(e => e.replace("22", "22·").replace("26", "26·").replace("a", "1º").replace("b", "2º")).join(" · ")}</th></tr>` +
     mostra.map((r, i) => `<tr class="clic" data-i="${i}" data-k="${E.nivel === "uf" ? r.uf : r.mun ?? ""}">
       <td>${r.nome}${r.local ? `<span class="peq">${r.local}</span>` : ""}${E.nivel === "sec" && !r.comp && E.a.slice(0,2) !== E.b.slice(0,2) ? `<span class="peq">não comparável com 2022</span>` : ""}</td>
@@ -320,13 +337,18 @@ async function desenharTabela(){
       <td><span class="lula">${fmt(r.vB[0], 0)}</span> · <span class="adv">${fmt(r.vB[1], 0)}</span></td><td>${fd(r.vB[0] - r.vA[0])}</td>
       <td class="serie">${r.s.map(x => fmt(x)).join(" · ")}</td></tr>`).join("");
   document.getElementById("s-tab").textContent = `${L.length.toLocaleString("pt-BR")} ${E.nivel === "uf" ? "UFs" : E.nivel === "mun" ? "municípios" : "seções"} no recorte` +
-    (L.length > 300 ? "; as 300 primeiras na ordem escolhida." : ".") + ` Medida: ${medNome[1]}, ${medNome[2]}.`;
+    (L.length > 300 ? "; as 300 primeiras na ordem escolhida." : ".") + ` Medida: ${medNome[1]}, ${medNome[2]}.` +
+    (ORD_COL ? ` Ordenado pelo cabeçalho (${ORD_DIR < 0 ? "decrescente" : "crescente"}); clique de novo para inverter, ou escolha em "Ordenar" para voltar.` : " Clique num cabeçalho para ordenar por ele.");
   document.getElementById("n-tab").innerHTML = (E.nivel === "sec" && !E.uf
       ? "Brasil inteiro: as 250 maiores altas e as 250 maiores quedas do país, entre seções comparáveis com 100 ou mais aptos, sem o exterior. Escolha uma UF para todas as seções dela. "
       : "") + (turnos ? "<b>Entre turnos:</b> a seção é a mesma nos dois turnos de cada ano (mesmo cadastro, mesmos aptos). A pergunta é se a mudança de 3 semanas em 2026 foi diferente da mudança de 3 semanas em 2022 no mesmo lugar: uma seção onde a abstenção sempre sobe no 2º turno não aparece; uma onde subiu só em 2026, aparece. " : "") +
       "A última coluna é a medida nas quatro eleições, na ordem: 1º e 2º turnos de 2022, 1º e 2º de 2026 — o padrão de cada lugar ao longo do tempo." +
       (E.nivel !== "sec" && (E.a === "26b" || E.b === "26b") ? " <b>Com o 2º turno de 2026 no par, cada município e UF compara só as seções já apuradas nele</b> — as mesmas nas quatro eleições." : "") +
       " Clique numa linha para a ficha do local (abstenção e voto nas quatro eleições)" + (E.nivel !== "sec" ? " e para descer um nível." : ".");
+  tab.querySelectorAll("th[data-col]").forEach(h => h.onclick = () => {
+    const k = h.dataset.col;
+    if (ORD_COL === k) ORD_DIR = -ORD_DIR; else { ORD_COL = k; ORD_DIR = k === "nome" ? 1 : -1; }
+    desenharTabela(); });
   tab.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => {
     const linha = mostra[+tr.dataset.i];
     SEL = {nome: linha.nome + (linha.local ? " — " + linha.local : ""), raw: linha.raw, suf: linha.suf};
