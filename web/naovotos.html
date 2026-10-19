@@ -33,6 +33,10 @@
   #mapa path.sel{stroke:var(--ink);stroke-width:1.6}
   .escala{display:inline-block;width:140px;height:9px;border-radius:2px;vertical-align:middle;margin:0 6px}
   .leg{font-size:12px;color:var(--mut);margin-top:6px}
+  .lula{color:#b03a2e;font-weight:700} .adv{color:#1f4f7a;font-weight:700}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .lula{color:#e0705f} :root:not([data-theme="light"]) .adv{color:#7fb4d4}}
+  #ficha table td,#ficha table th{text-align:right} #ficha table td:first-child,#ficha table th:first-child{text-align:left}
+  .fechar{float:right;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:2px 9px;cursor:pointer;font:inherit;font-size:13px}
   label.f{display:flex;flex-direction:column;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;gap:2px}
   select,input[type=number],input[type=search]{font:inherit;font-size:13.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 8px}
   input[type=number]{width:80px}
@@ -91,6 +95,8 @@
   <svg id="hist" viewBox="0 0 900 160" style="width:100%;display:block"></svg>
 </section>
 
+<section id="ficha" hidden></section>
+
 <section>
   <h2 id="t-tab">Maiores diferenças</h2>
   <p class="sub" id="s-tab"></p>
@@ -123,6 +129,16 @@ function taxa(ap, co, br, nu, med){
   if (br < 0 || nu < 0) return NaN;
   return med === "bn" ? 100 * (br + nu) / co : med === "br" ? 100 * br / co : 100 * nu / co;
 }
+const ADV = {"22a": "Bolsonaro", "22b": "Bolsonaro", "26a": "Flávio", "26b": "Flávio"};
+const CAMPOS = ["ap", "co", "br", "nu", "lu", "ad"];
+// parte de Lula e do adversário nos votos válidos; r é a linha crua, s_ o sufixo (_r: só as seções já apuradas no 2º turno)
+function votos(r, e, s_ = ""){
+  const co = r[`${e}_co${s_}`], br = r[`${e}_br${s_}`], nu = r[`${e}_nu${s_}`], lu = r[`${e}_lu${s_}`], ad = r[`${e}_ad${s_}`];
+  const v = co - br - nu;
+  if (!(v > 0) || lu < 0 || ad < 0 || lu == null) return [NaN, NaN];
+  return [100 * lu / v, 100 * ad / v];
+}
+let SEL = null;   // o local da ficha: {nome, raw, suf}
 const tx = (t, i, e, med) => taxa(t[e+"_ap"][i], t[e+"_co"][i], t[e+"_br"][i], t[e+"_nu"][i], med);
 const temDado = e => R && (e !== "26b" || (R.mun["26b_ap"] || []).some(x => x > 0));
 
@@ -139,12 +155,12 @@ async function ufDados(uf){
   const U = await json(`dados/naovotos/${uf.toLowerCase()}.json`);
   if (U) {   // o 2º turno de 2026 vem num arquivo à parte, que é o que muda na noite
     const t = U.sec, n = t.municipio.length;
-    for (const k of ["ap","co","br","nu"]) t["26b_" + k] = new Array(n).fill(-1);
+    for (const k of CAMPOS) t["26b_" + k] = new Array(n).fill(-1);
     if (R.meta.ufs_26b_por_secao.includes(uf)) {
       const b = await json(`dados/naovotos/${uf.toLowerCase()}_26b.json`);
       if (b) { const pos = new Map(t.zona.map((z, i) => [z * 10000 + t.secao[i], i]));
         b.zona.forEach((z, j) => { const i = pos.get(z * 10000 + b.secao[j]); if (i == null) return;
-          for (const k of ["ap","co","br","nu"]) t["26b_" + k][i] = b["26b_" + k][j]; }); }
+          for (const k of CAMPOS) t["26b_" + k][i] = b["26b_" + k][j]; }); }
     }
   }
   UFD[uf] = U; carregando = null; return U;
@@ -207,7 +223,7 @@ function desenharControles(){
 function agregar(chave){   // somas do resumo por UF
   const m = R.mun, out = new Map();
   m.uf.forEach((u, i) => { const k = chave === "uf" ? u : m.municipio[i];
-    const chaves = Object.keys(EL).flatMap(e => ["ap","co","br","nu"].flatMap(c => [`${e}_${c}`, ...(e !== "26b" ? [`${e}_${c}_r`] : [])]));
+    const chaves = Object.keys(EL).flatMap(e => CAMPOS.flatMap(c => [`${e}_${c}`, ...(e !== "26b" ? [`${e}_${c}_r`] : [])]));
     if (!out.has(k)) out.set(k, Object.fromEntries(chaves.map(c => [c, 0])));
     const o = out.get(k);
     for (const c of chaves) { const x = (m[c] || [])[i]; if (x > 0) o[c] += x; } });
@@ -228,7 +244,8 @@ async function linhas(){
       if (!E.uf && !E.ext && uf === "ZZ") continue;
       const nome = E.nivel === "uf" ? UF_NOME[k] : `${R.meta.municipios[k] || k} (${uf})`;
       if (com26b && !(r["26b_ap"] > 0)) continue;   // sem seção apurada ainda no 2º turno
-      out.push({nome, uf, mun: E.nivel === "mun" ? k : null, ap: r[E.b+"_ap"] > 0 ? r[E.b+"_ap"] : r[E.a+"_ap"], comp: 1, s: serieAg(r)});
+      out.push({nome, uf, mun: E.nivel === "mun" ? k : null, ap: r[E.b+"_ap"] > 0 ? r[E.b+"_ap"] : r[E.a+"_ap"], comp: 1, s: serieAg(r),
+                raw: r, suf: com26b ? "_r" : ""});
     }
     return out;
   }
@@ -238,7 +255,7 @@ async function linhas(){
     for (let i = 0; i < d.municipio.length; i++) {
       const r = Object.fromEntries(Object.keys(d).map(c => [c, d[c][i]]));
       out.push({nome: `${R.meta.municipios[r.municipio] || r.municipio} (${r.uf}) · zona ${r.zona}, seção ${r.secao}`, uf: r.uf, mun: r.municipio,
-                zona: r.zona, local: r.local, ap: r[E.b+"_ap"], comp: 1, s: serie(r)});
+                zona: r.zona, local: r.local, ap: r[E.b+"_ap"], comp: 1, s: serie(r), raw: r, suf: ""});
     }
     return out;
   }
@@ -249,7 +266,7 @@ async function linhas(){
     const r = Object.fromEntries(Object.keys(t).map(c => [c, t[c][i]]));
     const loc = U.meta.locais[`${r.zona}-${r.local}`] || "";
     out.push({nome: `${U.meta.municipios[r.municipio] || r.municipio} · zona ${r.zona}, seção ${r.secao}`, local: loc, uf: E.uf, mun: r.municipio,
-              ap: r[E.b+"_ap"] > 0 ? r[E.b+"_ap"] : r["26a_ap"], comp: r.comparavel, s: serie(r)});
+              ap: r[E.b+"_ap"] > 0 ? r[E.b+"_ap"] : r["26a_ap"], comp: r.comparavel, s: serie(r), raw: r, suf: ""});
   }
   return out;
 }
@@ -287,15 +304,20 @@ async function desenharTabela(){
   const mostra = L.slice(0, 300);
   const cls = d => d > 0 ? "sobe" : d < 0 ? "desce" : "";
   const colA = turnos ? "1º → 2º de 2022" : EL[E.a], colB = turnos ? "1º → 2º de 2026" : EL[E.b];
+  const eA = turnos ? (t26 ? "26a" : "22a") : E.a, eB = turnos ? (t26 ? "26b" : "22b") : E.b;
+  const sufDe = (r, e) => r.suf && e !== "26b" ? r.suf : "";
+  for (const r of mostra) { r.vB = votos(r.raw, eB, sufDe(r, eB)); r.vA = votos(r.raw, eA, sufDe(r, eA)); }
   tab.innerHTML = `<tr><th>${E.nivel === "uf" ? "UF" : E.nivel === "mun" ? "município" : "seção"}</th><th>aptos</th>
       <th>${colA}</th><th>${colB}</th><th class="ord">${turnos ? (t26 ? "2026 − 2022 (pontos)" : "2022 (pontos)") : "diferença (pontos)"}</th>${E.nivel === "sec" ? "<th>município</th>" : ""}
+      <th title="votos válidos em ${EL[eB]}"><span class="lula">Lula</span> · <span class="adv">${ADV[eB]}</span></th><th title="parte de Lula nos válidos, ${EL[eB]} − ${EL[eA]}">Δ Lula</th>
       <th>${Object.keys(EL).map(e => e.replace("22", "22·").replace("26", "26·").replace("a", "1º").replace("b", "2º")).join(" · ")}</th></tr>` +
-    mostra.map(r => `<tr class="${E.nivel !== "sec" ? "clic" : ""}" data-k="${E.nivel === "uf" ? r.uf : r.mun ?? ""}">
+    mostra.map((r, i) => `<tr class="clic" data-i="${i}" data-k="${E.nivel === "uf" ? r.uf : r.mun ?? ""}">
       <td>${r.nome}${r.local ? `<span class="peq">${r.local}</span>` : ""}${E.nivel === "sec" && !r.comp && E.a.slice(0,2) !== E.b.slice(0,2) ? `<span class="peq">não comparável com 2022</span>` : ""}</td>
       <td>${nf(r.ap)}</td>${turnos ? `<td class="${cls(r.d22)}">${fd(r.d22)}</td><td class="${cls(r.d26)}">${fd(r.d26)}</td>`
         : `<td>${fmt(r.s[iE(E.a)])}%</td><td>${fmt(r.s[iE(E.b)])}%</td>`}
       <td class="${cls(r.d)}">${fd(r.d)}</td>
       ${E.nivel === "sec" ? `<td>${fd(r.dm)}<span class="peq">${E.ord === "rel" ? "seção − município: " + fd(r.rel) : ""}</span></td>` : ""}
+      <td><span class="lula">${fmt(r.vB[0], 0)}</span> · <span class="adv">${fmt(r.vB[1], 0)}</span></td><td>${fd(r.vB[0] - r.vA[0])}</td>
       <td class="serie">${r.s.map(x => fmt(x)).join(" · ")}</td></tr>`).join("");
   document.getElementById("s-tab").textContent = `${L.length.toLocaleString("pt-BR")} ${E.nivel === "uf" ? "UFs" : E.nivel === "mun" ? "municípios" : "seções"} no recorte` +
     (L.length > 300 ? "; as 300 primeiras na ordem escolhida." : ".") + ` Medida: ${medNome[1]}, ${medNome[2]}.`;
@@ -304,8 +326,11 @@ async function desenharTabela(){
       : "") + (turnos ? "<b>Entre turnos:</b> a seção é a mesma nos dois turnos de cada ano (mesmo cadastro, mesmos aptos). A pergunta é se a mudança de 3 semanas em 2026 foi diferente da mudança de 3 semanas em 2022 no mesmo lugar: uma seção onde a abstenção sempre sobe no 2º turno não aparece; uma onde subiu só em 2026, aparece. " : "") +
       "A última coluna é a medida nas quatro eleições, na ordem: 1º e 2º turnos de 2022, 1º e 2º de 2026 — o padrão de cada lugar ao longo do tempo." +
       (E.nivel !== "sec" && (E.a === "26b" || E.b === "26b") ? " <b>Com o 2º turno de 2026 no par, cada município e UF compara só as seções já apuradas nele</b> — as mesmas nas quatro eleições." : "") +
-      (E.nivel !== "sec" ? " Clique numa linha para descer um nível." : "");
+      " Clique numa linha para a ficha do local (abstenção e voto nas quatro eleições)" + (E.nivel !== "sec" ? " e para descer um nível." : ".");
   tab.querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => {
+    const linha = mostra[+tr.dataset.i];
+    SEL = {nome: linha.nome + (linha.local ? " — " + linha.local : ""), raw: linha.raw, suf: linha.suf};
+    if (E.nivel === "sec") { desenharFicha(); document.getElementById("ficha").scrollIntoView({behavior: "smooth", block: "nearest"}); return; }
     const k = tr.dataset.k; if (!k) return;
     if (E.nivel === "uf") { E.uf = k; E.nivel = "mun"; } else { E.mun = +k; E.uf = R.mun.uf[R.mun.municipio.indexOf(+k)]; E.nivel = "sec"; }
     desenhar(); window.scrollTo({top: document.getElementById("mapa-sec").offsetTop - 120, behavior: "smooth"}); });
@@ -370,7 +395,8 @@ function valoresMun(){
       return taxa(r[`${e}_ap${s_}`], r[`${e}_co${s_}`], r[`${e}_br${s_}`], r[`${e}_nu${s_}`], E.med); });
     const d = turnos ? (t26 ? (s[3] - s[2]) - (s[1] - s[0]) : s[1] - s[0]) : s[iE(E.b)] - s[iE(E.a)];
     const nivel = turnos ? s[t26 ? 3 : 1] : s[iE(E.b)];
-    if (r[(turnos ? (t26 ? "26b" : "22b") : E.b) + "_ap"] >= E.minAp) out.set(k, {d, nivel, s});
+    const eB = turnos ? (t26 ? "26b" : "22b") : E.b;
+    if (r[eB + "_ap"] >= E.minAp) out.set(k, {d, nivel, s, raw: r, suf: com26b ? "_r" : "", lula: votos(r, eB, com26b && eB !== "26b" ? "_r" : "")});
   }
   return out;
 }
@@ -393,7 +419,7 @@ async function desenharMapa(){
     const kk = +k, uf = ufMun.get(kk);
     if (E.uf && uf !== E.uf) continue;
     const v = V.get(kk);
-    const txt = v ? `${mapaModo === "delta" ? fd(v.d) + " pontos" : fmt(v.nivel) + "%"} · ${v.s.map(x => fmt(x)).join(" · ")}` : "sem dado no recorte";
+    const txt = v ? `${mapaModo === "delta" ? fd(v.d) + " pontos" : fmt(v.nivel) + "%"} · ${v.s.map(x => fmt(x)).join(" · ")} · Lula ${fmt(v.lula[0], 0)}% × ${fmt(v.lula[1], 0)}%` : "sem dado no recorte";
     caminhos += `<path class="m${E.mun === kk ? " sel" : ""}" data-k="${kk}" d="${d}" fill="${cor(v)}"><title>${R.meta.municipios[kk] || kk} (${uf || "?"}): ${txt}</title></path>`;
   }
   const bordas = E.uf ? (MAPA.uf[E.uf] ? `<path class="u" d="${MAPA.uf[E.uf]}"/>` : "") : Object.values(MAPA.uf).map(d => `<path class="u" d="${d}"/>`).join("");
@@ -403,7 +429,9 @@ async function desenharMapa(){
   svg.setAttribute("viewBox", `${bb.x - folga} ${bb.y - folga} ${bb.width + 2 * folga} ${bb.height + 2 * folga}`);
   svg.querySelectorAll("path.m").forEach(el => el.onclick = () => {
     const k = +el.dataset.k;
-    if (E.mun === k) { E.mun = null; E.nivel = "mun"; } else { E.mun = k; E.uf = ufMun.get(k) || E.uf; E.nivel = "sec"; }
+    if (E.mun === k) { E.mun = null; E.nivel = "mun"; SEL = null; }
+    else { E.mun = k; E.uf = ufMun.get(k) || E.uf; E.nivel = "sec";
+      const v = V.get(k); SEL = v ? {nome: `${R.meta.municipios[k] || k} (${ufMun.get(k)})`, raw: v.raw, suf: v.suf} : null; }
     desenhar(); });
   const rotB = turnos ? (t26 ? "2º turno de 2026" : "2º turno de 2022") : EL[E.b];
   document.getElementById("mapa-modo").innerHTML = [["delta", "diferença"], ["nivel", `nível em ${rotB}`]].map(([k, t]) =>
@@ -418,7 +446,30 @@ async function desenharMapa(){
     ? `queda de ${lim}+ pontos <span class="escala" style="background:linear-gradient(90deg,${desce},${neutro},${sobe})"></span> alta de ${lim}+ pontos · cinza claro: sem dado no recorte (ou abaixo do mínimo de aptos)`
     : `${fmt(lo, 0)}% <span class="escala" style="background:linear-gradient(90deg,${neutro},${acc})"></span> ${lim}% ou mais · cinza claro: sem dado no recorte`;
 }
-function desenhar(){ desenharCartoes(); desenharControles(); desenharFoco(); desenharMapa(); desenharTabela(); }
+function desenharFicha(){
+  const el = document.getElementById("ficha");
+  if (!SEL) { el.hidden = true; return; }
+  el.hidden = false;
+  const r = SEL.raw, es = Object.keys(EL), s_ = e => SEL.suf && e !== "26b" ? SEL.suf : "";
+  const v = (e, k) => r[`${e}_${k}${s_(e)}`];
+  const tem = e => v(e, "ap") > 0;
+  const linha = (rot, f, cls = "") => `<tr><td>${rot}</td>${es.map(e => `<td class="${cls}">${tem(e) ? f(e) : "—"}</td>`).join("")}</tr>`;
+  const pc = (a, b) => b > 0 && a >= 0 ? fmt(100 * a / b) + "%" : "—";
+  el.innerHTML = `<button class="fechar" id="fechar-ficha" title="fechar">×</button><h2>${SEL.nome}</h2>
+    <p class="sub">Abstenção, brancos e nulos ao lado do voto, nas quatro eleições. Lula e o adversário em % dos votos válidos
+      (comparecimento menos brancos e nulos)${SEL.suf ? "; no 2º turno de 2026, só as seções já apuradas, e as outras eleições nas mesmas seções" : ""}.</p>
+    <div class="scroll"><table style="margin-top:8px"><tr><th></th>${es.map(e => `<th>${EL[e]}</th>`).join("")}</tr>
+    ${linha("eleitores aptos", e => nf(v(e, "ap")))}
+    ${linha("abstenção", e => pc(v(e, "ap") - v(e, "co"), v(e, "ap")))}
+    ${linha("brancos (de quem votou)", e => pc(v(e, "br"), v(e, "co")))}
+    ${linha("nulos (de quem votou)", e => pc(v(e, "nu"), v(e, "co")))}
+    ${linha("<span class='lula'>Lula</span> (dos válidos)", e => fmt(votos(r, e, s_(e))[0]) + "%", "lula")}
+    ${linha("<span class='adv'>Bolsonaro / Flávio</span> (dos válidos)", e => `${fmt(votos(r, e, s_(e))[1])}%<span class="peq">${ADV[e]}</span>`, "adv")}
+    ${linha("Lula − adversário", e => { const x = votos(r, e, s_(e)); return fd(x[0] - x[1]); })}
+    </table></div>`;
+  document.getElementById("fechar-ficha").onclick = () => { SEL = null; desenharFicha(); };
+}
+function desenhar(){ desenharFicha(); desenharCartoes(); desenharControles(); desenharFoco(); desenharMapa(); desenharTabela(); }
 // no domingo do 2º turno: recarrega o resumo a cada 2 min enquanto chegam urnas (as seções de UF ficam em cache)
 setInterval(async () => { if (document.hidden || !R || !R.meta.secoes_26b && !temDado("26b") && new Date() < new Date("2026-10-25T16:00:00-03:00")) return;
   R = await json("dados/naovotos/resumo.json"); UFD = {}; DEST = await json("dados/naovotos/destaques.json"); desenhar(); }, 120000);

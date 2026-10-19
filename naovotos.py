@@ -33,7 +33,7 @@ from painel_brasil import REGIAO, nomes_municipios
 RAW = Path("data/raw")
 WEB = Path("web/dados/naovotos")
 ELEICOES = {"22a": "1º turno de 2022", "22b": "2º turno de 2022", "26a": "1º turno de 2026", "26b": "2º turno de 2026"}
-CAMPOS = ["ap", "co", "br", "nu"]          # aptos, comparecimento, brancos, nulos
+CAMPOS = ["ap", "co", "br", "nu", "lu", "ad"]   # aptos, comparecimento, brancos, nulos, Lula, o adversário (Bolsonaro; Flávio)
 TOL = 0.20                                 # variação de aptos com que a seção de 2022 ainda é "a mesma"
 PARES = [("22a", "26a"), ("26a", "26b"), ("22b", "26b"), ("22a", "22b")]
 
@@ -56,18 +56,23 @@ def boletins(pleito, uf):
                     continue
                 br = sum(n for t, _, n in c["votos"] if t == "branco")
                 nu = sum(n for t, _, n in c["votos"] if t == "nulo")
-                linhas.append((zona, secao, e["aptos"], c["comparecimento"], br, nu))
-    return pd.DataFrame(linhas, columns=["zona", "secao", "26b_ap", "26b_co", "26b_br", "26b_nu"])
+                lu = sum(n for t, k, n in c["votos"] if t not in ("branco", "nulo") and int(k) == 13)
+                ad = sum(n for t, k, n in c["votos"] if t not in ("branco", "nulo") and int(k) == 22)
+                linhas.append((zona, secao, e["aptos"], c["comparecimento"], br, nu, lu, ad))
+    return pd.DataFrame(linhas, columns=["zona", "secao"] + [f"26b_{k}" for k in CAMPOS])
 
 
 def secoes():
     s = pd.read_parquet(RAW / "2026" / "secoes_1t_brasil.parquet",
-                        columns=["uf", "municipio", "zona", "secao", "local", "aptos", "comparecimento", "branco", "nulo"])
-    s = s.rename(columns={"aptos": "26a_ap", "comparecimento": "26a_co", "branco": "26a_br", "nulo": "26a_nu"})
+                        columns=["uf", "municipio", "zona", "secao", "local", "aptos", "comparecimento", "branco", "nulo", "lula", "flavio"])
+    s = s.rename(columns={"aptos": "26a_ap", "comparecimento": "26a_co", "branco": "26a_br", "nulo": "26a_nu",
+                          "lula": "26a_lu", "flavio": "26a_ad"})
     a = pd.read_parquet(RAW / "tse" / "painel_2t_2022.parquet")
     a = pd.DataFrame({"uf": a.uf, "zona": a.zona % 10000, "secao": a.secao,
                       "22a_ap": a.aptos, "22a_co": a.aptos - a.abst, "22a_br": a.branco, "22a_nu": a.nulo,
-                      "22b_ap": a.aptos_2t, "22b_co": a.aptos_2t - a.abst_2t, "22b_br": a.branco_2t, "22b_nu": a.nulo_2t})
+                      "22a_lu": a.lula, "22a_ad": a.bolsonaro,
+                      "22b_ap": a.aptos_2t, "22b_co": a.aptos_2t - a.abst_2t, "22b_br": a.branco_2t, "22b_nu": a.nulo_2t,
+                      "22b_lu": a.lula_2t, "22b_ad": a.bolsonaro_2t})
     s = s.merge(a, on=["uf", "zona", "secao"], how="left")
     s["comparavel"] = ((s["22a_ap"] - s["26a_ap"]).abs() <= TOL * s["26a_ap"]).astype(int)
     partes = []
@@ -92,7 +97,7 @@ def secoes():
 
 def taxas(df, e):
     """abstenção (% dos aptos), brancos+nulos (% do comparecimento), não-votos (% dos aptos)."""
-    ap, co, br, nu = (df[f"{e}_{k}"].astype(float) for k in CAMPOS)
+    ap, co, br, nu = (df[f"{e}_{k}"].astype(float) for k in CAMPOS[:4])
     return {"abst": 100 * (ap - co) / ap, "bn": 100 * (br + nu) / co, "nv": 100 * (ap - co + br + nu) / ap,
             "br": 100 * br / co, "nu": 100 * nu / co}
 
@@ -104,6 +109,7 @@ def municipios_2t():
         return None
     u = pd.read_parquet(arq)
     return pd.DataFrame({"municipio": u.municipio, "26b_ap": u.est, "26b_co": u.c, "26b_br": u.vb, "26b_nu": u.vn,
+                         "26b_lu": u.get("n13", 0), "26b_ad": u.get("n22", 0),
                          "26b_secoes": u.st, "26b_total": u.ts})
 
 
