@@ -78,7 +78,9 @@ def simulador_noite(M, linhas, adv, ano_base):
                  D1a=M.aptos1_r - M[f"r_{'lula'}"] - M[f"r_{adv}"],
                  L1r=M.lula - M[f"r_{'lula'}"], F1r=M[adv] - M[f"r_{adv}"])
     g["D1r"] = (M.aptos1 - M.aptos1_r) - g.L1r - g.F1r
-    cols = ["L2", "F2", "L1a", "F1a", "D1a", "L1r", "F1r", "D1r"]
+    # para a ordem de grandeza: não-votos (abstenção + brancos + nulos) e aptos do 1º turno, todas as seções
+    g["NV1"], g["A1"] = M.branco + M.nulo + M.abst, M.aptos1
+    cols = ["L2", "F2", "L1a", "F1a", "D1a", "L1r", "F1r", "D1r", "NV1", "A1"]
     por = g.groupby("uf")[cols].sum()
     sim = {"campos": cols, "total": [int(x) for x in por.sum()], "uf": {u: [int(x) for x in v] for u, v in por.iterrows()}}
     # ponto de partida: os demais do 1º turno, pelas migrações de 2022 (simulador.py: dentro de cada município,

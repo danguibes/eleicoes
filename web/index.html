@@ -176,7 +176,8 @@
   <div class="sim-grade">
     <div>
       <div class="sim-ctl"><div class="rot"><span>Dos demais, quantos <b>não votam válido</b> (abstenção, branco ou nulo)</span><b id="sim-x-v"></b></div>
-        <input type="range" id="sim-x" min="0" max="100" step="0.1"></div>
+        <input type="range" id="sim-x" min="0" max="100" step="0.1">
+        <div class="sub" id="sim-x-tot" style="margin-top:2px"></div></div>
       <div class="sim-ctl"><div class="rot"><span>Dos demais que votam válido, quantos vão a <b class="lulac">Lula</b> (o resto, ao adversário)</span><b id="sim-y-v"></b></div>
         <input type="range" id="sim-y" min="0" max="100" step="0.1"></div>
       <div class="modo" id="sim-botoes" style="margin-top:6px"></div>
@@ -1127,6 +1128,12 @@ function desenharSim(){
     SIMX = +ex.value; SIMY = +ey.value;
     document.getElementById("sim-x-v").textContent = fmt(SIMX) + "%";
     document.getElementById("sim-y-v").textContent = fmt(SIMY) + "%";
+    // ordem de grandeza: abstenção + brancos + nulos sobre TODOS os aptos — os já apurados no 2º turno, mais os
+    // demais que não votam válido nas seções que faltam (os eleitores de Lula e do adversário votam, pela hipótese)
+    const aptosA = s.L1a + s.F1a + s.D1a, nvA = aptosA - s.L2 - s.F2;
+    const nvTot = 100 * (nvA + s.D1r * SIMX / 100) / (aptosA + s.L1r + s.F1r + s.D1r);
+    document.getElementById("sim-x-tot").innerHTML = `= <b>${fmt(nvTot)}%</b> de não-votos no total (abstenção, brancos e nulos, sobre todos os aptos)` +
+      (s.A1 > 0 ? ` · no 1º turno de ${m.atual.slice(0, 4)}: ${fmt(100 * s.NV1 / s.A1)}%` : "");
     const R_ = simResultado(s, SIMX, SIMY), vence = R_.pL >= 50 ? "lula" : adv;
     document.getElementById("sim-res").innerHTML =
       `<div><b style="color:${corDe("lula", m.cats)}">${fmt(R_.pL, 2)}%</b><span>${nL} · ${Math.round(R_.L).toLocaleString("pt-BR")} votos</span></div>
@@ -1135,9 +1142,22 @@ function desenharSim(){
     // empate: a parte de Lula entre os válidos dos demais que empata, para cada não-voto
     const emp = x => { const nv = s.D1r * (1 - x / 100); return nv > 0 ? 100 * (0.5 + (s.F2 + s.F1r - s.L2 - s.L1r) / (2 * nv)) : NaN; };
     const e_ = emp(SIMX);
+    // o inverso: com a parte de Lula do controle, que não-voto entre os demais empata
+    const dif = (s.F2 + s.F1r) - (s.L2 + s.L1r), y_ = SIMY / 100;
+    let inv;
+    if (Math.abs(2 * y_ - 1) < 1e-9) inv = dif > 0 ? `com ${fmt(SIMY)}% dos demais a ${nL}, os demais não mudam nada: <b>${nA} vence</b> qualquer que seja o não-voto`
+                                                 : `com ${fmt(SIMY)}% dos demais a ${nL}, os demais não mudam nada: <b>${nL} vence</b> qualquer que seja o não-voto`;
+    else {
+      const nv = dif / (2 * y_ - 1), xEmp = 100 * (1 - nv / s.D1r);   // eleitores dos demais que votam, no empate
+      const quem = y_ > 0.5 ? nL : nA, outro = y_ > 0.5 ? nA : nL;    // quem ganha com mais demais votando
+      inv = nv < 0 ? `com ${fmt(SIMY)}% dos demais a ${nL}, <b>${dif > 0 ? nA : nL} vence</b> qualquer que seja o não-voto entre os demais`
+          : xEmp < 0 ? `com ${fmt(SIMY)}% dos demais a ${nL}, <b>${outro} vence</b> mesmo que todos os demais votem válido`
+          : `com ${fmt(SIMY)}% dos demais a ${nL}, o empate está em <b>${fmt(xEmp)}%</b> de não-voto entre os demais: abaixo disso ${quem} vence, acima, ${outro}`;
+    }
     document.getElementById("sim-nota").innerHTML = (isFinite(e_) ? (e_ > 100 ? `Com ${fmt(SIMX)}% de não-voto entre os demais, <b>${nA} vence mesmo que todos os demais que votam escolham ${nL}</b>. `
         : e_ < 0 ? `Com ${fmt(SIMX)}% de não-voto entre os demais, <b>${nL} vence mesmo que todos os demais que votam escolham ${nA}</b>. `
         : `Com ${fmt(SIMX)}% de não-voto entre os demais, o empate está em <b>${fmt(e_)}%</b> deles indo a ${nL}. `) : "") +
+      `E ao contrário: ${inv}. ` +
       (apurado ? `Já apurado no 2º turno: ${nL} ${Math.round(s.L2).toLocaleString("pt-BR")} × ${nA} ${Math.round(s.F2).toLocaleString("pt-BR")}. ` : "Nada apurado ainda: a conta é o 1º turno inteiro. ") +
       (obs ? (obs.cabe ? `<b>O que as apuradas indicam</b>, sob as mesmas hipóteses: ${fmt(obs.x)}% de não-voto entre os demais e ${fmt(obs.y)}% deles indo a ${nL}.`
                         : `As apuradas <b>não cabem</b> nas hipóteses: para explicá-las, eleitores de ${nL} ou de ${nA} no 1º turno teriam de ter mudado de lado ou deixado de votar.`) : "") +
