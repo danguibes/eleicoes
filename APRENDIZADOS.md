@@ -470,3 +470,34 @@ em Lula, quem votou em Flávio vota em Flávio, e os demais se dividem por dois 
 vota válido e, dos que votam, quanto vai a Lula. O ponto de partida pelas migrações de 2022 é 75,6%
 e 43,1%, e dá Flávio por 3,2 pontos. Antes da apuração, o empate pede 59,4% dos demais válidos
 para Lula. No ensaio de 2022 a 25%, "o que as apuradas indicam" deu Lula 50,73%, contra 50,90% real.
+
+## 11. Ensaio da noite inteira do 2º turno (21/10/2026)
+
+`tse_falso.py --turno 2 --fonte 2026` serve o 1º turno de 2026 nos endereços do 2º turno (pleito local
+3221, eleição 6258): a hora real de chegada de cada urna, os 498.925 boletins de verdade do disco, e cada
+boletim só aparece 0–30 min (sorteados) depois de a seção entrar no índice, como no dia 04/10.
+`noite.py --turno 2 --falso26` sobe tudo contra ele (nacional, índices, boletins de SP, boletins do
+país, publicador, painel de SP por local, não-votos) em `data/raw/falso26_2t` e `web_ensaio/`, sem
+publicar. Relógio a 6×: a noite em ~45 min.
+
+- **Pegou um defeito real:** com 16 em voo (coletor do país), o orçamento de 404 (parar aos 20/min)
+  deixava chegar a 36, e a trava (31) desligava o coletor por 11 min, em 1,5 min de noite. Agora o
+  orçamento desconta os que estão no ar (31 − 16 − 1 = 14).
+- **A projeção acertou o tempo todo.** Como o "2º turno" servido é o próprio 1º turno, o alvo era
+  conhecido (Lula 48,98% entre os dois):
+
+  | seções | intervalo de Lula |
+  |---|---|
+  | 2,6% | 47,83–49,83 |
+  | 9,8% | 48,40–49,40 |
+  | 20% | 48,73–49,13 |
+  | 89% | 48,78–49,18 |
+
+  SP por local, com 4,4% das seções: 41,7–43,7, contra 42,34 real.
+- **Nenhum processo parou**, e o publicador leva 5–22 s por rodada.
+- **Os boletins andam devagar** (SP: 5.644 seções em 40 min): os 404 do atraso do TSE gastam o
+  orçamento. No ensaio é pior que na vida real, porque a espera de 30 min do coletor do país compara a
+  data do índice (04/10) com o relógio de hoje e não funciona. Afeta o painel por local de SP e os
+  não-votos, não a projeção.
+- Os logs do ensaio foram para `data/raw/logs/ensaio_2110/`: um "PARADO" velho no fim de um log faria a
+  noite real esperar 11 min à toa.
