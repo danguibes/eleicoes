@@ -51,7 +51,7 @@ def base(ano):
     """1º turno por seção: (tabela, linhas, adversário). Zona sem o prefixo de UF, como no índice."""
     if ano == "2026":
         s = pd.read_parquet(RAW / "2026" / "secoes_1t_brasil.parquet")
-        return s[["uf", "municipio", "zona", "secao", "aptos"] + L26], L26, "flavio"
+        return s[["uf", "municipio", "zona", "secao", "aptos", "recebido"] + L26], L26, "flavio"
     s = pd.read_parquet(RAW / "tse" / "painel_2t_2022.parquet")
     s = s.assign(zona=s.zona % 10000)
     return s, tr.LINHAS, "bolsonaro"
@@ -67,7 +67,23 @@ def chegou_por_indice(sec, idx, st):
     return marca.ok.fillna(0).to_numpy()
 
 
-def simulador_noite(M, linhas, adv, ano_base):
+def curva_chegada(sec, adv, ano_base, pontos=100):
+    """Lula, adversário e demais do 1º turno, acumulados na ordem de chegada das urnas (a do 1º turno de 2026;
+    no ensaio com 2022, a do 2º turno de 2022), em cada 1% das seções: por UF e no Brasil. É o que o simulador
+    usa para dizer a vantagem que o adversário precisa ter na contagem, em cada ponto da noite, para vencer."""
+    t = "recebido" if ano_base == "2026" else "t_2t"
+    s = sec[sec[t].notna()].sort_values(t)
+    def uma(g):
+        L, F = g.lula.to_numpy(float), g[adv].to_numpy(float)
+        D = g.aptos.to_numpy(float) - L - F
+        cs = np.c_[np.cumsum(L), np.cumsum(F), np.cumsum(D)]
+        k = np.clip(np.ceil(np.arange(1, pontos + 1) / pontos * len(g)).astype(int) - 1, 0, len(g) - 1)
+        return np.rint(cs[k]).astype(int).tolist(), [pd.Timestamp(x).strftime("%H:%M") for x in g[t].to_numpy()[k]]
+    br, horas = uma(s)
+    return {"brasil": br, "horas": horas, "uf": {u: uma(g)[0] for u, g in s.groupby("uf")}}
+
+
+def simulador_noite(M, linhas, adv, ano_base, sec=None):
     """Os números do simulador da reta final, por UF e no total.
 
     Hipótese do simulador: nas seções que ainda não chegaram, quem votou em Lula no 1º turno vota em
@@ -103,6 +119,11 @@ def simulador_noite(M, linhas, adv, ano_base):
         sim["partida_2022"] = [round(100 * nv / sum(w.values()), 1), round(100 * lu / (lu + bo), 1)]
     except Exception as e:
         print(f"   partida do simulador: {e!r}", flush=True)
+    if sec is not None:
+        try:
+            sim["curva"] = curva_chegada(sec, adv, ano_base)
+        except Exception as e:
+            print(f"   curva do simulador: {e!r}", flush=True)
     return sim
 
 
@@ -238,7 +259,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
         "amostras_q": amostras_q,
         "amostras_pct": amostras_pct,
         "amostras_uf": amostras_uf,
-        "sim": simulador_noite(M, linhas, adv, ano_base),
+        "sim": simulador_noite(M, linhas, adv, ano_base, sec),
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = WEB / f"{saida or modo}_brasil_presidente.json"   # ensaio contra o tse_falso: arquivo próprio
