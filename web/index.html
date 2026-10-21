@@ -1207,7 +1207,9 @@ function desenharSimCurva(s, nL, nA, adv){
   for (let v = Math.ceil(lo / 2) * 2; v <= hi; v += (hi - lo > 20 ? 4 : 2))
     g += `<line x1="${mg.l}" x2="${W - mg.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v === 0 ? "var(--ink)" : "var(--grid)"}" ${v === 0 ? 'opacity=".5"' : ""}/>
       <text x="${mg.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v)}</text>`;
-  for (const f of [10, 25, 50, 75, 90, 100]) g += `<text x="${X(f)}" y="${H - 18}" text-anchor="middle">${f}%</text><text x="${X(f)}" y="${H - 5}" text-anchor="middle" style="font-size:9.5px">${C.horas[f - 1] || ""}</text>`;
+  // 100%: "fim" — a última urna do 1º turno chegou no dia seguinte, e a hora dela confundia
+  for (const f of [10, 25, 50, 75, 90, 100]) g += `<text x="${X(f)}" y="${H - 18}" text-anchor="middle">${f}%</text><text x="${X(f)}" y="${H - 5}" text-anchor="middle" style="font-size:9.5px">${f === 100 ? "fim" : C.horas[f - 1] || ""}</text>`;
+  g += `<text x="${mg.l + 6}" y="${Y(hi) + 12}" style="font-size:10px">↑ ${nA} à frente na contagem</text><text x="${mg.l + 6}" y="${Y(lo) - 5}" style="font-size:10px">↓ ${nL} à frente</text>`;
   g += `<polyline points="${linha}" fill="none" stroke="var(--ink)" stroke-width="2.2"/>`;
   g += `<polyline points="${pts.map(p => `${X(p.f).toFixed(1)},${Y(p.esperada).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="4 3" opacity=".7"/>`;
   // a contagem de verdade, na noite: onde estamos
@@ -1219,16 +1221,18 @@ function desenharSimCurva(s, nL, nA, adv){
     if (fracApur != null && fracApur >= 1) {
       g += `<circle cx="${X(fracApur)}" cy="${Y(real)}" r="6" fill="${real > 0 ? cA : cL}" stroke="var(--card)" stroke-width="2"><title>agora: ${nA} ${real >= 0 ? "+" : ""}${fmt(real)} com ${fmt(fracApur)}% das seções</title></circle>`;
       const k = Math.min(99, Math.max(2, Math.round(fracApur) - 1)), p = pts.find(q => q.f === k + 1);
-      if (p) agora = ` <b>Agora</b>, com ${fmt(fracApur)}% das seções: ${nA} ${real >= 0 ? "+" : "−"}${fmt(Math.abs(real))} na contagem, e precisaria de ${p.precisa >= 0 ? "+" : "−"}${fmt(Math.abs(p.precisa))} — ${real > p.precisa ? `<b>acima</b> da linha: pela regra, ${nA} vence` : `<b>abaixo</b> da linha: pela regra, ${nL} vira`}.`;
+      if (p) agora = ` <b>Agora</b>, com ${fmt(fracApur)}% das seções: ${nA} ${real >= 0 ? "+" : "−"}${fmt(Math.abs(real))} na contagem, e precisaria de ${p.precisa >= 0 ? "+" : "−"}${fmt(Math.abs(p.precisa))} — ${real > p.precisa ? `<b>acima</b> da linha: pela regra, ${nA} vence` : `<b>abaixo</b> da linha: pela regra, ${nL} vira`}.` +
+        // longe da tracejada, a regra não está valendo: quem está melhor que ela é quem está "ganhando" da premissa
+        (Math.abs(real - p.esperada) > 2 ? ` A contagem está ${fmt(Math.abs(real - p.esperada))} pontos ${real < p.esperada ? `<b>abaixo</b> do que a regra prevê (a tracejada): ${nL} está indo melhor que as premissas` : `<b>acima</b> do que a regra prevê (a tracejada): ${nA} está indo melhor que as premissas`} — ajuste os controles (botão "o que as apuradas indicam").` : "");
     }
   }
   svg.innerHTML = g;
   const marcos = [10, 17, 25, 50, 75, 90].map(f => { const p = pts.find(q => q.f === f); return p ? `${f}% (${p.hora}): ${p.precisa >= 0 ? "+" : "−"}${fmt(Math.abs(p.precisa))}` : ""; }).filter(Boolean).join(" · ");
   document.getElementById("sim-curva-t").textContent = `Quanto ${nA} precisa estar à frente na contagem para vencer, conforme as urnas chegam`;
-  document.getElementById("sim-curva-s").innerHTML = `Se as urnas chegarem na <b>ordem do 1º turno</b>${F.ufs ? " (cada UF marcada na própria ordem)" : ""} e as que faltam seguirem a regra acima,
+  document.getElementById("sim-curva-s").innerHTML = `Eixo vertical: ${nA} − ${nL} na contagem (positivo, ${nA} à frente; negativo, ${nL} à frente). Se as urnas chegarem na <b>ordem do 1º turno</b>${F.ufs ? " (cada UF marcada na própria ordem)" : ""} e as que faltam seguirem a regra acima,
     com os controles de agora: vantagem mínima de ${nA} sobre ${nL}, em pontos dos votos válidos já contados. ${marcos}.${agora}`;
   document.getElementById("sim-curva-leg").innerHTML = `<span><i style="background:${cA}"></i>acima da linha: ${nA} vence</span> <span><i style="background:${cL}"></i>abaixo: ${nL} vira</span>
-    <span class="sub">linha cheia: a vantagem mínima · tracejada: a contagem que se veria se todo lugar seguisse a regra · ● a contagem de verdade, na noite · embaixo: a hora em que o 1º turno chegou ali</span>`;
+    <span class="sub">linha cheia: a vantagem mínima · tracejada: a contagem que se veria se todo lugar seguisse a regra — é com ela que se compara o ● (a contagem de verdade, na noite): longe da tracejada, a premissa não está valendo · embaixo: a hora em que o 1º turno chegou ali</span>`;
 }
 function desenharSimMapa(s, emp, obs, part, nL, nA, adv){
   // as combinações dos dois controles: onde cada um vence, a linha do empate, e os pontos de referência
