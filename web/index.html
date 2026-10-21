@@ -111,6 +111,13 @@
   .multi-reg > label{display:flex;gap:6px;align-items:center}
   .multi-ufs{display:flex;flex-wrap:wrap;gap:4px 10px;padding:3px 0 2px 22px}
   .multi-ufs label{display:flex;gap:3px;align-items:center;font-size:12.5px}
+  .sim-grade{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;margin-top:10px}
+  @media (max-width:760px){.sim-grade{grid-template-columns:1fr}}
+  .sim-ctl{margin:6px 0 10px}
+  .sim-ctl .rot{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--mut)}
+  .sim-ctl .rot b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .sim-ctl input{width:100%;accent-color:var(--accent)}
+  .lulac{color:var(--c1)}
   .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:2px}
 </style>
 <body>
@@ -161,6 +168,23 @@
       <svg id="ch-dif" viewBox="0 0 520 230" style="width:100%"></svg></div>
   </div>
   <p class="note" id="ch-nota"></p>
+</section>
+
+<section id="sim-sec" hidden>
+  <h2>Simulador da reta final</h2>
+  <p class="sub" id="sim-sub"></p>
+  <div class="sim-grade">
+    <div>
+      <div class="sim-ctl"><div class="rot"><span>Dos demais, quantos <b>não votam válido</b> (abstenção, branco ou nulo)</span><b id="sim-x-v"></b></div>
+        <input type="range" id="sim-x" min="0" max="100" step="0.1"></div>
+      <div class="sim-ctl"><div class="rot"><span>Dos demais que votam válido, quantos vão a <b class="lulac">Lula</b> (o resto, ao adversário)</span><b id="sim-y-v"></b></div>
+        <input type="range" id="sim-y" min="0" max="100" step="0.1"></div>
+      <div class="modo" id="sim-botoes" style="margin-top:6px"></div>
+      <div class="regua" id="sim-res"></div>
+      <p class="note" id="sim-nota"></p>
+    </div>
+    <div><svg id="sim-mapa" viewBox="0 0 380 300" style="width:100%;display:block"></svg><div class="leg" id="sim-leg"></div></div>
+  </div>
 </section>
 
 <section id="mapa-sec">
@@ -304,6 +328,7 @@ function nomeCat(c){
 
 async function carregar(m){
   semDetalheSP = false;   // a cada carga tenta de novo: o painel por local de SP pode ter aparecido
+  if (m !== modo) { SIMX = null; SIMY = null; }   // outro modo: o simulador volta ao ponto de partida
   modo = m;
   if (!detalhado() || ehT2()) F.cargo = "presidente";   // 2º turno: só Presidente
   let arq = detalhado() ? `dados/${m}_${F.cargo}.json` : `dados/${m}_brasil_presidente.json`;
@@ -1054,6 +1079,102 @@ function desenharLugares(res){
     desenhar(); });
 }
 
+// ---------- simulador da reta final ---------------------------------------------------
+// Nas seções que faltam: quem votou em Lula no 1º turno vota em Lula, quem votou no adversário vota nele,
+// e os DEMAIS (abstenção, brancos, nulos, outros candidatos) se dividem pelos dois controles. As já
+// apuradas no 2º turno valem como são. Vale para o Brasil ou para as UFs marcadas no filtro.
+let SIMX = null, SIMY = null;
+function simSomas(){
+  const S = D.sim; if (!S) return null;
+  const idx = Object.fromEntries(S.campos.map((k, i) => [k, i]));
+  let v = new Array(S.campos.length).fill(0);
+  const ufs = F.ufs ? [...F.ufs] : null;
+  if (!ufs) v = S.total.slice();
+  else for (const u of ufs) if (S.uf[u]) S.uf[u].forEach((x, i) => v[i] += x);
+  return Object.fromEntries(Object.entries(idx).map(([k, i]) => [k, v[i]]));
+}
+function simResultado(s, x, y){   // x, y em %: não-voto dos demais; Lula entre os válidos dos demais
+  const nv = s.D1r * (1 - x / 100);
+  const L = s.L2 + s.L1r + nv * y / 100, A = s.F2 + s.F1r + nv * (1 - y / 100);
+  return {L, A, pL: 100 * L / (L + A)};
+}
+function simObservado(s){   // o que as apuradas dizem, sob as mesmas hipóteses
+  const novos = s.L2 + s.F2 - s.L1a - s.F1a;
+  if (!(s.D1a > 0) || s.L2 + s.F2 <= 0) return null;
+  const x = 100 * (1 - novos / s.D1a), y = novos > 0 ? 100 * (s.L2 - s.L1a) / novos : NaN;
+  return {x, y, cabe: x >= 0 && x <= 100 && y >= 0 && y <= 100};
+}
+function desenharSim(){
+  const sec = document.getElementById("sim-sec");
+  if (!D || !D.sim || D.meta.turno !== 2 || Object.keys(F.q).length || F.mun != null) {
+    sec.hidden = !(D && D.sim && D.meta.turno === 2);
+    if (!sec.hidden) { document.getElementById("sim-sub").innerHTML = "O simulador vale para o Brasil ou para um conjunto de UFs: tire os filtros de quintil e de município para usá-lo.";
+      ["sim-res", "sim-nota", "sim-leg", "sim-botoes"].forEach(id => document.getElementById(id).innerHTML = ""); document.getElementById("sim-mapa").innerHTML = ""; }
+    return;
+  }
+  sec.hidden = false;
+  const s = simSomas(), m = D.meta, adv = m.cats[1], nA = nomeCat(adv), nL = nomeCat("lula");
+  const obs = simObservado(s), part = D.sim.partida_2022 || [75, 45];
+  if (SIMX == null) { SIMX = part[0]; SIMY = part[1]; }
+  const ex = document.getElementById("sim-x"), ey = document.getElementById("sim-y");
+  ex.value = SIMX; ey.value = SIMY;
+  const apurado = s.L2 + s.F2 > 0, falta = s.D1r + s.L1r + s.F1r;
+  document.getElementById("sim-sub").innerHTML = `Como termina a eleição ${F.ufs ? "em " + descreverUfs() : "no Brasil"} se, nas seções que <b>ainda não chegaram</b>,
+    quem votou em ${nL} no 1º turno votar em ${nL}, quem votou em ${nA} votar em ${nA}, e os <b>demais</b> — os que se abstiveram, anularam,
+    votaram em branco ou em outro candidato no 1º turno: ${Math.round(s.D1r).toLocaleString("pt-BR")} eleitores nas seções que faltam — se dividirem
+    como os dois controles mandam. As seções já apuradas no 2º turno valem como são.`;
+  const desenha = () => {
+    SIMX = +ex.value; SIMY = +ey.value;
+    document.getElementById("sim-x-v").textContent = fmt(SIMX) + "%";
+    document.getElementById("sim-y-v").textContent = fmt(SIMY) + "%";
+    const R_ = simResultado(s, SIMX, SIMY), vence = R_.pL >= 50 ? "lula" : adv;
+    document.getElementById("sim-res").innerHTML =
+      `<div><b style="color:${corDe("lula", m.cats)}">${fmt(R_.pL, 2)}%</b><span>${nL} · ${Math.round(R_.L).toLocaleString("pt-BR")} votos</span></div>
+       <div><b style="color:${corDe(adv, m.cats)}">${fmt(100 - R_.pL, 2)}%</b><span>${nA} · ${Math.round(R_.A).toLocaleString("pt-BR")} votos</span></div>
+       <div><b style="color:${corDe(vence, m.cats)}">${nomeCat(vence)}</b><span>vence, por ${fmt(Math.abs(2 * R_.pL - 100), 2)} pontos · ${Math.round(Math.abs(R_.L - R_.A)).toLocaleString("pt-BR")} votos</span></div>`;
+    // empate: a parte de Lula entre os válidos dos demais que empata, para cada não-voto
+    const emp = x => { const nv = s.D1r * (1 - x / 100); return nv > 0 ? 100 * (0.5 + (s.F2 + s.F1r - s.L2 - s.L1r) / (2 * nv)) : NaN; };
+    const e_ = emp(SIMX);
+    document.getElementById("sim-nota").innerHTML = (isFinite(e_) ? (e_ > 100 ? `Com ${fmt(SIMX)}% de não-voto entre os demais, <b>${nA} vence mesmo que todos os demais que votam escolham ${nL}</b>. `
+        : e_ < 0 ? `Com ${fmt(SIMX)}% de não-voto entre os demais, <b>${nL} vence mesmo que todos os demais que votam escolham ${nA}</b>. `
+        : `Com ${fmt(SIMX)}% de não-voto entre os demais, o empate está em <b>${fmt(e_)}%</b> deles indo a ${nL}. `) : "") +
+      (apurado ? `Já apurado no 2º turno: ${nL} ${Math.round(s.L2).toLocaleString("pt-BR")} × ${nA} ${Math.round(s.F2).toLocaleString("pt-BR")}. ` : "Nada apurado ainda: a conta é o 1º turno inteiro. ") +
+      (obs ? (obs.cabe ? `<b>O que as apuradas indicam</b>, sob as mesmas hipóteses: ${fmt(obs.x)}% de não-voto entre os demais e ${fmt(obs.y)}% deles indo a ${nL}.`
+                        : `As apuradas <b>não cabem</b> nas hipóteses: para explicá-las, eleitores de ${nL} ou de ${nA} no 1º turno teriam de ter mudado de lado ou deixado de votar.`) : "") +
+      ` Ponto de partida de 2022: ${fmt(part[0])}% e ${fmt(part[1])}% (as migrações do 1º para o 2º turno de 2022, com a analogia do simulador). Isto é uma conta sob hipóteses, não a projeção — a projeção está no topo.`;
+    desenharSimMapa(s, emp, obs, part, nL, nA, adv);
+  };
+  ex.oninput = ey.oninput = desenha;
+  document.getElementById("sim-botoes").innerHTML = `<button data-k="part">ponto de partida de 2022</button>` + (obs && obs.cabe ? `<button data-k="obs">o que as apuradas indicam</button>` : "");
+  document.querySelectorAll("#sim-botoes button").forEach(b => b.onclick = () => { const p = b.dataset.k === "obs" ? [obs.x, obs.y] : part;
+    ex.value = p[0]; ey.value = p[1]; desenha(); });
+  desenha();
+}
+function desenharSimMapa(s, emp, obs, part, nL, nA, adv){
+  // as combinações dos dois controles: onde cada um vence, a linha do empate, e os pontos de referência
+  const W = 380, H = 300, mg = {l: 40, r: 10, t: 10, b: 40}, pw = W - mg.l - mg.r, ph = H - mg.t - mg.b;
+  const X = x => mg.l + x / 100 * pw, Y = y => mg.t + ph - y / 100 * ph;
+  const cL = getComputedStyle(document.documentElement).getPropertyValue("--c1").trim(), cA = getComputedStyle(document.documentElement).getPropertyValue("--c2").trim();
+  let g = "";
+  const n = 50;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const x = (i + .5) * 100 / n, y = (j + .5) * 100 / n, R_ = simResultado(s, x, y);
+    const forca = Math.min(1, Math.abs(R_.pL - 50) / 4);
+    g += `<rect x="${X(i * 100 / n)}" y="${Y((j + 1) * 100 / n)}" width="${pw / n + .3}" height="${ph / n + .3}" fill="${R_.pL >= 50 ? cL : cA}" opacity="${0.12 + 0.5 * forca}"/>`;
+  }
+  const pts = []; for (let x = 0; x <= 100; x += 0.5) { const e = emp(x); if (isFinite(e) && e >= 0 && e <= 100) pts.push(`${X(x).toFixed(1)},${Y(e).toFixed(1)}`); }
+  if (pts.length > 1) g += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-dasharray="5 3"/>`;
+  for (let v = 0; v <= 100; v += 20) g += `<text x="${X(v)}" y="${H - mg.b + 14}" text-anchor="middle">${v}%</text><text x="${mg.l - 5}" y="${Y(v) + 4}" text-anchor="end">${v}%</text>`;
+  g += `<text x="${mg.l + pw / 2}" y="${H - 6}" text-anchor="middle">dos demais, não votam válido</text>
+    <text transform="translate(11 ${mg.t + ph / 2}) rotate(-90)" text-anchor="middle">dos que votam, a ${nL}</text>`;
+  g += `<rect x="${X(part[0]) - 4}" y="${Y(part[1]) - 4}" width="8" height="8" fill="var(--card)" stroke="var(--ink)" stroke-width="1.4"><title>ponto de partida de 2022</title></rect>`;
+  if (obs && obs.cabe) g += `<circle cx="${X(obs.x)}" cy="${Y(obs.y)}" r="5" fill="var(--card)" stroke="var(--ink)" stroke-width="1.6"><title>o que as apuradas indicam</title></circle>`;
+  g += `<circle cx="${X(SIMX)}" cy="${Y(SIMY)}" r="5.5" fill="var(--ink)"><title>os controles</title></circle>`;
+  document.getElementById("sim-mapa").innerHTML = g;
+  document.getElementById("sim-leg").innerHTML = `<span><i style="background:${cL}"></i>${nL} vence</span> <span><i style="background:${cA}"></i>${nA} vence</span>
+    <span class="sub">mais forte, maior a margem · tracejado: empate · ● os controles · ○ o que as apuradas indicam · □ 2022</span>`;
+}
+
 function desenhar(){
   desenharModo();
   desenharTurno();
@@ -1062,6 +1183,7 @@ function desenhar(){
   desenharFoco();
   const res = desenharPrincipal() || {};
   desenharChances(res);
+  desenharSim();
   desenharMapa(res);
   desenharAberturas(res);
   desenharBolhas(res);

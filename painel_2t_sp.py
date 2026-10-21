@@ -42,7 +42,7 @@ NOMES_22 = {"lula": "Lula", "bolsonaro": "Bolsonaro", "tebet": "Tebet", "ciro": 
 K_LOCAL = 1500     # aptos apurados com que o desvio do local vale metade
 KAPPA_ZONA = 0.5
 FATOR = 1.5        # calibrado em --ensaio
-PISO = 0.2         # meia-largura mínima do intervalo do estado, em pontos (como no painel_2t.py)
+from painel_2t import piso   # meia-largura mínima do intervalo do estado: diminui com a apuração (painel_2t.py)
 
 
 # ---------------------------------------------------------------- dados
@@ -215,11 +215,11 @@ def montar(modo, frac=0.25, n_boot=30, pleito="2026_2t"):
             p5, p95 = np.percentile(pv[1:], [5, 95], axis=0)
             meia = (p95 - p5) / 2 * FATOR
             if k == "total":
-                meia = np.maximum(meia, PISO)
+                meia = np.maximum(meia, piso(ch.mean()))
             ic[k] = {nomes_g[k][g]: {c: [round(float(pv[0, g, j] - meia[g, j]), 2), round(float(pv[0, g, j] + meia[g, j]), 2)]
                                      for j, c in enumerate(cats[:2])} for g in range(G) if sg_[0, g].sum() > 0}
             if k == "total":
-                esc = np.maximum(1, PISO / np.maximum((p95 - p5) / 2 * FATOR, 1e-9))
+                esc = np.maximum(1, piso(ch.mean()) / np.maximum((p95 - p5) / 2 * FATOR, 1e-9))
                 larg = pv[0] + FATOR * esc * (pv[1:] - np.median(pv[1:], axis=0))
                 amostras_pct = {"total": {"total": np.round(larg[:, 0, :], 2).tolist()}}
             if k.startswith("q_"):

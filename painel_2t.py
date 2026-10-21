@@ -31,6 +31,14 @@ from painel_brasil import REGIAO, VARS, _limpo, nomes_municipios
 RAW = Path("data/raw")
 WEB = Path("web/dados")
 PISO = 0.2   # meia-largura mínima do intervalo de 90%, em pontos (ver montar)
+
+
+def piso(frac):
+    """Piso que diminui com a apuração. No ensaio com o 1º turno de 2026 (ensaio_1t2026.py, base de quatro
+    anos antes), o método por seção errou Lula em +1,2 ponto com 1% das seções e +0,8 com 5%; a partir de
+    ~15%, 0,2 ou menos. No dia 25 a base é o 1º turno de três semanas antes (como no ensaio de 2022, erro de
+    0,1 já no início), mas o começo da noite é onde menos se sabe."""
+    return 1.0 if frac < 0.05 else 0.5 if frac < 0.10 else PISO
 L26 = ["lula", "flavio", "cury", "renan", "caiado", "zema", "outros", "branco", "nulo", "abst"]
 NOMES_26 = {"lula": "Lula", "flavio": "Flávio Bolsonaro", "cury": "Augusto Cury", "renan": "Renan Santos",
             "caiado": "Ronaldo Caiado", "zema": "Romeu Zema", "outros": "outros"}
@@ -56,6 +64,43 @@ def chegou_por_indice(sec, idx, st):
     marca = sec[["municipio", "zona", "secao"]].merge(i[["municipio", "zona", "secao"]].assign(ok=1.0),
                                                       on=["municipio", "zona", "secao"], how="left")
     return marca.ok.fillna(0).to_numpy()
+
+
+def simulador_noite(M, linhas, adv, ano_base):
+    """Os números do simulador da reta final, por UF e no total.
+
+    Hipótese do simulador: nas seções que ainda não chegaram, quem votou em Lula no 1º turno vota em
+    Lula, quem votou no adversário vota nele, e os DEMAIS (abstenção, brancos, nulos, outros candidatos)
+    se dividem como os dois controles mandam. As seções já apuradas no 2º turno valem como são.
+    Por UF: [Lula 2º apurado, adv 2º apurado, Lula 1º das apuradas, adv 1º das apuradas, demais 1º das
+    apuradas, Lula 1º das que faltam, adv 1º das que faltam, demais 1º das que faltam]."""
+    g = M.assign(L2=M.n13, F2=M.n22, L1a=M[f"r_{'lula'}"], F1a=M[f"r_{adv}"],
+                 D1a=M.aptos1_r - M[f"r_{'lula'}"] - M[f"r_{adv}"],
+                 L1r=M.lula - M[f"r_{'lula'}"], F1r=M[adv] - M[f"r_{adv}"])
+    g["D1r"] = (M.aptos1 - M.aptos1_r) - g.L1r - g.F1r
+    cols = ["L2", "F2", "L1a", "F1a", "D1a", "L1r", "F1r", "D1r"]
+    por = g.groupby("uf")[cols].sum()
+    sim = {"campos": cols, "total": [int(x) for x in por.sum()], "uf": {u: [int(x) for x in v] for u, v in por.iterrows()}}
+    # ponto de partida: os demais do 1º turno, pelas migrações de 2022 (simulador.py: dentro de cada município,
+    # candidatos novos pela analogia escolhida pelo Danilo)
+    try:
+        t = pd.read_parquet(Path("out") / "transicao_mun_2022.parquet")
+        cols_t = ["lula", "bolsonaro", "branco", "nulo", "abst"]
+        T = t.assign(**{k: t[k] * t.origem for k in cols_t}).groupby("linha")[cols_t + ["origem"]].sum()
+        T = T[cols_t].div(T.origem, axis=0)
+        if ano_base == "2026":
+            from simulador import ANALOGIA
+            demais = {k: ANALOGIA[k] for k in ["cury", "renan", "caiado", "zema", "outros", "branco", "nulo", "abst"]}
+        else:
+            demais = {k: k for k in ["tebet", "ciro", "soraya", "davila", "menores", "branco", "nulo", "abst"]}
+        w = {k: float(M[k].sum()) for k in demais if k in M}
+        nv = sum(w[k] * T.loc[demais[k], ["branco", "nulo", "abst"]].sum() for k in w)
+        lu = sum(w[k] * T.loc[demais[k], "lula"] for k in w)
+        bo = sum(w[k] * T.loc[demais[k], "bolsonaro"] for k in w)
+        sim["partida_2022"] = [round(100 * nv / sum(w.values()), 1), round(100 * lu / (lu + bo), 1)]
+    except Exception as e:
+        print(f"   partida do simulador: {e!r}", flush=True)
+    return sim
 
 
 def anterior_2t(ano_base):
@@ -152,8 +197,9 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
             meia = (p95 - p5) / 2 * sg.FATOR
             # piso: no ensaio de 2022 a meia-largura caía a ±0,05 ponto com metade das seções, e a projeção
             # tinha +0,1 a favor de Lula entre 10% e 25%; 2026 pode ter migrações menos homogêneas
-            escala = np.maximum(1, PISO / np.maximum(meia, 1e-9))
-            meia = np.maximum(meia, PISO)
+            p_ = piso(M.st.sum() / max(M.secoes.sum(), 1))
+            escala = np.maximum(1, p_ / np.maximum(meia, 1e-9))
+            meia = np.maximum(meia, p_)
             lo, hi = pv[0] - meia, pv[0] + meia
             ic[k] = {nomes_g[k][g]: {c: [round(float(lo[g, j]), 2), round(float(hi[g, j]), 2)] for j, c in enumerate(cats[:2])}
                      for g in range(G)}
@@ -180,7 +226,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
                  "anterior": f"{ano_at}, 1º turno", "atual": f"{ano_at}, 2º turno",
                  "rotulos_anterior": {"1": f"1º turno de {ano_at}", "2": f"2º turno de {ano_ant2}"},
                  "hora": hora, "gerado": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                 "cats": cats, "cats_anterior": cats_ant, "pares": pares, "fator_ic": sg.FATOR, "piso_ic": PISO,
+                 "cats": cats, "cats_anterior": cats_ant, "pares": pares, "fator_ic": sg.FATOR, "piso_ic": piso(M.st.sum() / max(M.secoes.sum(), 1)),
                  "cats_anterior_2t": cats_2t, "pares_2t": pares_2t, "cortes": cortes, "nomes": nomes_cat,
                  "secoes": int(M.secoes.sum()), "apuradas": int(M.apuradas.sum()), "indice_falta": falta_idx,
                  "municipios": nomes_municipios()},
@@ -189,6 +235,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
         "amostras_q": amostras_q,
         "amostras_pct": amostras_pct,
         "amostras_uf": amostras_uf,
+        "sim": simulador_noite(M, linhas, adv, ano_base),
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = WEB / f"{saida or modo}_brasil_presidente.json"   # ensaio contra o tse_falso: arquivo próprio

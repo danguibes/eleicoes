@@ -450,3 +450,23 @@ E as falhas de antes da noite, que custaram tempo:
 - **Filtro de UF como conjunto**: "Brasil sem o Sudeste" é desmarcar o Sudeste. O intervalo de qualquer
   conjunto sai das reamostragens por UF somadas no navegador (`amostras_uf`), a mesma conta das faixas
   de quintis.
+
+## 10. O 1º turno de 2026 como segundo teste do método por seção (21/10/2026)
+
+`ensaio_1t2026.py` reproduz a noite de 04/10 na ordem real de chegada dos boletins, com a mesma seção
+no 1º turno de 2022 como base. O método da noite (transição por município, sem saber quais seções
+chegaram) repete o viés visto ao vivo: Lula −0,9 com 17%. O método por seção (o do 2º turno):
+
+| apurado | 1% | 5% | 10% | 17% | 25% | 50% | 90% |
+|---|---|---|---|---|---|---|---|
+| Lula, projeção − final | +1,16 | +0,75 | +0,45 | +0,22 | +0,13 | +0,05 | −0,02 |
+
+**Corrige a mediana a partir de ~15% das urnas**, numa eleição que ele nunca viu. No começo, com
+poucas seções e uma base de quatro anos antes, erra para o outro lado. Por isso o piso do intervalo
+passou a diminuir com a apuração: ±1,0 até 5%, ±0,5 até 10% e ±0,2 depois.
+
+**Simulador da reta final** (no painel do 2º turno). Nas seções que faltam, quem votou em Lula vota
+em Lula, quem votou em Flávio vota em Flávio, e os demais se dividem por dois controles: quanto não
+vota válido e, dos que votam, quanto vai a Lula. O ponto de partida pelas migrações de 2022 é 75,6%
+e 43,1%, e dá Flávio por 3,2 pontos. Antes da apuração, o empate pede 59,4% dos demais válidos
+para Lula. No ensaio de 2022 a 25%, "o que as apuradas indicam" deu Lula 50,73%, contra 50,90% real.
