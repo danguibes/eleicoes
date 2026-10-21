@@ -29,7 +29,8 @@ import transicao as tr
 from painel_brasil import REGIAO, VARS, _limpo, nomes_municipios
 
 RAW = Path("data/raw")
-WEB = Path("web/dados")
+import os
+WEB = Path(os.environ.get("ELEICOES_WEB", "web/dados"))   # o ensaio da noite escreve em web_ensaio/dados
 PISO = 0.2   # meia-largura mínima do intervalo de 90%, em pontos (ver montar)
 
 

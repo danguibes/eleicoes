@@ -31,7 +31,9 @@ import pandas as pd
 from painel_brasil import REGIAO, nomes_municipios
 
 RAW = Path("data/raw")
-WEB = Path("web/dados/naovotos")
+import os
+WEB = Path(os.environ.get("ELEICOES_WEB", "web/dados")) / "naovotos"   # o ensaio da noite escreve em web_ensaio/dados
+PL2T = os.environ.get("ELEICOES_PLEITO_2T", "2026_2t")                  # e lê a pasta do pleito do ensaio
 ELEICOES = {"22a": "1º turno de 2022", "22b": "2º turno de 2022", "26a": "1º turno de 2026", "26b": "2º turno de 2026"}
 CAMPOS = ["ap", "co", "br", "nu", "lu", "ad"]   # aptos, comparecimento, brancos, nulos, Lula, o adversário (Bolsonaro; Flávio)
 TOL = 0.20                                 # variação de aptos com que a seção de 2022 ainda é "a mesma"
@@ -77,7 +79,7 @@ def secoes():
     s["comparavel"] = ((s["22a_ap"] - s["26a_ap"]).abs() <= TOL * s["26a_ap"]).astype(int)
     partes = []
     for uf, g in s.groupby("uf"):
-        b = boletins("2026_2t", uf.lower())
+        b = boletins(PL2T, uf.lower())
         partes.append(g.merge(b, on=["zona", "secao"], how="left") if b is not None else g)
     s = pd.concat(partes, ignore_index=True)
     for c in [f"26b_{k}" for k in CAMPOS]:
@@ -85,7 +87,7 @@ def secoes():
             s[c] = np.nan
     # quais seções já estão no 2º turno: com boletim, ou (UF sem boletins) as `st` primeiras do índice
     s["chegou2t"] = s["26b_ap"].notna()
-    idx, u = RAW / "2026_2t" / "indices" / "chegadas.parquet", RAW / "2026_2t" / "nacional" / "municipios.parquet"
+    idx, u = RAW / PL2T / "indices" / "chegadas.parquet", RAW / PL2T / "nacional" / "municipios.parquet"
     if idx.exists() and u.exists():
         import painel_2t
         sem_bu = ~s.uf.isin(s.loc[s.chegou2t, "uf"].unique())
@@ -104,7 +106,7 @@ def taxas(df, e):
 
 def municipios_2t():
     """2º turno de 2026 por município, do arquivo `u` (só as seções já apuradas)."""
-    arq = RAW / "2026_2t" / "nacional" / "municipios.parquet"
+    arq = RAW / PL2T / "nacional" / "municipios.parquet"
     if not arq.exists():
         return None
     u = pd.read_parquet(arq)

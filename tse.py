@@ -76,6 +76,9 @@ if _os.environ.get("TSE_FALSO"):
 # Ensaio do 2º turno contra o tse_falso.py --turno 2: nome e pasta próprios, para nada se misturar com a
 # noite de verdade. O pleito 3221 é só local — o de verdade sai do ele-c.json (pleito_2t()).
 PLEITOS["falso_2t"] = Pleito("falso_2t", "http://127.0.0.1:8800", "oficial", "ele2026", 3221, 6258, "2022")
+# Ensaio da noite inteira (tse_falso.py --turno 2 --fonte 2026): o 1º turno de 2026 servido como se fosse o 2º,
+# com os boletins de verdade — os boletins usam a especificação de 2026.
+PLEITOS["falso26_2t"] = Pleito("falso26_2t", "http://127.0.0.1:8800", "oficial", "ele2026", 3221, 6258, "2026")
 
 
 class Bloqueado(Exception):

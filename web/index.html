@@ -1095,8 +1095,8 @@ function simSomas(){
   return Object.fromEntries(Object.entries(idx).map(([k, i]) => [k, v[i]]));
 }
 function simResultado(s, x, y){   // x, y em %: não-voto dos demais; Lula entre os válidos dos demais
-  const nv = s.D1r * (1 - x / 100);
-  const L = s.L2 + s.L1r + nv * y / 100, A = s.F2 + s.F1r + nv * (1 - y / 100);
+  const validos = s.D1r * (1 - x / 100);   // os demais que VOTAM válido: o complemento do não-voto
+  const L = s.L2 + s.L1r + validos * y / 100, A = s.F2 + s.F1r + validos * (1 - y / 100);
   return {L, A, pL: 100 * L / (L + A)};
 }
 function simObservado(s){   // o que as apuradas dizem, sob as mesmas hipóteses
@@ -1140,7 +1140,7 @@ function desenharSim(){
        <div><b style="color:${corDe(adv, m.cats)}">${fmt(100 - R_.pL, 2)}%</b><span>${nA} · ${Math.round(R_.A).toLocaleString("pt-BR")} votos</span></div>
        <div><b style="color:${corDe(vence, m.cats)}">${nomeCat(vence)}</b><span>vence, por ${fmt(Math.abs(2 * R_.pL - 100), 2)} pontos · ${Math.round(Math.abs(R_.L - R_.A)).toLocaleString("pt-BR")} votos</span></div>`;
     // empate: a parte de Lula entre os válidos dos demais que empata, para cada não-voto
-    const emp = x => { const nv = s.D1r * (1 - x / 100); return nv > 0 ? 100 * (0.5 + (s.F2 + s.F1r - s.L2 - s.L1r) / (2 * nv)) : NaN; };
+    const emp = x => { const validos = s.D1r * (1 - x / 100); return validos > 0 ? 100 * (0.5 + (s.F2 + s.F1r - s.L2 - s.L1r) / (2 * validos)) : NaN; };
     const e_ = emp(SIMX);
     // o inverso: com a parte de Lula do controle, que não-voto entre os demais empata
     const dif = (s.F2 + s.F1r) - (s.L2 + s.L1r), y_ = SIMY / 100;
@@ -1148,9 +1148,9 @@ function desenharSim(){
     if (Math.abs(2 * y_ - 1) < 1e-9) inv = dif > 0 ? `com ${fmt(SIMY)}% dos demais a ${nL}, os demais não mudam nada: <b>${nA} vence</b> qualquer que seja o não-voto`
                                                  : `com ${fmt(SIMY)}% dos demais a ${nL}, os demais não mudam nada: <b>${nL} vence</b> qualquer que seja o não-voto`;
     else {
-      const nv = dif / (2 * y_ - 1), xEmp = 100 * (1 - nv / s.D1r);   // eleitores dos demais que votam, no empate
+      const validos = dif / (2 * y_ - 1), xEmp = 100 * (1 - validos / s.D1r);   // demais que VOTAM válido no empate; o não-voto é o complemento
       const quem = y_ > 0.5 ? nL : nA, outro = y_ > 0.5 ? nA : nL;    // quem ganha com mais demais votando
-      inv = nv < 0 ? `com ${fmt(SIMY)}% dos demais a ${nL}, <b>${dif > 0 ? nA : nL} vence</b> qualquer que seja o não-voto entre os demais`
+      inv = validos < 0 ? `com ${fmt(SIMY)}% dos demais a ${nL}, <b>${dif > 0 ? nA : nL} vence</b> qualquer que seja o não-voto entre os demais`
           : xEmp < 0 ? `com ${fmt(SIMY)}% dos demais a ${nL}, <b>${outro} vence</b> mesmo que todos os demais votem válido`
           : `com ${fmt(SIMY)}% dos demais a ${nL}, o empate está em <b>${fmt(xEmp)}%</b> de não-voto entre os demais: abaixo disso ${quem} vence, acima, ${outro}`;
     }

@@ -32,7 +32,8 @@ import transicao as tr
 from painel import VARS, _limpo, cortes_quintis, quintil
 
 RAW = Path("data/raw")
-WEB = Path("web/dados")
+import os
+WEB = Path(os.environ.get("ELEICOES_WEB", "web/dados"))   # o ensaio da noite escreve em web_ensaio/dados
 OUT = Path("out")
 L26 = ["lula", "flavio", "cury", "renan", "caiado", "zema", "outros", "branco", "nulo", "abst"]
 NOMES_26 = {"lula": "Lula", "flavio": "Flávio Bolsonaro", "cury": "Augusto Cury", "renan": "Renan Santos",

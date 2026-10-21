@@ -3,3 +3,6 @@ __pycache__/
 # tudo que vem do TSE e do IBGE: baixado por script, grande, regenerável
 data/raw/
 web/ensaio.html
+
+# ensaio da noite (noite.py --falso26): páginas e dados de mentira, nunca no ar
+web_ensaio/

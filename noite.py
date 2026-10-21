@@ -50,6 +50,31 @@ def supervisionar(cmds):
         print("parado", flush=True)
 
 
+def preparar_ensaio_noite(p):
+    """Ensaio da noite inteira (--falso26): pasta de dados do pleito e pasta de páginas próprias, limpas.
+    Os filhos herdam ELEICOES_WEB e ELEICOES_PLEITO_2T: painéis e não-votos escrevem em web_ensaio/dados,
+    nunca em web/dados (o que vai ao ar), e o não-votos lê a pasta do pleito do ensaio."""
+    import os
+    import shutil
+    raiz = Path("data/raw") / p
+    if raiz.exists():
+        shutil.rmtree(raiz)
+    web = Path("web_ensaio")
+    if web.exists():
+        shutil.rmtree(web)
+    (web / "dados" / "naovotos").mkdir(parents=True)
+    for f in Path("web").glob("*.html"):
+        if "template" not in f.name:
+            shutil.copyfile(f, web / f.name)
+    shutil.copyfile("web/dados/mapa_br.json", web / "dados" / "mapa_br.json")
+    for f in Path("web/dados/naovotos").glob("*.json"):   # as seções fixas de 2022 e do 1º turno
+        if "_26b" not in f.name:
+            shutil.copyfile(f, web / "dados" / "naovotos" / f.name)
+    os.environ["ELEICOES_WEB"] = str(web / "dados")
+    os.environ["ELEICOES_PLEITO_2T"] = p
+    print(f"ensaio da noite: dados em {raiz}, páginas em {web} (python -m http.server 8790 --directory web_ensaio)", flush=True)
+
+
 def noite_2t(a):
     """2º turno, só Presidente: arquivo por município (nacional.py), índice de seções das 28 UFs
     (indices.py), boletins de SP urna a urna (coletor.py) e o publicador (domingo.py --turno 2).
@@ -57,8 +82,10 @@ def noite_2t(a):
     Ensaio (--falso): contra o tse_falso.py --turno 2, com o pleito local "falso_2t" (pasta própria),
     a base do 1º turno de 2022, painel em web/dados/falso2t_*.json e sem publicar. O tse_falso não
     tem boletins do 2º turno de 2022: sem coletor de SP no ensaio."""
-    p = "falso_2t" if a.falso else "2026_2t"
-    if not a.falso:
+    p = "falso26_2t" if a.falso26 else "falso_2t" if a.falso else "2026_2t"
+    if a.falso26:
+        preparar_ensaio_noite(p)
+    if not (a.falso or a.falso26):
         hh, mm = map(int, a.inicio.split(":"))
         while (datetime.now().hour, datetime.now().minute) < (hh, mm):
             print(f"{datetime.now():%H:%M:%S}  aguardando {a.inicio}", flush=True)
@@ -70,7 +97,8 @@ def noite_2t(a):
         "nacional2t": [py, "nacional.py", "--pleito", p, "--taxa", "30", "--intervalo", "30"],
         "indices2t": [py, "indices.py", "--pleito", p, "--taxa", "5", "--intervalo", "30"],
         "publicador2t": [py, "domingo.py", "--turno", "2", "--pleito", p, "--boot", "40"]
-                        + (["--base", "2022", "--saida", "falso2t", "--sem-publicar"] if a.falso else []),
+                        + (["--base", "2022", "--saida", "falso2t", "--sem-publicar"] if a.falso else [])
+                        + (["--sem-publicar"] if a.falso26 else []),
     }
     if not a.falso:
         cmds["sp2t"] = [py, "coletor.py", "--pleito", p, "--uf", "sp", "--taxa", "20", "--trabalhadores", "8", "--intervalo", "30"]
@@ -85,6 +113,8 @@ def main():
     ap.add_argument("--pleito", default="2026")
     ap.add_argument("--inicio", default="16:45", help="não manda nenhum pedido antes desta hora (HH:MM)")
     ap.add_argument("--falso", action="store_true", help="ensaio contra o tse_falso.py local: sem horário, sem publicar")
+    ap.add_argument("--falso26", action="store_true",
+                    help="2º turno: ensaio da noite INTEIRA contra o tse_falso.py --turno 2 --fonte 2026 (com boletins), em web_ensaio/")
     ap.add_argument("--turno", type=int, default=1)
     a = ap.parse_args()
     if a.turno == 2:

@@ -194,9 +194,96 @@ class Noite2:
                 "carg": [{"cd": "1", "agr": [{"par": [{"cand": cand}]}]}]}
 
 
+class Noite26:
+    """O 1º turno de 2026 servido como se fosse o 2º turno (eleição 6258, pleito local 3221), para ensaiar a
+    noite INTEIRA: índice de seções das 28 UFs, arquivo `u` de cada município, e auxiliar + boletim de cada
+    seção — os 498.925 boletins de verdade, do disco. O boletim só aparece um tempo depois da seção entrar no
+    índice (sorteado entre 0 e 30 min de relógio de 2026), como na noite de 04/10, para os coletores
+    enfrentarem os 404 de verdade. No `u` só existem Lula (13) e Flávio (22): os votos dos outros candidatos
+    entram como nulos, para as contas fecharem como fechariam num 2º turno."""
+    INICIO = datetime(2026, 10, 4, 17, 0)
+
+    def __init__(self, acel, atraso_max=30):
+        self.acel, self.t0 = acel, time.time()
+        s = pd.read_parquet(RAW / "2026" / "secoes_1t_brasil.parquet")
+        s = s[s.recebido.notna()].sort_values("recebido").reset_index(drop=True)
+        rng = np.random.default_rng(26)
+        s["pub"] = s.recebido + pd.to_timedelta(rng.uniform(0, atraso_max * 60, len(s)), unit="s")
+        s["nulo_e_outros"] = s.nulo + s[["cury", "renan", "caiado", "zema", "outros"]].sum(axis=1)
+        self.sec = {(u.lower(), m, z, x): (t, p) for u, m, z, x, t, p in
+                    zip(s.uf, s.municipio, s.zona, s.secao, s.recebido.to_numpy(), s.pub.to_numpy())}
+        self.por_uf = {u.lower(): (g.municipio.to_numpy(), g.zona.to_numpy(), g.secao.to_numpy(), g.recebido.to_numpy())
+                       for u, g in s.groupby("uf")}
+        cols = ["aptos", "comparecimento", "lula", "flavio", "branco", "nulo_e_outros"]
+        self.mun = {}
+        for (uf, mun), g in s.groupby(["uf", "municipio"]):
+            acum = np.cumsum(np.c_[np.ones(len(g)), g[cols].to_numpy(float)], axis=0)
+            self.mun[(uf.lower(), f"{int(mun):05d}")] = (g.recebido.to_numpy(), acum, acum[-1])
+        print(f"1º turno de 2026 como 2º turno: {len(s):,} seções, {len(self.mun):,} municípios", flush=True)
+
+    def agora(self):
+        return self.INICIO + timedelta(seconds=(time.time() - self.t0) * self.acel)
+
+    def cm_json(self):
+        abr = {}
+        for (uf, mun) in self.mun:
+            abr.setdefault(uf, []).append({"cd": mun})
+        return {"abr": [{"cd": uf.upper(), "mu": mus} for uf, mus in sorted(abr.items())]}
+
+    def cs_json(self, uf):
+        if uf not in self.por_uf:
+            return None
+        a = np.datetime64(self.agora())
+        mun, zona, secao, t = self.por_uf[uf]
+        arvore = {}
+        for m, z, s_, tt in zip(mun, zona, secao, t):
+            sec = {"ns": f"{s_:04d}"}
+            if tt <= a:
+                ts = pd.Timestamp(tt)
+                sec["da"], sec["ha"] = ts.strftime("%d/%m/%Y"), ts.strftime("%H:%M:%S")
+            arvore.setdefault(f"{m:05d}", {}).setdefault(f"{z:04d}", []).append(sec)
+        ag = self.agora()
+        return {"dg": ag.strftime("%d/%m/%Y"), "hg": ag.strftime("%H:%M:%S"), "idg": str(int(ag.timestamp())),
+                "abr": [{"cd": uf.upper(), "mu": [{"cd": m, "zon": [{"cd": z, "sec": ss} for z, ss in zs.items()]}
+                                                  for m, zs in arvore.items()]}]}
+
+    def aux_json(self, uf, mun, zona, secao):
+        x = self.sec.get((uf, int(mun), int(zona), int(secao)))
+        if x is None or x[1] > np.datetime64(self.agora()):
+            return None   # ainda não publicado: 404, como o CDN do TSE
+        t = pd.Timestamp(x[0])
+        nome = f"o03221{uf}{mun}{zona}{secao}-bu.dat"
+        h = hashlib.sha1(f"{uf}{mun}{zona}{secao}".encode()).hexdigest()
+        return {"dg": t.strftime("%d/%m/%Y"), "hg": t.strftime("%H:%M:%S"), "f": "o", "st": "Totalizada",
+                "hashes": [{"hash": h, "dr": t.strftime("%d/%m/%Y"), "hr": t.strftime("%H:%M:%S"),
+                            "st": "Totalizado", "arq": [{"nm": nome, "tp": "bu"}]}]}
+
+    def u_json(self, uf, mun=None):
+        a = np.datetime64(self.agora())
+        if mun and (uf, mun) not in self.mun:
+            return None
+        itens = [self.mun[(uf, mun)]] if mun else [x for (u, _), x in self.mun.items() if u == uf]
+        if not itens:
+            return None
+        ap, tot = np.zeros(7), np.zeros(7)
+        for t, acum, tt in itens:
+            k = np.searchsorted(t, a, side="right")
+            if k:
+                ap += acum[k - 1]
+            tot += tt
+        ag = self.agora()
+        return {"ele": "6258", "dg": ag.strftime("%d/%m/%Y"), "hg": ag.strftime("%H:%M:%S"),
+                "s": {"ts": str(int(tot[0])), "st": str(int(ap[0]))},
+                "e": {"te": str(int(tot[1])), "est": str(int(ap[1])), "c": str(int(ap[2]))},
+                "v": {"vb": str(int(ap[5])), "tvn": str(int(ap[6]))},
+                "carg": [{"cd": "1", "agr": [{"par": [{"cand": [{"n": "13", "vap": str(int(ap[3]))},
+                                                                {"n": "22", "vap": str(int(ap[4]))}]}]}]}]}
+
+
 class Handler(BaseHTTPRequestHandler):
     noite = None
     noite2 = None
+    noite26 = None
 
     def log_message(self, *a):
         pass
@@ -222,6 +309,25 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         n, p = self.noite, self.path.split("?")[0]
+        if self.noite26 is not None:
+            n6 = self.noite26
+            if re.fullmatch(r"/oficial/ele2026/6258/config/mun-e006258-cm\.json", p):
+                return self.responder(n6.cm_json())
+            if m := re.fullmatch(r"/oficial/ele2026/arquivo-urna/3221/config/([a-z]{2})/[a-z]{2}-p003221-cs\.json", p):
+                return self.responder(n6.cs_json(m.group(1)))
+            if m := re.fullmatch(r"/oficial/ele2026/arquivo-urna/3221/dados/([a-z]{2})/(\d{5})/(\d{4})/(\d{4})/p003221-[a-z]{2}-m\d{5}-z\d{4}-s\d{4}-aux\.json", p):
+                return self.responder(n6.aux_json(*m.groups()))
+            if m := re.fullmatch(r"/oficial/ele2026/arquivo-urna/3221/dados/([a-z]{2})/(\d{5})/(\d{4})/(\d{4})/[0-9a-f]+/o03221[a-z]{2}\d+-bu\.dat", p):
+                uf, mun, zona, secao = m.groups()
+                arq = RAW / "2026" / uf / "bu" / mun / zona / f"{secao}.bu"
+                if n6.aux_json(uf, mun, zona, secao) is None or not arq.exists():
+                    return self.responder(None)
+                return self.responder(arq.read_bytes(), "application/octet-stream")
+            if m := re.fullmatch(r"/oficial/ele2026/6258/dados/([a-z]{2})/([a-z]{2})(\d{5})-c0001-e006258-u\.json", p):
+                return self.responder(n6.u_json(m.group(1), m.group(3)))
+            if m := re.fullmatch(r"/oficial/ele2026/6258/dados/([a-z]{2})/([a-z]{2})-c0001-e006258-u\.json", p):
+                return self.responder(n6.u_json(m.group(1)))
+            return self.responder(None)
         if self.noite2 is not None:
             n2 = self.noite2
             if re.fullmatch(r"/oficial/ele2026/6258/config/mun-e006258-cm\.json", p):
@@ -256,8 +362,13 @@ def main():
     ap.add_argument("--acel", type=float, default=15)
     ap.add_argument("--porta", type=int, default=8800)
     ap.add_argument("--turno", type=int, default=1, help="2: serve o 2º turno de 2022 nos endereços do 2º turno de 2026")
+    ap.add_argument("--fonte", choices=["2022", "2026"], default="2022",
+                    help="com --turno 2: 2026 serve o 1º turno de 2026 como se fosse o 2º, com os boletins de verdade")
+    ap.add_argument("--atraso", type=float, default=30, help="minutos máximos entre o índice e o boletim (fonte 2026)")
     a = ap.parse_args()
-    if a.turno == 2:
+    if a.turno == 2 and a.fonte == "2026":
+        Handler.noite26 = Noite26(a.acel, a.atraso)
+    elif a.turno == 2:
         Handler.noite2 = Noite2(a.acel)
     else:
         Handler.noite = Noite(a.acel)

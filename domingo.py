@@ -67,7 +67,7 @@ def publicar_2t(a):
                 print(f"   painel do 2º turno: {e!r}", flush=True)
         # SP por local: só na noite de verdade (o tse_falso não tem boletins do 2º turno); ~30 s por rodada,
         # e os boletins chegam devagar — refaz a cada 3 min no máximo
-        if a.saida is None and bu_sp.exists() and bu_sp.stat().st_mtime > visto[bu_sp] and time.time() - getattr(publicar_2t, "sp_t", 0) > 180:
+        if a.base == "2026" and bu_sp.exists() and bu_sp.stat().st_mtime > visto[bu_sp] and time.time() - getattr(publicar_2t, "sp_t", 0) > 180:
             visto[bu_sp] = bu_sp.stat().st_mtime
             publicar_2t.sp_t = time.time()
             try:
@@ -76,7 +76,7 @@ def publicar_2t(a):
             except Exception as e:
                 print(f"   painel de SP do 2º turno: {e!r}", flush=True)
         # não-votos seção a seção (naovotos.html): só o 2º turno, o resumo e os destaques, a cada 5 min
-        if a.saida is None and vigiados[0].exists() and time.time() - getattr(publicar_2t, "nv_t", 0) > 300:
+        if a.base == "2026" and vigiados[0].exists() and time.time() - getattr(publicar_2t, "nv_t", 0) > 300:
             publicar_2t.nv_t = time.time()
             try:
                 import naovotos

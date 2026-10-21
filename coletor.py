@@ -107,7 +107,9 @@ class Coletor:
             agora_m = time.monotonic()
             while self.cli.n404 and agora_m - self.cli.n404[0] > 60:
                 self.cli.n404.popleft()
-            if len(self.cli.n404) >= 20:
+            # descontando os que já estão no ar: com 16 em voo (coletor_brasil_noite.py), parar em 20 deixava
+            # chegar a 36 e a trava (31) disparava — pego no ensaio da noite inteira, 21/10/2026
+            if len(self.cli.n404) >= max(4, self.cli.max_404 - self.em_voo - 1):
                 self.adiar.set()
                 return {"erro": "adiado"}
         st, corpo, _ = self.cli.get(self.p.url_aux(self.uf, mun, zona, secao))
