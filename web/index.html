@@ -1196,7 +1196,15 @@ function desenharSimCurva(s, nL, nA, adv){
   const pts = cur.map((v, i) => ({f: i + 1, precisa: empataPossivel ? contagem(v, yE) : NaN, esperada: contagem(v, y), hora: C.horas[i]}))
     .filter(p => p.f >= 3);   // as primeiras urnas são poucas: a conta oscila
   const W = 760, H = 250, mg = {l: 46, r: 12, t: 12, b: 34}, pw = W - mg.l - mg.r, ph = H - mg.t - mg.b;
-  const vals = pts.flatMap(p => [p.precisa, p.esperada]).filter(isFinite);
+  // a contagem de verdade, rodada a rodada (historico_contagem no painel_2t.py), no recorte de UFs
+  const Hc = D.sim.historico, ufsR = F.ufs ? [...F.ufs] : Object.keys((Hc && Hc.ts) || {});
+  const tsR = Hc ? ufsR.reduce((a, u) => a + (Hc.ts[u] || 0), 0) : 0;
+  const serieReal = !Hc || !tsR ? [] : Hc.pontos.map(p => { let st = 0, L = 0, A = 0;
+      for (const u of ufsR) { const v = p.uf[u]; if (v) { st += v[0]; L += v[1]; A += v[2]; } }
+      return {f: 100 * st / tsR, m: L + A > 0 ? 100 * (A - L) / (L + A) : NaN, h: p.h}; })
+    .filter(p => p.f >= 1 && isFinite(p.m));
+  let agora = "";
+  const vals = pts.flatMap(p => [p.precisa, p.esperada]).concat(serieReal.map(p => p.m)).filter(isFinite);
   let lo = Math.max(-20, Math.min(0, ...vals)), hi = Math.min(25, Math.max(4, ...vals));
   lo = Math.floor(lo) - 1; hi = Math.ceil(hi) + 1;
   const X = f => mg.l + f / 100 * pw, Y = v => mg.t + ph - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * ph;
@@ -1214,14 +1222,11 @@ function desenharSimCurva(s, nL, nA, adv){
   g += `<text x="${mg.l + 6}" y="${Y(hi) + 12}" style="font-size:10px">↑ ${nA} à frente na contagem</text><text x="${mg.l + 6}" y="${Y(lo) - 5}" style="font-size:10px">↓ ${nL} à frente</text>`;
   g += `<polyline points="${linha}" fill="none" stroke="var(--ink)" stroke-width="2.2"/>`;
   g += `<polyline points="${pts.map(p => `${X(p.f).toFixed(1)},${Y(p.esperada).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="4 3" opacity=".7"/>`;
-  // a contagem de verdade, na noite: onde estamos
-  const ap = D.meta.secoes ? 100 * (F.ufs ? null : D.meta.apuradas / D.meta.secoes) : null;
-  let agora = "";
-  if (s.L2 + s.F2 > 0) {
-    const fracApur = F.ufs ? null : ap;
-    const real = 100 * (s.F2 - s.L2) / (s.F2 + s.L2);
-    if (fracApur != null && fracApur >= 1) {
-      g += `<circle cx="${X(fracApur)}" cy="${Y(real)}" r="6" fill="${real > 0 ? cA : cL}" stroke="var(--card)" stroke-width="2"><title>agora: ${nA} ${real >= 0 ? "+" : ""}${fmt(real)} com ${fmt(fracApur)}% das seções</title></circle>`;
+  if (serieReal.length) {
+    g += `<polyline points="${serieReal.map(p => `${X(p.f).toFixed(1)},${Y(p.m).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round"/>`;
+    const u_ = serieReal[serieReal.length - 1], fracApur = u_.f, real = u_.m;
+    {
+      g += `<circle cx="${X(fracApur)}" cy="${Y(real)}" r="6" fill="${real > 0 ? cA : cL}" stroke="var(--card)" stroke-width="2"><title>${u_.h}: ${nA} ${real >= 0 ? "+" : ""}${fmt(real)} com ${fmt(fracApur)}% das seções</title></circle>`;
       const k = Math.min(99, Math.max(2, Math.round(fracApur) - 1)), p = pts.find(q => q.f === k + 1);
       if (p && isFinite(p.precisa)) agora = ` <b>Agora</b>, com ${fmt(fracApur)}% das seções: ${nA} ${real >= 0 ? "+" : "−"}${fmt(Math.abs(real))} na contagem; o empate passaria por ${p.precisa >= 0 ? "+" : "−"}${fmt(Math.abs(p.precisa))} — ${real > p.precisa ? `<b>acima</b> da linha: ${nA} no ritmo de vencer` : `<b>abaixo</b> da linha: ${nL} no ritmo de vencer`}, se o resto da noite seguir o mesmo comportamento.`;
     }
@@ -1235,7 +1240,7 @@ function desenharSimCurva(s, nL, nA, adv){
     ${empataPossivel ? `${fmt(100 * yE)}% dos demais válidos a ${nL}` : `uma parte impossível dos demais a ${nL}: ${yE > 1 ? nA : nL} vence de qualquer jeito`}.
     Como as primeiras urnas são as mais fortes para ${nA}, ele precisa estar <b>muito</b> à frente no começo: ${marcos}.${agora}`;
   document.getElementById("sim-curva-leg").innerHTML = `<span><i style="background:${cA}"></i>acima da linha: ${nA} no ritmo de vencer</span> <span><i style="background:${cL}"></i>abaixo: ${nL} no ritmo de vencer</span>
-    <span class="sub">tracejada: a contagem que se veria com os seus controles · ● a contagem de verdade, na noite · embaixo: a hora em que o 1º turno chegou ali</span>`;
+    <span class="sub">tracejada: a contagem que se veria com os seus controles · <b style="color:var(--accent)">linha azul-escura</b>: a contagem de verdade, rodada a rodada, e ● onde ela está agora · embaixo: a hora em que o 1º turno chegou ali</span>`;
 }
 function desenharSimMapa(s, emp, obs, part, nL, nA, adv){
   // as combinações dos dois controles: onde cada um vence, a linha do empate, e os pontos de referência

@@ -139,6 +139,32 @@ def anterior_2t(ano_base):
         {"lula": "haddad18_2t", "bolsonaro": "bolsonaro18_2t"}, "2018"
 
 
+def historico_contagem(modo, M, sec, frac, pleito):
+    """A contagem ao longo da noite, por UF: seções apuradas e votos de Lula e do adversário em cada rodada.
+    Na noite, cada rodada que muda a contagem entra em data/raw/<pleito>/historico_contagem.json; no ensaio com
+    2022, a noite é refeita na ordem real de chegada, de 0,5% em 0,5% até o ponto do ensaio. É a linha da contagem
+    de verdade no gráfico da trajetória do empate (simulador)."""
+    ts = {u: int(x) for u, x in M.groupby("uf").ts.sum().items()}
+    if modo == "ensaio2t":
+        s2 = sec[sec.t_2t.notna()].sort_values("t_2t").reset_index(drop=True)
+        hist = []
+        for f in np.arange(0.005, frac + 1e-9, 0.005):
+            ch = s2.iloc[: int(f * len(s2))]
+            g = ch.groupby("uf").agg(st=("secao", "count"), L=("lula_2t", "sum"), F=("bolsonaro_2t", "sum"))
+            hist.append({"h": ch.t_2t.max().strftime("%H:%M"), "uf": {u: [int(v.st), int(v.L), int(v.F)] for u, v in g.iterrows()}})
+        return {"ts": ts, "pontos": hist}
+    g = M.groupby("uf")[["st", "n13", "n22"]].sum()
+    agora = {u: [int(v.st), int(v.n13), int(v.n22)] for u, v in g.iterrows() if v.st > 0}
+    arq = RAW / pleito / "historico_contagem.json"
+    hist = json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else []
+    tot = sum(v[0] for v in agora.values())
+    if tot and (not hist or sum(v[0] for v in hist[-1]["uf"].values()) != tot):
+        hist.append({"h": datetime.now().strftime("%H:%M"), "uf": agora})
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(json.dumps(hist, separators=(",", ":")), encoding="utf-8")
+    return {"ts": ts, "pontos": hist}
+
+
 def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=None):
     ano_base = ano_base or ("2022" if modo == "ensaio2t" else "2026")
     sec, linhas, adv = base(ano_base)
@@ -259,7 +285,7 @@ def montar(modo, frac=0.25, ano_base=None, n_boot=40, pleito="2026_2t", saida=No
         "amostras_q": amostras_q,
         "amostras_pct": amostras_pct,
         "amostras_uf": amostras_uf,
-        "sim": simulador_noite(M, linhas, adv, ano_base, sec),
+        "sim": {**simulador_noite(M, linhas, adv, ano_base, sec), "historico": historico_contagem(modo, M, sec, frac, pleito)},
     }
     WEB.mkdir(parents=True, exist_ok=True)
     nome = WEB / f"{saida or modo}_brasil_presidente.json"   # ensaio contra o tse_falso: arquivo próprio
