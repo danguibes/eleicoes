@@ -54,6 +54,10 @@
   svg text{fill:var(--mut);font-size:10.5px}
   .aviso{border-left:4px solid var(--accent);background:var(--accent-soft)}
   .nota{font-size:12.5px;color:var(--mut)}
+  .tres{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:14px;margin-top:10px}
+  .tres h3{font-size:13.5px;margin:0 0 2px} .tres .nota{margin:4px 0 0;line-height:1.45}
+  .k-ab{color:var(--accent);font-weight:700} .k-bn{color:#b8741a;font-weight:700}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .k-bn{color:#e3a656}} :root[data-theme="dark"] .k-bn{color:#e3a656}
   .vazio{color:var(--mut);font-size:13px;padding:10px 0}
 </style>
 <body>
@@ -87,6 +91,13 @@
   </div>
   <svg id="mapa" style="width:100%;max-height:640px;display:block;margin-top:8px"></svg>
   <div class="leg" id="mapa-leg"></div>
+</section>
+
+<section id="dist3-sec">
+  <h2>Como as urnas mudaram: a distribuição seção a seção</h2>
+  <p class="sub" id="s-dist3"></p>
+  <div class="tres" id="dist3"></div>
+  <div class="leg" id="leg-dist3"></div>
 </section>
 
 <section>
@@ -216,7 +227,7 @@ function desenharControles(){
   on("c-ord", e => { E.ord = e.target.value; ORD_COL = null; desenhar(); });
   on("c-min", e => { E.minAp = +e.target.value || 0; desenharFoco(); desenharMapa(); desenharTabela(); });
   on("c-comp", e => { E.soComp = e.target.checked; desenharFoco(); desenharTabela(); });
-  on("c-ext", e => { E.ext = e.target.checked; desenharFoco(); desenharTabela(); });
+  on("c-ext", e => { E.ext = e.target.checked; desenharFoco(); desenharDist3(); desenharTabela(); });
   on("c-busca", e => { E.busca = e.target.value; desenharFoco(); desenharTabela(); }, "oninput");
 }
 
@@ -377,6 +388,85 @@ function desenharHist(L){
   s += `<text x="${mg.l}" y="${mg.t + 10}">${ymax.toLocaleString("pt-BR")}</text>`;
   svg.innerHTML = s;
 }
+// ---------- três distribuições fixas: a variação, na mesma urna, de abstenção e de brancos+nulos
+const PARES3 = [["22a-22b", "Do 1º para o 2º turno de 2022"], ["22a-26a", "Do 1º turno de 2022 para o 1º de 2026"], ["26a-26b", "Do 1º para o 2º turno de 2026"]];
+const COR3 = {abst: "var(--accent)", bn: "#b8741a"};
+// o recorte: uma UF, ou o Brasil (sem o exterior, salvo "incluir exterior"); soma os histogramas por UF do resumo
+function dist3(par, med){
+  const P = R.dist && R.dist.pares[par]; if (!P) return null;
+  const ufs = E.uf ? [E.uf] : Object.keys(P).filter(u => E.ext || u !== "ZZ");
+  const o = {h: new Array(R.dist.n).fill(0), n: 0, s1: 0, s2: 0, sub: 0, sob: 0, up: 0};
+  for (const u of ufs) { const x = P[u] && P[u][med]; if (!x) continue;
+    x.h.forEach((v, i) => o.h[i] += v); for (const k of ["n", "s1", "s2", "sub", "sob", "up"]) o[k] += x[k] || 0; }
+  return o.n ? o : null;
+}
+function quantil(o, q){   // pelo histograma, interpolando dentro da faixa
+  const alvo = q * o.n; let ac = o.sub;
+  if (alvo <= ac) return R.dist.lo;
+  for (let i = 0; i < o.h.length; i++) { if (ac + o.h[i] >= alvo) return R.dist.lo + (i + (alvo - ac) / o.h[i]) * R.dist.w; ac += o.h[i]; }
+  return R.dist.lo + R.dist.n * R.dist.w;
+}
+function estat(o){
+  const media = o.s1 / o.n, med = quantil(o, .5), q1 = quantil(o, .25), q3 = quantil(o, .75), sd = (q3 - q1) / 1.349;
+  const lo = R.dist.lo, w = R.dist.w;
+  let alem = o.sub + o.sob;   // além de 3 desvios (robustos) da mediana; numa normal, 0,27%
+  o.h.forEach((v, i) => { const c = lo + (i + .5) * w; if (Math.abs(c - med) > 3 * sd) alem += v; });
+  return {media, med, q1, q3, sd, alem: 100 * alem / o.n, sobe: 100 * o.up / o.n};
+}
+function desenharDist3(){
+  const box = document.getElementById("dist3"); if (!R.dist) { box.innerHTML = ""; return; }
+  const D3 = PARES3.map(([p]) => ({abst: dist3(p, "abst"), bn: dist3(p, "bn")}));
+  const ref = D3[0];   // 2022 entre turnos: a referência do gráfico de 2026 enquanto ele espera
+  // eixo comum aos três, para as larguras se compararem: do 0,5% ao 99,5% do mais espalhado
+  let m = 3; for (const d of D3) for (const k of ["abst", "bn"]) if (d[k]) m = Math.max(m, Math.abs(quantil(d[k], .005)), Math.abs(quantil(d[k], .995)));
+  m = Math.min(20, Math.ceil(m));
+  const W = 360, H = 190, mg = {l: 8, r: 8, t: 10, b: 24}, lo = R.dist.lo, w = R.dist.w;
+  const X = v => mg.l + (v + m) / (2 * m) * (W - mg.l - mg.r);
+  // % das urnas por faixa de 0,25 ponto, suavizado (1-4-6-4-1): urna pequena só muda de um eleitor em um eleitor, e o "zero exato"
+  // cai todo numa faixa só, enquanto as vizinhas pegam ora um degrau, ora dois — o desenho ficava serrilhado. A conta ao lado não usa isso.
+  const K = [1, 4, 6, 4, 1];
+  const dens = o => o.h.map((_, i) => { let s = 0, p = 0; K.forEach((k, j) => { const v = o.h[i + j - 2]; if (v != null) { s += k * v; p += k; } }); return 100 * s / p / o.n; });
+  const ymax = Math.max(...D3.flatMap(d => ["abst", "bn"].flatMap(k => d[k] ? dens(d[k]) : [])), 1);
+  const Y = v => H - mg.b - Math.min(v, ymax) / ymax * (H - mg.t - mg.b);
+  const curva = (vals, cor, extra = "") => { const pts = [];
+    vals.forEach((v, i) => { const c = lo + (i + .5) * w; if (c >= -m && c <= m) pts.push(`${X(c).toFixed(1)},${Y(v).toFixed(1)}`); });
+    return `<polyline points="${pts.join(" ")}" fill="none" stroke="${cor}" ${extra}/>`; };
+  const normal = (e, cor) => { const v = []; for (let i = 0; i < R.dist.n; i++) { const c = lo + (i + .5) * w;
+    v.push(100 * w * Math.exp(-.5 * ((c - e.med) / e.sd) ** 2) / (e.sd * Math.sqrt(2 * Math.PI))); }
+    return curva(v, cor, `stroke-width="1" stroke-dasharray="3 3" opacity=".9"`); };
+  const fp = x => `${x > 0 ? "+" : x < 0 ? "−" : ""}${fmt(Math.abs(x), 2)}`;
+  box.innerHTML = PARES3.map(([p, tit], j) => {
+    const d = D3[j], tem = d.abst && d.bn;
+    let g = "";
+    const passo = m > 10 ? 5 : m > 5 ? 2 : 1;
+    for (let v = -Math.floor(m / passo) * passo; v <= m; v += passo)
+      g += `<line x1="${X(v)}" x2="${X(v)}" y1="${mg.t}" y2="${H - mg.b}" stroke="${v === 0 ? "var(--ink)" : "var(--grid)"}" ${v === 0 ? 'opacity=".45"' : ""}/>
+        <text x="${X(v)}" y="${H - 8}" text-anchor="middle">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v)}</text>`;
+    let txt = "";
+    if (!tem && ref.abst) {   // ainda sem 2º turno de 2026: o de 2022, em cinza, como o que se veria se repetir
+      g += curva(dens(ref.abst), "var(--mut)", `stroke-width="1.3" stroke-dasharray="6 3" opacity=".6"`) + curva(dens(ref.bn), "var(--mut)", `stroke-width="1.3" stroke-dasharray="1.5 2.5" opacity=".75"`);
+      g += `<text x="${mg.l + 4}" y="${mg.t + 12}" style="font-size:12px;fill:var(--ink)">aguardando 25/10</text>`;
+    }
+    if (tem) {
+      const ea = estat(d.abst), eb = estat(d.bn);
+      if (j === 2 && ref.abst) g += curva(dens(ref.abst), "var(--mut)", `stroke-width="1" opacity=".45"`) + curva(dens(ref.bn), "var(--mut)", `stroke-width="1" opacity=".45"`);
+      g += normal(ea, COR3.abst) + normal(eb, COR3.bn);
+      g += curva(dens(d.abst), COR3.abst, `stroke-width="2"`) + curva(dens(d.bn), COR3.bn, `stroke-width="2"`);
+      const linha = (k, nome, e) => `<span class="${k}">${nome}</span>: mediana ${fp(e.med)}, média ${fp(e.media)}; metade das urnas entre ${fp(e.q1)} e ${fp(e.q3)};
+        subiu em ${fmt(e.sobe, 0)}% delas; ${fmt(e.alem, 1)}% além de 3 desvios (numa normal, 0,3%).`;
+      txt = `${d.abst.n.toLocaleString("pt-BR")} urnas. ${linha("k-ab", "Abstenção", ea)}<br>${linha("k-bn", "Brancos e nulos", eb)}`;
+      if (j === 2) txt += `<br>Só as seções com boletim já baixado (${R.meta.ufs_26b_por_secao.join(", ")}); em cinza, 2022 entre turnos.`;
+    } else txt = j === 2 ? `Entra na noite, conforme os boletins forem baixados: primeiro SP, depois o resto do país. Em cinza, a mesma mudança em 2022
+      (tracejado longo: abstenção; curto: brancos e nulos) — o que se veria se o eleitor repetisse 2022.` : "Sem urnas no recorte.";
+    return `<div><h3>${tit}</h3><svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">${g}</svg><p class="nota">${txt}</p></div>`;
+  }).join("");
+  document.getElementById("s-dist3").innerHTML = `${E.uf ? UF_NOME[E.uf] : "Brasil" + (E.ext ? ", com o exterior" : ", sem o exterior")}${E.mun != null ? " (a UF inteira: aqui o recorte vai até UF)" : ""}.
+    Cada urna conta uma vez: quanto a <span class="k-ab">abstenção</span> (% dos aptos) e os <span class="k-bn">brancos e nulos</span> (% de quem votou) mudaram nela, em pontos.
+    Só a mesma urna — 100 ou mais aptos nas duas eleições e, entre 2022 e 2026, seção comparável. O eixo é o mesmo nos três, para as larguras se compararem.`;
+  document.getElementById("leg-dist3").innerHTML = `Altura: % das urnas em cada faixa de 0,25 ponto (curva levemente suavizada; os números ao lado são das urnas, sem suavizar). Linha cheia: as urnas; tracejada fina, da mesma cor: a normal com a mesma
+    mediana e o mesmo espalhamento do miolo (desvio pelo intervalo interquartil). Pico acima da tracejada e mais urnas que ela nas pontas é distribuição mais
+    concentrada e de caudas mais gordas que a normal: urna que muda muito por motivo local (seção que mudou de público, local novo, eleitor transferido).`;
+}
 function desenharFoco(){
   const partes = [];
   if (E.uf) partes.push(["uf", UF_NOME[E.uf]]);
@@ -491,7 +581,7 @@ function desenharFicha(){
     </table></div>`;
   document.getElementById("fechar-ficha").onclick = () => { SEL = null; desenharFicha(); };
 }
-function desenhar(){ desenharFicha(); desenharCartoes(); desenharControles(); desenharFoco(); desenharMapa(); desenharTabela(); }
+function desenhar(){ desenharFicha(); desenharCartoes(); desenharControles(); desenharFoco(); desenharMapa(); desenharDist3(); desenharTabela(); }
 // no domingo do 2º turno: recarrega o resumo a cada 2 min enquanto chegam urnas (as seções de UF ficam em cache)
 setInterval(async () => { if (document.hidden || !R || !R.meta.secoes_26b && !temDado("26b") && new Date() < new Date("2026-10-25T16:00:00-03:00")) return;
   R = await json("dados/naovotos/resumo.json"); UFD = {}; DEST = await json("dados/naovotos/destaques.json"); desenhar(); }, 120000);

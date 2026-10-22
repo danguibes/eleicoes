@@ -104,6 +104,36 @@ def taxas(df, e):
             "br": 100 * br / co, "nu": 100 * nu / co}
 
 
+# Distribuições da variação seção a seção (naovotos.html, "Como as urnas mudaram"): histograma por UF, que a página
+# soma para o recorte. Só a mesma urna: 100+ aptos nas duas eleições e, entre 2022 e 2026, seção comparável.
+DIST_PARES = [("22a", "22b"), ("22a", "26a"), ("26a", "26b")]
+DIST_LO, DIST_W, DIST_N = -20.125, 0.25, 161   # de −20 a +20 pontos, faixas de 0,25 centradas (o zero exato cai no meio de uma)
+
+
+def distribuicoes(s):
+    out = {"lo": DIST_LO, "w": DIST_W, "n": DIST_N, "pares": {}}
+    for a_, b_ in DIST_PARES:
+        ok = s[f"{a_}_ap"].notna() & s[f"{b_}_ap"].notna() & (s[f"{a_}_ap"] >= 100) & (s[f"{b_}_ap"] >= 100)
+        ok &= (s[f"{a_}_co"] > 0) & (s[f"{b_}_co"] > 0)
+        if a_[:2] != b_[:2]:
+            ok &= s.comparavel == 1
+        g = s[ok]
+        par = {}
+        if len(g):
+            ta, tb = taxas(g, a_), taxas(g, b_)
+            for med in ("abst", "bn"):
+                d = (tb[med] - ta[med]).astype(float).round(6)   # sem o resto de ponto flutuante na borda da faixa
+                k = np.floor((d - DIST_LO) / DIST_W)
+                for uf, dd in d.groupby(g.uf):
+                    kk = k[dd.index]
+                    h = np.bincount(kk[(kk >= 0) & (kk < DIST_N)].astype(int), minlength=DIST_N)
+                    par.setdefault(uf, {})[med] = {"h": h.tolist(), "n": int(len(dd)), "s1": round(float(dd.sum()), 3),
+                                                   "s2": round(float((dd ** 2).sum()), 3),
+                                                   "sub": int((kk < 0).sum()), "sob": int((kk >= DIST_N).sum()), "up": int((dd > 0).sum())}
+        out["pares"][f"{a_}-{b_}"] = par
+    return out
+
+
 def municipios_2t():
     """2º turno de 2026 por município, do arquivo `u` (só as seções já apuradas)."""
     arq = RAW / PL2T / "nacional" / "municipios.parquet"
@@ -160,6 +190,7 @@ def main(so_2t=None, secoes_2t=True):
                        "secoes_26b": int(tem26b.sum()), "ufs_26b_por_secao": sorted(s.loc[tem26b, "uf"].unique().tolist())},
               "mun": {c: (m[c].tolist() if c == "uf" else m[c].fillna(-1).astype(int).tolist())
                       for c in ["uf", "municipio"] + cols + [f"{c}_r" for c in fixas] + [c for c in ["26b_secoes", "26b_total"] if c in m]}}
+    resumo["dist"] = distribuicoes(s)
     resumo["mun"]["regiao"] = [REGIAO.get(u, "Exterior") for u in m.uf]
     (WEB / "resumo.json").write_text(json.dumps(resumo, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     # --- destaques: as maiores mudanças do país, seção a seção, por par e medida (comparáveis, 100+ aptos)
