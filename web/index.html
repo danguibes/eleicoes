@@ -1251,7 +1251,8 @@ function desenharSimCurva(s, nL, nA, adv){
     ${empataPossivel ? `${fmt(100 * yE)}% dos demais válidos a ${nL}` : `uma parte impossível dos demais a ${nL}: ${yE > 1 ? nA : nL} vence de qualquer jeito`}.
     Como as primeiras urnas são as mais fortes para ${nA}, ele precisa estar <b>muito</b> à frente no começo: ${marcos}.${agora}`;
   document.getElementById("sim-curva-leg").innerHTML = `<span><i style="background:${cA}"></i>acima da linha: ${nA} no ritmo de vencer</span> <span><i style="background:${cL}"></i>abaixo: ${nL} no ritmo de vencer</span>
-    <span class="sub">tracejada: a contagem que se veria com os seus controles · <b style="color:var(--accent)">linha azul-escura</b>: a contagem de verdade, rodada a rodada, e ● onde ela está agora · ◇ o empate nas seções que de fato já chegaram · embaixo: a hora em que o 1º turno chegou ali</span>`;
+    <span class="sub" style="display:block;flex-basis:100%;cursor:default">linha cheia: a trajetória do empate, na ordem do 1º turno · tracejada: a contagem que se veria com os seus controles ·
+    <b style="color:var(--accent)">linha azul-escura</b>: a contagem de verdade, rodada a rodada, e ● onde ela está agora · ◇ o empate nas seções que de fato já chegaram · embaixo: a hora em que o 1º turno chegou ali</span>`;
 }
 function desenharSimMapa(s, emp, obs, part, nL, nA, adv){
   // as combinações dos dois controles: onde cada um vence, a linha do empate, e os pontos de referência
