@@ -1227,8 +1227,19 @@ function desenharSimCurva(s, nL, nA, adv){
     const u_ = serieReal[serieReal.length - 1], fracApur = u_.f, real = u_.m;
     {
       g += `<circle cx="${X(fracApur)}" cy="${Y(real)}" r="6" fill="${real > 0 ? cA : cL}" stroke="var(--card)" stroke-width="2"><title>${u_.h}: ${nA} ${real >= 0 ? "+" : ""}${fmt(real)} com ${fmt(fracApur)}% das seções</title></circle>`;
+      // a noite NÃO precisa chegar na ordem do 1º turno (em 25/10 o TSE parou das 17:06 às 19:05 e as urnas vieram em outra
+      // ordem): o empate de agora é o das seções que de fato chegaram, pelo voto delas no 1º turno, e não o ponto da curva
+      const pE = empataPossivel && s.L1a + s.F1a > 0 ? contagem([s.L1a, s.F1a, s.D1a], yE) : NaN;
       const k = Math.min(99, Math.max(2, Math.round(fracApur) - 1)), p = pts.find(q => q.f === k + 1);
-      if (p && isFinite(p.precisa)) agora = ` <b>Agora</b>, com ${fmt(fracApur)}% das seções: ${nA} ${real >= 0 ? "+" : "−"}${fmt(Math.abs(real))} na contagem; o empate passaria por ${p.precisa >= 0 ? "+" : "−"}${fmt(Math.abs(p.precisa))} — ${real > p.precisa ? `<b>acima</b> da linha: ${nA} no ritmo de vencer` : `<b>abaixo</b> da linha: ${nL} no ritmo de vencer`}, se o resto da noite seguir o mesmo comportamento.`;
+      if (isFinite(pE)) {
+        g += `<path d="M${X(fracApur)},${Y(pE) - 7} l7,7 l-7,7 l-7,-7 z" fill="var(--card)" stroke="var(--ink)" stroke-width="2"><title>empate nas seções que já chegaram: ${nA} ${pE >= 0 ? "+" : "−"}${fmt(Math.abs(pE))}</title></path>`;
+        const q1 = 100 * s.L1a / (s.L1a + s.F1a), q1c = p ? 100 * cur[k][0] / (cur[k][0] + cur[k][1]) : NaN;
+        const difere = isFinite(q1c) && Math.abs(q1 - q1c) >= 1;
+        agora = ` <b>Agora</b>, com ${fmt(fracApur)}% das seções: ${nA} ${real >= 0 ? "+" : "−"}${fmt(Math.abs(real))} na contagem; nas seções que já chegaram, o empate passaria por
+          ${pE >= 0 ? "+" : "−"}${fmt(Math.abs(pE))} (◇) — ${real > pE ? `<b>acima</b>: ${nA} no ritmo de vencer` : `<b>abaixo</b>: ${nL} no ritmo de vencer`}, se o resto da noite seguir o mesmo comportamento.` +
+          (difere ? ` <b>As urnas não estão chegando na ordem do 1º turno:</b> as já contadas deram ${fmt(q1)}% a ${nL} entre os dois no 1º turno, contra ${fmt(q1c)}% no mesmo ponto
+          daquela noite — por isso o ◇ fica ${q1 > q1c ? "abaixo" : "acima"} da linha cheia, e a linha cheia vale só como referência.` : "");
+      }
     }
   }
   svg.innerHTML = g;
@@ -1240,7 +1251,7 @@ function desenharSimCurva(s, nL, nA, adv){
     ${empataPossivel ? `${fmt(100 * yE)}% dos demais válidos a ${nL}` : `uma parte impossível dos demais a ${nL}: ${yE > 1 ? nA : nL} vence de qualquer jeito`}.
     Como as primeiras urnas são as mais fortes para ${nA}, ele precisa estar <b>muito</b> à frente no começo: ${marcos}.${agora}`;
   document.getElementById("sim-curva-leg").innerHTML = `<span><i style="background:${cA}"></i>acima da linha: ${nA} no ritmo de vencer</span> <span><i style="background:${cL}"></i>abaixo: ${nL} no ritmo de vencer</span>
-    <span class="sub">tracejada: a contagem que se veria com os seus controles · <b style="color:var(--accent)">linha azul-escura</b>: a contagem de verdade, rodada a rodada, e ● onde ela está agora · embaixo: a hora em que o 1º turno chegou ali</span>`;
+    <span class="sub">tracejada: a contagem que se veria com os seus controles · <b style="color:var(--accent)">linha azul-escura</b>: a contagem de verdade, rodada a rodada, e ● onde ela está agora · ◇ o empate nas seções que de fato já chegaram · embaixo: a hora em que o 1º turno chegou ali</span>`;
 }
 function desenharSimMapa(s, emp, obs, part, nL, nA, adv){
   // as combinações dos dois controles: onde cada um vence, a linha do empate, e os pontos de referência
