@@ -88,12 +88,12 @@ def main():
             res[c[:5]] = {"pct": round(p, 3), "ic": [round(b[7], 3), round(b[292], 3)], "eleitores": int(round(p / 100 * co[t], -3))}
             print(f"  votou às {c[:5]} ou depois: {p:5.2f}% (IC 95% {b[7]:.2f}–{b[292]:.2f}) ≈ {p / 100 * co[t] / 1e6:.2f} milhão de eleitores", flush=True)
         # por UF e o perfil por faixa de 15 min depois das 16h
-        uf = {u: round(parte(x, "17:00:00"), 2) for u, x in g.groupby("uf")}
+        uf = {u: round(float(parte(x, "17:00:00")), 2) for u, x in g.groupby("uf")}
         faixas = {}
-        for s0 in range(16 * 3600, 20 * 3600, 900):
+        for s0 in range(8 * 3600, 20 * 3600, 900):
             n = sum(w * sum(s0 <= s < s0 + 900 for s in seg) for w, seg in zip(g.peso, g.seg))
-            faixas[f"{s0 // 3600:02d}:{s0 % 3600 // 60:02d}"] = round(100 * n / (g.peso * g.n).sum(), 3)
-        res["por_uf"], res["faixas_15min"] = uf, faixas
+            faixas[f"{s0 // 3600:02d}:{s0 % 3600 // 60:02d}"] = round(float(100 * n / (g.peso * g.n).sum()), 3)
+        res["por_uf"], res["faixas_15min"], res["urnas"] = uf, faixas, int(len(g))
         print("  por UF:", dict(sorted(uf.items(), key=lambda x: -x[1])), flush=True)
         print("  faixas:", faixas, flush=True)
         out["amostra"][t] = res
@@ -102,11 +102,41 @@ def main():
         r = {}
         for c in CORTES:
             m = e.enc > segundos(c) + 59   # fechou depois do minuto: teve gente votando depois
-            r[c[:5]] = round(100 * m.mean(), 1)
+            r[c[:5]] = round(float(100 * m.mean()), 1)
         out["encerramento"][t] = {"urnas": int(len(e)), "pct_urnas_fecharam_depois": r,
                                   "p99": f"{int(e.enc.quantile(.99)) // 3600:02d}:{int(e.enc.quantile(.99)) % 3600 // 60:02d}"}
         print(f"encerramento {t}: {len(e):,} urnas; fecharam depois de: {r}; p99 {out['encerramento'][t]['p99']}", flush=True)
+    out["tardias"] = tardias()
+    out["meta"] = {"gerado": pd.Timestamp.now().strftime("%d/%m/%Y %H:%M"), "comparecimento": co}
     (D / "resumo.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    Path("web/dados/hora_do_voto.json").write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
+def tardias():
+    """As urnas com boletim que fecharam depois das 17:15 (hora_do_voto_tardias.py), contadas voto a voto, e a
+    extrapolação para as seções sem boletim baixado: proporcional à cobertura de boletins do município."""
+    from painel_brasil import nomes_municipios
+    arq = D / "tardias.jsonl"
+    if not arq.exists():
+        return None
+    t = pd.DataFrame([json.loads(l) for l in open(arq, encoding="utf-8")])
+    t = t[t.votos.notna()]
+    tot = pd.read_parquet(RAW / "2026" / "secoes_1t_brasil.parquet", columns=["municipio"]).municipio.value_counts()
+    bu = {}
+    for f in RAW.glob("2026_2t/*/secoes.jsonl"):
+        for k in {(r["municipio"], r["zona"], r["secao"]) for r in map(json.loads, open(f, encoding="utf-8"))}:
+            bu[k[0]] = bu.get(k[0], 0) + 1
+    cols = ["depois_17", "depois_1705", "depois_18"]
+    g = t.groupby(["uf", "municipio"]).agg(urnas=("votos", "size"), com_voto=("depois_1705", lambda x: int((x > 0).sum())),
+                                          **{c: (c, "sum") for c in cols}).reset_index()
+    g["fator"] = g.municipio.map(tot) / g.municipio.map(pd.Series(bu))
+    nomes = nomes_municipios()
+    top = g.sort_values("depois_1705", ascending=False).head(15)
+    return {"urnas": int(len(t)), "urnas_com_voto_1705": int((t.depois_1705 > 0).sum()), "urnas_com_voto_18": int((t.depois_18 > 0).sum()),
+            "contados": {c: int(t[c].sum()) for c in cols}, "estimados": {c: int(round((g[c] * g.fator).sum())) for c in cols},
+            "ultimo": int(t.ultimo.max()), "cobertura": round(sum(bu.values()) / int(tot.drop(index=[m for m in tot.index if m not in bu], errors="ignore").sum() or 1), 3),
+            "municipios": [{"uf": r.uf, "nome": nomes.get(int(r.municipio), str(r.municipio)), "urnas": int(r.urnas), "com_voto": int(r.com_voto),
+                            "depois_1705": int(r.depois_1705), "depois_18": int(r.depois_18), "fator": round(float(r.fator), 2)} for r in top.itertuples()]}
 
 
 if __name__ == "__main__":
