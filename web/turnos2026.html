@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entre os turnos de 2026</title>
+<style>
+  :root{--bg:#faf9f7;--card:#fff;--ink:#1c1b19;--mut:#56534e;--line:#e4e1db;--accent:#1f4f7a;--accent-soft:#dde8f2;--grid:#efece7;--sobe:#b5542f;--desce:#2f7a6b;
+        --lula:#b03a2e;--flavio:#1f4f7a;--bn:#8a8478;--abst:#cfc9bd}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#17181a;--card:#1f2124;--ink:#e8e6e1;--mut:#b3aea5;--line:#32353a;--accent:#7fb4d4;--accent-soft:#22313f;--grid:#2a2d31;--sobe:#e08a5f;--desce:#6cc5ad;
+        --lula:#e0705f;--flavio:#7fb4d4;--bn:#9a958c;--abst:#4a4740}}
+  :root[data-theme="dark"]{--bg:#17181a;--card:#1f2124;--ink:#e8e6e1;--mut:#b3aea5;--line:#32353a;--accent:#7fb4d4;--accent-soft:#22313f;--grid:#2a2d31;--sobe:#e08a5f;--desce:#6cc5ad;
+        --lula:#e0705f;--flavio:#7fb4d4;--bn:#9a958c;--abst:#4a4740}
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 80px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+  header{padding:26px 0 12px}
+  h1{font-size:24px;margin:0 0 4px;letter-spacing:-.02em} h2{font-size:16px;margin:0 0 4px} h3{font-size:13.5px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin:0} a{color:var(--accent)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+  .regua{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin-top:10px}
+  .regua div{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .regua b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
+  .regua span{color:var(--mut);font-size:12px;display:block}
+  .fixa{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0 6px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .controles{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:flex-end}
+  .foco{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:26px;margin-top:6px;font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px}
+  .chip button{border:none;background:transparent;color:var(--mut);font-size:15px;cursor:pointer;padding:0 5px}
+  .modo{display:flex;gap:6px;flex-wrap:wrap}
+  .modo button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:4px 10px;cursor:pointer}
+  .modo button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  label.f{display:flex;flex-direction:column;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;gap:2px}
+  select,input[type=search]{font:inherit;font-size:13.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 8px}
+  .topo{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start}
+  #mapa path.m{stroke:var(--card);stroke-width:.25;cursor:pointer}
+  #mapa path.m:hover{stroke:var(--ink);stroke-width:1}
+  #mapa path.u{fill:none;stroke:var(--ink);stroke-width:.6;opacity:.5;pointer-events:none}
+  #mapa circle{cursor:pointer;stroke:var(--card);stroke-width:.6;fill-opacity:.72}
+  #mapa circle:hover{stroke:var(--ink);stroke-width:1.2}
+  .escala{display:inline-block;width:140px;height:9px;border-radius:2px;vertical-align:middle;margin:0 6px}
+  .leg{font-size:12px;color:var(--mut);margin-top:6px}
+  .leg i{display:inline-block;width:11px;height:9px;border-radius:2px;margin:0 4px 0 10px;vertical-align:middle}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{text-align:right;font-weight:600;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:0 8px 6px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th.ord{color:var(--ink)}
+  td{padding:5px 8px;border-bottom:1px solid var(--grid);text-align:right;font-variant-numeric:tabular-nums}
+  tr.clic{cursor:pointer} tr.clic:hover td{background:var(--grid)}
+  .scroll{overflow-x:auto}
+  .sobe{color:var(--sobe);font-weight:700} .desce{color:var(--desce);font-weight:700}
+  .lula{color:var(--lula);font-weight:700} .flavio{color:var(--flavio);font-weight:700}
+  .peq{display:block;font-size:10.5px;color:var(--mut);font-weight:400}
+  svg text{fill:var(--mut);font-size:10.5px}
+  .nota{font-size:12.5px;color:var(--mut)}
+  .dois{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px}
+  #ficha{border-left:4px solid var(--accent)}
+  .fechar{float:right;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:2px 9px;cursor:pointer;font:inherit;font-size:13px}
+  .vazio{color:var(--mut);font-size:13px;padding:10px 0}
+</style>
+<body>
+<div class="wrap">
+<header>
+  <h1>Entre os turnos de 2026</h1>
+  <p class="sub">Do 1º turno (04/10) para o 2º (25/10), município a município: quem ganhou e perdeu voto, onde a abstenção e os brancos e nulos
+    mudaram, e para onde foram os votos de quem não estava no 2º turno.
+    <a href="index.html">← painel</a> · <a href="naovotos.html">não-votos seção a seção</a> · <a href="metodo.html">método</a></p>
+</header>
+
+<section>
+  <h2 id="t-cartoes">Brasil</h2>
+  <div class="regua" id="cartoes"></div>
+  <p class="nota" id="n-cartoes" style="margin-top:8px"></p>
+</section>
+
+<div class="fixa"><div class="controles" id="controles"></div><div class="foco" id="foco"></div></div>
+
+<section>
+  <div class="topo">
+    <div><h2 id="t-mapa">Mapa</h2><p class="sub" id="s-mapa"></p></div>
+    <div class="modo" id="mapa-modo"></div>
+  </div>
+  <svg id="mapa" style="width:100%;max-height:660px;display:block;margin-top:8px"></svg>
+  <div class="leg" id="mapa-leg"></div>
+</section>
+
+<section id="ficha" hidden></section>
+
+<div class="dois">
+  <section>
+    <h2 id="t-uf">Por UF</h2>
+    <p class="sub" id="s-uf"></p>
+    <svg id="barras" style="width:100%;display:block;margin-top:8px"></svg>
+  </section>
+  <section>
+    <h2 id="t-tab">Municípios</h2>
+    <p class="sub" id="s-tab"></p>
+    <div class="scroll" style="max-height:620px;overflow-y:auto;margin-top:8px"><table id="tab"></table></div>
+  </section>
+</div>
+
+<section id="mig-sec">
+  <div class="topo">
+    <div><h2>Para onde foram os votos do 1º turno</h2><p class="sub" id="s-mig"></p></div>
+    <div class="modo" id="mig-modo"></div>
+  </div>
+  <svg id="mig" style="width:100%;display:block;margin-top:10px"></svg>
+  <div class="leg"><i style="background:var(--lula)"></i>Lula <i style="background:var(--flavio)"></i>Flávio <i style="background:var(--bn)"></i>branco ou nulo
+    <i style="background:var(--abst)"></i>abstenção</div>
+  <div class="scroll" style="margin-top:12px"><table id="mig-tab"></table></div>
+  <p class="nota" id="n-mig" style="margin-top:10px"></p>
+</section>
+</div>
+
+<script>
+const UF_NOME = {AC:"Acre",AL:"Alagoas",AM:"Amazonas",AP:"Amapá",BA:"Bahia",CE:"Ceará",DF:"Distrito Federal",ES:"Espírito Santo",GO:"Goiás",
+  MA:"Maranhão",MG:"Minas Gerais",MS:"Mato Grosso do Sul",MT:"Mato Grosso",PA:"Pará",PB:"Paraíba",PE:"Pernambuco",PI:"Piauí",PR:"Paraná",
+  RJ:"Rio de Janeiro",RN:"Rio Grande do Norte",RO:"Rondônia",RR:"Roraima",RS:"Rio Grande do Sul",SC:"Santa Catarina",SE:"Sergipe",SP:"São Paulo",
+  TO:"Tocantins",ZZ:"Exterior"};
+const REGIAO = {Norte:["AC","AM","AP","PA","RO","RR","TO"],Nordeste:["AL","BA","CE","MA","PB","PE","PI","RN","SE"],Sudeste:["ES","MG","RJ","SP"],
+  Sul:["PR","RS","SC"],"Centro-Oeste":["DF","GO","MS","MT"],Exterior:["ZZ"]};
+const fmt = (x, d=1) => (x == null || !isFinite(x)) ? "—" : x.toLocaleString("pt-BR", {minimumFractionDigits:d, maximumFractionDigits:d});
+const nf = x => !isFinite(x) ? "—" : Math.round(x).toLocaleString("pt-BR");
+const sn = x => !isFinite(x) ? "—" : (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(Math.round(x)).toLocaleString("pt-BR");
+const sp = (x, d=1) => !isFinite(x) ? "—" : (x > 0 ? "+" : x < 0 ? "−" : "") + fmt(Math.abs(x), d);
+const mil = x => Math.abs(x) >= 1e6 ? `${fmt(x / 1e6, 2)} mi` : Math.abs(x) >= 1e3 ? `${fmt(x / 1e3, 1)} mil` : nf(x);
+const smil = x => (x > 0 ? "+" : x < 0 ? "−" : "") + mil(Math.abs(x));
+const cls = d => d > 0 ? "sobe" : d < 0 ? "desce" : "";
+
+// as medidas: diferença em votos (a principal) e em pontos (a secundária, de base própria)
+const MED = {
+  fl: {nome: "votos de Flávio", curto: "Flávio", a: r => r.fl1, b: r => r.fl2, base: "% dos votos válidos", pa: r => 100 * r.fl1 / val1(r), pb: r => 100 * r.fl2 / val2(r)},
+  lu: {nome: "votos de Lula", curto: "Lula", a: r => r.lu1, b: r => r.lu2, base: "% dos votos válidos", pa: r => 100 * r.lu1 / val1(r), pb: r => 100 * r.lu2 / val2(r)},
+  mg: {nome: "vantagem de Lula sobre Flávio", curto: "Lula − Flávio", a: r => r.lu1 - r.fl1, b: r => r.lu2 - r.fl2, base: "pontos dos votos válidos",
+       pa: r => 100 * (r.lu1 - r.fl1) / val1(r), pb: r => 100 * (r.lu2 - r.fl2) / val2(r)},
+  ab: {nome: "abstenção", curto: "abstenção", a: r => r.ap1 - r.co1, b: r => r.ap2 - r.co2, base: "% dos aptos", pa: r => 100 * (r.ap1 - r.co1) / r.ap1, pb: r => 100 * (r.ap2 - r.co2) / r.ap2},
+  bn: {nome: "brancos e nulos", curto: "brancos e nulos", a: r => r.bn1, b: r => r.bn2, base: "% de quem votou", pa: r => 100 * r.bn1 / r.co1, pb: r => 100 * r.bn2 / r.co2},
+};
+const val1 = r => r.co1 - r.bn1, val2 = r => r.co2 - r.bn2;
+// cada medida abre na ordem da sua pergunta: Flávio, onde mais perdeu; as outras, onde mais cresceram
+const DIR0 = {fl: 1, lu: -1, mg: -1, ab: -1, bn: -1};
+const E = {med: "fl", uf: null, mun: null, mapa: "votos", busca: "", ord: "d", dir: 1, mig: "brasil"};
+let D = null, MAPA = null, LIN = [], CENTRO = null;
+
+async function json(u){ const r = await fetch(u, {cache: "no-store"}); return r.ok ? r.json() : null; }
+async function iniciar(){
+  D = await json("dados/turnos2026.json");
+  const m = D.mun;
+  LIN = m.municipio.map((k, i) => Object.fromEntries(Object.keys(m).map(c => [c, m[c][i]])));
+  desenhar();
+}
+const soma = rs => { const o = {}; for (const c of ["ap1","co1","bn1","lu1","fl1","de1","ap2","co2","bn2","lu2","fl2"]) o[c] = rs.reduce((s, r) => s + r[c], 0); return o; };
+const doRecorte = () => LIN.filter(r => !E.uf || r.uf === E.uf);
+
+function desenhar(){ desenharControles(); desenharCartoes(); desenharMapa(); desenharBarras(); desenharTabela(); desenharFicha(); desenharMig(); }
+
+// ---------- cartões: o recorte nos dois turnos, em votos
+function desenharCartoes(){
+  const t = soma(doRecorte());
+  document.getElementById("t-cartoes").textContent = E.uf ? UF_NOME[E.uf] : "Brasil";
+  const card = (rot, a, b, extra = "") => `<div><span>${rot}</span><b>${smil(b - a)}</b><span>${mil(a)} → ${mil(b)}${extra}</span></div>`;
+  document.getElementById("cartoes").innerHTML =
+    card(`<span class="lula">Lula</span>`, t.lu1, t.lu2, ` · ${fmt(100 * t.lu1 / val1(t))}% → ${fmt(100 * t.lu2 / val2(t))}% dos válidos`) +
+    card(`<span class="flavio">Flávio</span>`, t.fl1, t.fl2, ` · ${fmt(100 * t.fl1 / val1(t))}% → ${fmt(100 * t.fl2 / val2(t))}%`) +
+    card("abstenção", t.ap1 - t.co1, t.ap2 - t.co2, ` · ${fmt(100 * (t.ap1 - t.co1) / t.ap1)}% → ${fmt(100 * (t.ap2 - t.co2) / t.ap2)}% dos aptos`) +
+    card("brancos e nulos", t.bn1, t.bn2, ` · ${fmt(100 * t.bn1 / t.co1)}% → ${fmt(100 * t.bn2 / t.co2)}% de quem votou`) +
+    `<div><span>os demais válidos do 1º turno</span><b>${mil(t.de1)}</b><span>Cury, Renan, Caiado, Zema e outros: votos sem candidato no 2º turno</span></div>`;
+  // de onde veio o crescimento de cada um (estimado, da migração do recorte): os demais, quem não votou, brancos e nulos — menos o que saiu
+  const G = E.uf ? D.mig.uf[E.uf] : D.mig.brasil, O = D.meta.origens, ix = o => O.indexOf(o);
+  const veio = j => { const de = g => g.reduce((a, o) => a + G.votos[ix(o)][j], 0), proprio = j === 0 ? "lula" : "flavio";
+    return {demais: de(["cury", "renan", "caiado", "zema", "outros"]), bn: de(["branco", "nulo"]), abst: de(["abst"]),
+            outro: G.votos[ix(j === 0 ? "flavio" : "lula")][j], saiu: G.votos[ix(proprio)].reduce((a, v, k) => a + (k === j ? 0 : v), 0)}; };
+  const fr = (nome, cl, v, real) => `<span class="${cl}">${nome}</span> cresceu ${smil(real)}: ${smil(v.demais)} dos demais candidatos,
+    ${smil(v.abst)} de quem não votou no 1º turno, ${smil(v.bn)} de quem votou branco ou nulo, ${smil(v.outro)} de quem tinha votado no outro,
+    e perdeu ${mil(v.saiu)} dos próprios eleitores`;
+  document.getElementById("n-cartoes").innerHTML = `<b>De onde veio o crescimento (estimado):</b> ${fr("Lula", "lula", veio(0), t.lu2 - t.lu1)}; ${fr("Flávio", "flavio", veio(1), t.fl2 - t.fl1)}.
+    A abstenção caiu e os brancos e nulos também: parte de quem não escolheu no 1º turno escolheu no 2º. Como isso se estima está na última seção.
+    Mesmo eleitorado nos dois turnos (${mil(t.ap1)} aptos). Os números de cima são do TSE, todas as seções.`;
+}
+
+// ---------- controles fixos no topo
+function desenharControles(){
+  const ufs = Object.keys(UF_NOME).sort((a, b) => UF_NOME[a].localeCompare(UF_NOME[b], "pt"));
+  let h = `<div class="modo">${Object.entries(MED).map(([k, m]) => `<button class="${E.med === k ? "on" : ""}" data-k="${k}">${m.curto}</button>`).join("")}</div>`;
+  h += `<label class="f">UF<select id="c-uf"><option value="">Brasil</option>${ufs.map(u => `<option value="${u}" ${E.uf === u ? "selected" : ""}>${UF_NOME[u]}</option>`).join("")}</select></label>`;
+  h += `<label class="f">Buscar município<input type="search" id="c-busca" value="${E.busca}" placeholder="nome"></label>`;
+  document.getElementById("controles").innerHTML = h;
+  document.querySelectorAll("#controles .modo button").forEach(b => b.onclick = () => { E.med = b.dataset.k; E.ord = "d"; E.dir = DIR0[E.med]; desenhar(); });
+  document.getElementById("c-uf").onchange = e => { E.uf = e.target.value || null; E.mun = null; desenhar(); };
+  document.getElementById("c-busca").oninput = e => { E.busca = e.target.value; desenharTabela(); };
+  const chips = [];
+  if (E.uf) chips.push(`<span class="chip">${UF_NOME[E.uf]}<button data-x="uf" title="voltar ao Brasil">×</button></span>`);
+  if (E.mun) { const r = LIN.find(x => x.municipio === E.mun); chips.push(`<span class="chip">${r ? r.nome : E.mun}<button data-x="mun" title="fechar">×</button></span>`); }
+  document.getElementById("foco").innerHTML = chips.length ? "Recorte: " + chips.join(" ") : `<span class="sub">Sem recorte: Brasil inteiro. Clique numa UF nas barras ou num município no mapa.</span>`;
+  document.querySelectorAll("#foco button").forEach(b => b.onclick = () => { if (b.dataset.x === "uf") { E.uf = null; E.mun = null; } else E.mun = null; desenhar(); });
+}
+
+// ---------- mapa: bolhas em votos (padrão) ou cores em pontos
+function misturar(c1, c2, t){ const a = [1,3,5].map(i => parseInt(c1.slice(i, i+2), 16)), b = [1,3,5].map(i => parseInt(c2.slice(i, i+2), 16));
+  return "#" + a.map((x, i) => Math.round(x + (b[i] - x) * t).toString(16).padStart(2, "0")).join(""); }
+const escuro = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light";
+async function desenharMapa(){
+  if (!MAPA) MAPA = await json("dados/mapa_br.json");
+  const M = MED[E.med], porMun = new Map(LIN.map(r => [r.municipio, r]));
+  const sobe = escuro() ? "#e08a5f" : "#b5542f", desce = escuro() ? "#6cc5ad" : "#2f7a6b", neutro = escuro() ? "#2a2d31" : "#efece7", fora = escuro() ? "#202225" : "#f6f4f1";
+  const rs = doRecorte().filter(r => MAPA.mun[r.municipio]);
+  const dv = r => M.b(r) - M.a(r), dp = r => M.pb(r) - M.pa(r);
+  let caminhos = "", bolhas = "";
+  if (E.mapa === "pontos") {
+    const v = rs.map(r => Math.abs(dp(r))).filter(isFinite).sort((a, b) => a - b), lim = Math.max(1, v[Math.floor(.95 * (v.length - 1))] || 1);
+    for (const r of rs) { const d = dp(r);
+      const c = isFinite(d) ? misturar(neutro, d >= 0 ? sobe : desce, .12 + .88 * Math.min(1, Math.abs(d) / lim)) : fora;
+      caminhos += `<path class="m" data-k="${r.municipio}" d="${MAPA.mun[r.municipio]}" fill="${c}"><title>${r.nome} (${r.uf}): ${sp(d)} ${M.base.startsWith("%") ? "pontos" : ""} · ${sn(dv(r))} votos</title></path>`; }
+    document.getElementById("mapa-leg").innerHTML = `queda de ${fmt(lim, 0)}+ pontos <span class="escala" style="background:linear-gradient(90deg,${desce},${neutro},${sobe})"></span> alta de ${fmt(lim, 0)}+ pontos (${M.base})`;
+  } else {
+    for (const r of rs) caminhos += `<path class="m" data-k="${r.municipio}" d="${MAPA.mun[r.municipio]}" fill="${neutro}"><title>${r.nome} (${r.uf})</title></path>`;
+  }
+  const bordas = E.uf ? (MAPA.uf[E.uf] ? `<path class="u" d="${MAPA.uf[E.uf]}"/>` : "") : Object.values(MAPA.uf).map(d => `<path class="u" d="${d}"/>`).join("");
+  const svg = document.getElementById("mapa");
+  svg.innerHTML = `<g id="mapa-g">${caminhos}${bordas}</g><g id="bolhas"></g>`;
+  const bb = document.getElementById("mapa-g").getBBox(), folga = Math.max(bb.width, bb.height) * 0.02;
+  svg.setAttribute("viewBox", `${bb.x - folga} ${bb.y - folga} ${bb.width + 2 * folga} ${bb.height + 2 * folga}`);
+  if (E.mapa === "votos") {
+    if (!CENTRO) CENTRO = new Map();
+    svg.querySelectorAll("path.m").forEach(p => { const k = +p.dataset.k; if (!CENTRO.has(k)) { const b = p.getBBox(); CENTRO.set(k, [b.x + b.width / 2, b.y + b.height / 2]); } });
+    const mx = Math.max(1, ...rs.map(r => Math.abs(dv(r))));
+    const raio = Math.max(bb.width, bb.height) * (E.uf ? .05 : .035);   // a maior bolha do recorte
+    const ord = rs.slice().sort((a, b) => Math.abs(dv(b)) - Math.abs(dv(a)));
+    for (const r of ord) { const d = dv(r), c = CENTRO.get(r.municipio); if (!c || !d) continue;
+      const rr = raio * Math.sqrt(Math.abs(d) / mx); if (rr < .25) continue;
+      bolhas += `<circle data-k="${r.municipio}" cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${rr.toFixed(2)}" fill="${d > 0 ? sobe : desce}"><title>${r.nome} (${r.uf}): ${sn(d)} votos · ${sp(dp(r))} ${M.base.startsWith("%") ? "pontos" : ""}</title></circle>`; }
+    document.getElementById("bolhas").innerHTML = bolhas;
+    document.getElementById("mapa-leg").innerHTML = `Área da bolha proporcional à diferença em votos; a maior do recorte é ${sn(ord.length ? dv(ord[0]) : 0)} (${ord.length ? ord[0].nome : ""}).
+      <i style="background:${sobe}"></i>aumentou <i style="background:${desce}"></i>diminuiu`;
+  }
+  svg.querySelectorAll("[data-k]").forEach(el => el.onclick = () => { const k = +el.dataset.k; E.mun = E.mun === k ? null : k; desenharControles(); desenharFicha();
+    if (E.mun) document.getElementById("ficha").scrollIntoView({behavior: "smooth", block: "nearest"}); });
+  document.getElementById("mapa-modo").innerHTML = [["votos", "diferença em votos"], ["pontos", "diferença em pontos"]].map(([k, t]) =>
+    `<button class="${E.mapa === k ? "on" : ""}" data-k="${k}">${t}</button>`).join("");
+  document.querySelectorAll("#mapa-modo button").forEach(b => b.onclick = () => { E.mapa = b.dataset.k; desenharMapa(); });
+  document.getElementById("t-mapa").textContent = `Mapa: ${M.nome}, do 1º para o 2º turno`;
+  document.getElementById("s-mapa").textContent = E.mapa === "votos"
+    ? "Em votos: as bolhas mostram onde a mudança pesou no total — cidade grande aparece grande, como na urna."
+    : `Em pontos (${M.base}): mostra onde a mudança foi mais forte proporcionalmente, sem o peso do tamanho da cidade.`;
+}
+
+// ---------- barras por UF, em votos
+function desenharBarras(){
+  const M = MED[E.med], g = {};
+  for (const r of LIN) (g[r.uf] ||= []).push(r);
+  const L = Object.entries(g).map(([u, rs]) => { const t = soma(rs); return {u, d: M.b(t) - M.a(t), p: M.pb(t) - M.pa(t)}; }).sort((a, b) => b.d - a.d);
+  const W = 520, lh = 17, mg = {l: 34, r: 92, t: 6}, H = mg.t + L.length * lh + 22;
+  const mx = Math.max(...L.map(x => Math.abs(x.d)), 1), zero = L.some(x => x.d < 0) && L.some(x => x.d > 0);
+  const x0 = zero ? mg.l + (W - mg.l - mg.r) * (Math.max(0, -Math.min(...L.map(x => x.d))) / (Math.max(...L.map(x => x.d), 0) - Math.min(...L.map(x => x.d), 0))) : (L[0].d >= 0 ? mg.l : W - mg.r);
+  const esc = (W - mg.l - mg.r) / ((Math.max(...L.map(x => x.d), 0) - Math.min(...L.map(x => x.d), 0)) || 1);
+  let s = "";
+  L.forEach((x, i) => { const y = mg.t + i * lh, w = Math.abs(x.d) * esc, xa = x.d >= 0 ? x0 : x0 - w;
+    s += `<g data-u="${x.u}" style="cursor:pointer"><rect x="${xa}" y="${y + 2}" width="${Math.max(w, .5)}" height="${lh - 5}" rx="2" fill="${x.d >= 0 ? "var(--sobe)" : "var(--desce)"}" opacity="${!E.uf || E.uf === x.u ? .85 : .3}"/>
+      <text x="${mg.l - 6}" y="${y + lh - 5}" text-anchor="end" style="${E.uf === x.u ? "fill:var(--ink);font-weight:700" : ""}">${x.u}</text>
+      <text x="${W - mg.r + 6}" y="${y + lh - 5}" style="fill:var(--ink)">${smil(x.d)}</text><text x="${W - 4}" y="${y + lh - 5}" text-anchor="end">${sp(x.p)}</text>
+      <title>${UF_NOME[x.u]}: ${sn(x.d)} votos · ${sp(x.p)} (${M.base})</title></g>`; });
+  s += `<line x1="${x0}" x2="${x0}" y1="${mg.t}" y2="${H - 20}" stroke="var(--ink)" opacity=".4"/>`;
+  s += `<text x="${W - mg.r + 6}" y="${H - 6}">votos</text><text x="${W - 4}" y="${H - 6}" text-anchor="end">pontos</text>`;
+  const svg = document.getElementById("barras"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = s;
+  svg.querySelectorAll("g[data-u]").forEach(el => el.onclick = () => { E.uf = E.uf === el.dataset.u ? null : el.dataset.u; E.mun = null; desenhar(); });
+  document.getElementById("t-uf").textContent = `Por UF: ${M.nome}`;
+  document.getElementById("s-uf").textContent = `Diferença do 1º para o 2º turno, em votos (e, à direita, em ${M.base.startsWith("%") ? "pontos de " + M.base : M.base}). Clique numa UF para filtrar.`;
+}
+
+// ---------- tabela de municípios, ordenada pela diferença em votos
+function desenharTabela(){
+  const M = MED[E.med];
+  let L = doRecorte().map(r => ({r, a: M.a(r), b: M.b(r), d: M.b(r) - M.a(r), pa: M.pa(r), pb: M.pb(r), p: M.pb(r) - M.pa(r)}));
+  if (E.busca) { const b = E.busca.toLowerCase(); L = L.filter(x => x.r.nome.toLowerCase().includes(b)); }
+  const COL = {nome: x => x.r.nome, ap: x => x.r.ap2, a: x => x.a, b: x => x.b, d: x => x.d, p: x => x.p};
+  const f = COL[E.ord];
+  L.sort((x, y) => { const a = f(x), b = f(y); if (typeof a === "string") return E.dir * a.localeCompare(b, "pt"); return E.dir * (a - b); });
+  const th = (k, t) => `<th data-c="${k}" class="${E.ord === k ? "ord" : ""}">${t}${E.ord === k ? (E.dir > 0 ? " ▲" : " ▼") : ""}</th>`;
+  const mostra = L.slice(0, 200);
+  document.getElementById("tab").innerHTML = `<tr>${th("nome", "município")}${th("ap", "aptos")}${th("a", "1º turno")}${th("b", "2º turno")}${th("d", "diferença")}${th("p", "pontos")}</tr>` +
+    mostra.map(x => `<tr class="clic" data-k="${x.r.municipio}"><td>${x.r.nome}<span class="peq">${x.r.uf}</span></td><td>${nf(x.r.ap2)}</td>
+      <td>${nf(x.a)}<span class="peq">${fmt(x.pa)}</span></td><td>${nf(x.b)}<span class="peq">${fmt(x.pb)}</span></td>
+      <td class="${cls(x.d)}">${sn(x.d)}</td><td class="${cls(x.p)}">${sp(x.p)}</td></tr>`).join("");
+  document.querySelectorAll("#tab th").forEach(h => h.onclick = () => { const c = h.dataset.c; if (E.ord === c) E.dir = -E.dir; else { E.ord = c; E.dir = c === "nome" ? -1 : 1; } desenharTabela(); });
+  document.querySelectorAll("#tab tr.clic").forEach(tr => tr.onclick = () => { E.mun = +tr.dataset.k; desenharControles(); desenharFicha();
+    document.getElementById("ficha").scrollIntoView({behavior: "smooth", block: "nearest"}); });
+  document.getElementById("t-tab").textContent = `Municípios: ${M.nome}`;
+  document.getElementById("s-tab").innerHTML = `${L.length.toLocaleString("pt-BR")} municípios${L.length > 200 ? "; os 200 primeiros" : ""}, ordenados por
+    ${E.ord === "d" ? (E.dir > 0 ? "<b>maior queda em votos</b>" : "<b>maior alta em votos</b>") : "a coluna marcada"}. Clique num cabeçalho para ordenar (de novo inverte).
+    Embaixo de cada número, o mesmo em ${M.base}.`;
+}
+
+// ---------- ficha de um município
+function desenharFicha(){
+  const el = document.getElementById("ficha"), r = E.mun && LIN.find(x => x.municipio === E.mun);
+  if (!r) { el.hidden = true; return; }
+  el.hidden = false;
+  const lin = (rot, a, b, pa, pb, base) => `<tr><td>${rot}</td><td>${nf(a)}<span class="peq">${fmt(pa)}${base}</span></td><td>${nf(b)}<span class="peq">${fmt(pb)}${base}</span></td>
+    <td class="${cls(b - a)}">${sn(b - a)}</td><td class="${cls(pb - pa)}">${sp(pb - pa)}</td></tr>`;
+  el.innerHTML = `<button class="fechar" id="fechar">×</button><h2>${r.nome} (${r.uf})</h2><p class="sub">${nf(r.ap2)} aptos.</p>
+    <div class="scroll" style="margin-top:8px"><table><tr><th></th><th>1º turno</th><th>2º turno</th><th>votos</th><th>pontos</th></tr>
+    ${lin('<span class="lula">Lula</span>', r.lu1, r.lu2, 100 * r.lu1 / val1(r), 100 * r.lu2 / val2(r), "% válidos")}
+    ${lin('<span class="flavio">Flávio</span>', r.fl1, r.fl2, 100 * r.fl1 / val1(r), 100 * r.fl2 / val2(r), "% válidos")}
+    ${lin("os demais válidos", r.de1, 0, 100 * r.de1 / val1(r), 0, "% válidos")}
+    ${lin("brancos e nulos", r.bn1, r.bn2, 100 * r.bn1 / r.co1, 100 * r.bn2 / r.co2, "% votou")}
+    ${lin("abstenção", r.ap1 - r.co1, r.ap2 - r.co2, 100 * (r.ap1 - r.co1) / r.ap1, 100 * (r.ap2 - r.co2) / r.ap2, "% aptos")}</table></div>
+    <p class="nota">A migração estimada da UF (${UF_NOME[r.uf]}) está na última seção.</p>`;
+  document.getElementById("fechar").onclick = () => { E.mun = null; desenharControles(); desenharFicha(); };
+}
+
+// ---------- migração: de cada origem do 1º turno, para onde foram os votos (em votos)
+const ROT = {lula: "Lula", flavio: "Flávio", cury: "Cury", renan: "Renan", caiado: "Caiado", zema: "Zema", outros: "outros candidatos", branco: "branco", nulo: "nulo", abst: "abstenção"};
+const CORD = ["var(--lula)", "var(--flavio)", "var(--bn)", "var(--abst)"], DEST = ["Lula", "Flávio", "branco/nulo", "abstenção"];
+function desenharMig(){
+  if (E.uf) E.mig = E.uf; else if (E.mig.length === 2) E.mig = "brasil";
+  const opc = [["brasil", "Brasil"], ...Object.keys(REGIAO).filter(r => D.mig.regiao[r]).map(r => [r, r]), ...(E.uf ? [[E.uf, UF_NOME[E.uf]]] : [])];
+  document.getElementById("mig-modo").innerHTML = opc.map(([k, t]) => `<button class="${E.mig === k ? "on" : ""}" data-k="${k}">${t}</button>`).join("");
+  document.querySelectorAll("#mig-modo button").forEach(b => b.onclick = () => { E.mig = b.dataset.k; desenharMig(); });
+  const G = E.mig === "brasil" ? D.mig.brasil : D.mig.regiao[E.mig] || D.mig.uf[E.mig];
+  const O = D.meta.origens, tot = G.votos.map(l => l.reduce((a, b) => a + b, 0));
+  // primeiro quem não estava no 2º turno (é a pergunta), depois Lula e Flávio
+  const ordem = ["cury", "renan", "caiado", "zema", "outros", "branco", "nulo", "abst", "lula", "flavio"].map(o => O.indexOf(o));
+  const W = 900, lh = 26, mg = {l: 120, r: 130, t: 8}, H = mg.t + ordem.length * lh + 26, mx = Math.max(...tot), pw = W - mg.l - mg.r;
+  let s = "";
+  ordem.forEach((i, k) => { const y = mg.t + k * lh; let x = mg.l;
+    s += `<text x="${mg.l - 8}" y="${y + lh / 2 + 4}" text-anchor="end" style="fill:var(--ink)">${ROT[O[i]]}</text>`;
+    G.votos[i].forEach((v, j) => { const w = v / mx * pw;
+      if (w > 0) s += `<rect x="${x}" y="${y + 3}" width="${w}" height="${lh - 8}" fill="${CORD[j]}"><title>${ROT[O[i]]} → ${DEST[j]}: ${mil(v)} (${fmt(G.pct[i][j])}%)</title></rect>`;
+      if (w > 34) s += `<text x="${x + w / 2}" y="${y + lh / 2 + 3}" text-anchor="middle" style="fill:#fff;font-size:10px">${fmt(G.pct[i][j], 0)}%</text>`;
+      x += w; });
+    s += `<text x="${x + 6}" y="${y + lh / 2 + 4}">${mil(tot[i])}</text>`; });
+  s += `<line x1="${mg.l}" x2="${mg.l}" y1="${mg.t}" y2="${H - 22}" stroke="var(--ink)" opacity=".3"/>`;
+  const svg = document.getElementById("mig"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = s;
+  document.getElementById("mig-tab").innerHTML = `<tr><th>no 1º turno</th><th>votos</th>${DEST.map((d, j) => `<th style="color:${CORD[j]}">${d}</th>`).join("")}</tr>` +
+    ordem.map(i => `<tr><td>${ROT[O[i]]}</td><td>${mil(tot[i])}</td>${G.votos[i].map((v, j) => `<td>${fmt(G.pct[i][j])}%<span class="peq">${mil(v)}</span></td>`).join("")}</tr>`).join("");
+  // quanto dos demais válidos foi para cada um: a resposta curta
+  const dem = ["cury", "renan", "caiado", "zema", "outros"].map(o => O.indexOf(o));
+  const dv = [0, 1, 2, 3].map(j => dem.reduce((a, i) => a + G.votos[i][j], 0)), dt = dv.reduce((a, b) => a + b, 0);
+  const vv = dv[0] + dv[1];
+  document.getElementById("s-mig").innerHTML = `${E.mig === "brasil" ? "Brasil" : E.mig.length === 2 ? UF_NOME[E.mig] : E.mig}: dos ${mil(dt)} votos dos demais candidatos no 1º turno,
+    <b class="lula">${mil(dv[0])} (${fmt(100 * dv[0] / dt, 0)}%) foram a Lula</b>, <b class="flavio">${mil(dv[1])} (${fmt(100 * dv[1] / dt, 0)}%) a Flávio</b>,
+    ${mil(dv[2])} (${fmt(100 * dv[2] / dt, 0)}%) votaram branco ou nulo e ${mil(dv[3])} (${fmt(100 * dv[3] / dt, 0)}%) não foram votar.
+    Entre os que escolheram um dos dois: ${fmt(100 * dv[0] / vv, 0)}% Lula, ${fmt(100 * dv[1] / vv, 0)}% Flávio. Estimativa — leia o método abaixo.`;
+  const m = D.meta, cf = m.conferencia, conf = DEST.map((d, j) => `${d} ${mil(cf[D.meta.destinos[j]][0])} (real ${mil(cf[D.meta.destinos[j]][1])})`).join(" · ");
+  document.getElementById("n-mig").innerHTML = `<b>Como se estima.</b> Ninguém sabe em quem cada eleitor votou: a migração é <b>inferida</b> comparando as seções de cada
+    município nos dois turnos — onde Caiado teve mais voto no 1º turno, Flávio cresceu quanto no 2º? Isso é feito <b>dentro de cada município</b>, seção contra seção do
+    mesmo lugar, porque entre municípios diferentes a conta confunde quem mora lá com o que o lugar fez (em 2022, a comparação entre municípios errava células
+    da matriz em até 14 pontos). Usa as ${m.secoes_bu.toLocaleString("pt-BR")} seções com boletim do 2º turno já baixado (${fmt(100 * m.secoes_bu / m.secoes, 0)}% das seções; os coletores
+    sorteiam a ordem dentro da UF, então é uma amostra). ${m.mun_propria.toLocaleString("pt-BR")} municípios, com ${fmt(100 * m.eleitores_propria, 0)}% dos eleitores, têm matriz própria
+    (${m.min_sec}+ seções com boletim, puxada para a da UF); os demais usam a da UF. A matriz de cada município vale para todas as seções dele, e os votos somados dão o país,
+    as regiões e as UFs.<br><b>Conferências.</b> Os fluxos somados reproduzem o 2º turno: ${conf}.
+    Prevendo metade das seções de cada município com a matriz ajustada na outra metade, o erro médio na parte de Lula entre os dois é de ${fmt(m.validacao.erro_modelo, 2)} ponto,
+    contra ${fmt(m.validacao.erro_ingenuo, 2)} supondo que todos repetem o 1º turno. Trocar o quanto a matriz é puxada para a da UF (κ de 0,02 a 0,5) muda qualquer célula
+    do Brasil em até ${fmt(m.sens_kappa, 1)} ponto. <b>As origens pequenas são as menos precisas</b>: branco, nulo e outros candidatos têm poucos votos em
+    cada seção, e a conta tem pouco a separar — leia essas linhas como direção, não como número fino. Gerado em ${m.gerado}.`;
+}
+iniciar();
+</script>
