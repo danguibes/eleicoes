@@ -108,7 +108,7 @@
 <section id="mig-sec">
   <div class="topo">
     <div><h2>Para onde foram os votos do 1º turno</h2><p class="sub" id="s-mig"></p></div>
-    <div class="modo" id="mig-modo"></div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="modo" id="mig-ano"></div><div class="modo" id="mig-modo"></div></div>
   </div>
   <svg id="mig" style="width:100%;display:block;margin-top:10px"></svg>
   <div class="leg"><i style="background:var(--lula)"></i>Lula <i style="background:var(--flavio)"></i>Flávio <i style="background:var(--bn)"></i>branco ou nulo
@@ -118,6 +118,12 @@
     <div class="modo" id="mat-modo"></div>
   </div>
   <div class="scroll" style="margin-top:8px"><table class="mat" id="mig-tab"></table></div>
+  <h3 style="margin-top:18px">2022 × 2026: quem não escolheu ou não tinha candidato no 1º turno</h3>
+  <p class="sub" id="s-comp"></p>
+  <div class="scroll" style="margin-top:6px"><table id="mig-comp"></table></div>
+  <h3 style="margin-top:16px">Checagem sem modelo: onde houve mais branco e nulo no 1º turno, quem cresceu mais?</h3>
+  <p class="sub" id="s-check"></p>
+  <div class="scroll" style="margin-top:6px"><table id="mig-check"></table></div>
   <p class="nota" id="n-mig" style="margin-top:10px"></p>
 </section>
 
@@ -165,12 +171,14 @@ const val1 = r => r.co1 - r.bn1, val2 = r => r.co2 - r.bn2;
 // cada medida abre na ordem da sua pergunta: Flávio, onde mais perdeu; as outras, onde mais cresceram
 const DIR0 = {fl: 1, lu: -1, mg: -1, ab: -1, bn: -1};
 const E = {med: "fl", uf: null, mun: null, mapa: "votos", busca: "", ord: "d", dir: 1, mig: "brasil"};
+let M22 = null, ANO = "2026";
 let D = null, H = null, MAPA = null, LIN = [], CENTRO = null, MAT = "votos";
 
 async function json(u){ const r = await fetch(u, {cache: "no-store"}); return r.ok ? r.json() : null; }
 async function iniciar(){
   D = await json("dados/turnos2026.json");
   H = await json("dados/hora_do_voto.json");
+  M22 = await json("dados/migracao2022.json");
   const m = D.mun;
   LIN = m.municipio.map((k, i) => Object.fromEntries(Object.keys(m).map(c => [c, m[c][i]])));
   desenhar();
@@ -335,17 +343,31 @@ function desenharFicha(){
 }
 
 // ---------- migração: de cada origem do 1º turno, para onde foram os votos (em votos)
-const ROT = {lula: "Lula", flavio: "Flávio", cury: "Cury", renan: "Renan", caiado: "Caiado", zema: "Zema", outros: "outros candidatos", branco: "branco", nulo: "nulo", abst: "abstenção"};
-const CORD = ["var(--lula)", "var(--flavio)", "var(--bn)", "var(--abst)"], DEST = ["Lula", "Flávio", "branco/nulo", "abstenção"];
+const ROT = {lula: "Lula", flavio: "Flávio", cury: "Cury", renan: "Renan", caiado: "Caiado", zema: "Zema", outros: "outros candidatos", branco: "branco", nulo: "nulo", abst: "abstenção",
+  bolsonaro: "Bolsonaro", tebet: "Tebet", ciro: "Ciro", soraya: "Soraya", davila: "D'Avila", menores: "outros candidatos"};
+const CORD = ["var(--lula)", "var(--flavio)", "var(--bn)", "var(--abst)"];
+let DEST = ["Lula", "Flávio", "branco/nulo", "abstenção"];
+// o ano da migração: 2026 (turnos2026.json) ou 2022 (migracao2022.json), com os candidatos de cada um
+function MIGD(ano = ANO){
+  return ano === "2022" && M22
+    ? {mig: M22.mig, meta: M22.meta, dem: ["tebet", "ciro", "soraya", "davila", "menores"], adv: "bolsonaro", nomeAdv: "Bolsonaro"}
+    : {mig: D.mig, meta: D.meta, dem: ["cury", "renan", "caiado", "zema", "outros"], adv: "flavio", nomeAdv: "Flávio"};
+}
+function grupoMig(X, k){ return k === "brasil" ? X.mig.brasil : X.mig.regiao[k] || X.mig.uf[k]; }
 function desenharMig(){
   if (E.uf) E.mig = E.uf; else if (E.mig.length === 2) E.mig = "brasil";
-  const opc = [["brasil", "Brasil"], ...Object.keys(REGIAO).filter(r => D.mig.regiao[r]).map(r => [r, r]), ...(E.uf ? [[E.uf, UF_NOME[E.uf]]] : [])];
+  const X = MIGD();
+  DEST = ["Lula", X.nomeAdv, "branco/nulo", "abstenção"];
+  document.getElementById("mig-ano").innerHTML = M22 ? ["2026", "2022"].map(a => `<button class="${ANO === a ? "on" : ""}" data-a="${a}">${a}</button>`).join("") : "";
+  document.querySelectorAll("#mig-ano button").forEach(b => b.onclick = () => { ANO = b.dataset.a; desenharMig(); });
+  const opc = [["brasil", "Brasil"], ...Object.keys(REGIAO).filter(r => X.mig.regiao[r]).map(r => [r, r]), ...(E.uf ? [[E.uf, UF_NOME[E.uf]]] : [])];
   document.getElementById("mig-modo").innerHTML = opc.map(([k, t]) => `<button class="${E.mig === k ? "on" : ""}" data-k="${k}">${t}</button>`).join("");
   document.querySelectorAll("#mig-modo button").forEach(b => b.onclick = () => { E.mig = b.dataset.k; desenharMig(); });
-  const G = E.mig === "brasil" ? D.mig.brasil : D.mig.regiao[E.mig] || D.mig.uf[E.mig];
-  const O = D.meta.origens, tot = G.votos.map(l => l.reduce((a, b) => a + b, 0));
-  // primeiro quem não estava no 2º turno (é a pergunta), depois Lula e Flávio
-  const ordem = ["cury", "renan", "caiado", "zema", "outros", "branco", "nulo", "abst", "lula", "flavio"].map(o => O.indexOf(o));
+  if (!grupoMig(X, E.mig)) E.mig = "brasil";
+  const G = grupoMig(X, E.mig);
+  const O = X.meta.origens, tot = G.votos.map(l => l.reduce((a, b) => a + b, 0));
+  // primeiro quem não estava no 2º turno (é a pergunta), depois Lula e o adversário
+  const ordem = [...X.dem, "branco", "nulo", "abst", "lula", X.adv].map(o => O.indexOf(o));
   const W = 900, lh = 26, mg = {l: 120, r: 130, t: 8}, H = mg.t + ordem.length * lh + 26, mx = Math.max(...tot), pw = W - mg.l - mg.r;
   let s = "";
   ordem.forEach((i, k) => { const y = mg.t + k * lh; let x = mg.l;
@@ -357,21 +379,31 @@ function desenharMig(){
     s += `<text x="${x + 6}" y="${y + lh / 2 + 4}">${mil(tot[i])}</text>`; });
   s += `<line x1="${mg.l}" x2="${mg.l}" y1="${mg.t}" y2="${H - 22}" stroke="var(--ink)" opacity=".3"/>`;
   const svg = document.getElementById("mig"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = s;
-  desenharMatriz(G, O, ordem, tot);
+  desenharMatriz(G, O, ordem, tot, X);
+  desenharComparacao();
   // quanto dos demais válidos foi para cada um: a resposta curta
-  const dem = ["cury", "renan", "caiado", "zema", "outros"].map(o => O.indexOf(o));
+  const dem = X.dem.map(o => O.indexOf(o));
   const dv = [0, 1, 2, 3].map(j => dem.reduce((a, i) => a + G.votos[i][j], 0)), dt = dv.reduce((a, b) => a + b, 0);
   const vv = dv[0] + dv[1];
-  document.getElementById("s-mig").innerHTML = `${E.mig === "brasil" ? "Brasil" : E.mig.length === 2 ? UF_NOME[E.mig] : E.mig}: dos ${mil(dt)} votos dos demais candidatos no 1º turno,
-    <b class="lula">${mil(dv[0])} (${fmt(100 * dv[0] / dt, 0)}%) foram a Lula</b>, <b class="flavio">${mil(dv[1])} (${fmt(100 * dv[1] / dt, 0)}%) a Flávio</b>,
+  document.getElementById("s-mig").innerHTML = `<b>${ANO}</b>, ${E.mig === "brasil" ? "Brasil" : E.mig.length === 2 ? UF_NOME[E.mig] : E.mig}: dos ${mil(dt)} votos dos demais candidatos no 1º turno,
+    <b class="lula">${mil(dv[0])} (${fmt(100 * dv[0] / dt, 0)}%) foram a Lula</b>, <b class="flavio">${mil(dv[1])} (${fmt(100 * dv[1] / dt, 0)}%) a ${X.nomeAdv}</b>,
     ${mil(dv[2])} (${fmt(100 * dv[2] / dt, 0)}%) votaram branco ou nulo e ${mil(dv[3])} (${fmt(100 * dv[3] / dt, 0)}%) não foram votar.
-    Entre os que escolheram um dos dois: ${fmt(100 * dv[0] / vv, 0)}% Lula, ${fmt(100 * dv[1] / vv, 0)}% Flávio. Estimativa — leia o método abaixo.`;
-  const m = D.meta, cf = m.conferencia, conf = DEST.map((d, j) => `${d} ${mil(cf[D.meta.destinos[j]][0])} (real ${mil(cf[D.meta.destinos[j]][1])})`).join(" · ");
+    Entre os que escolheram um dos dois: ${fmt(100 * dv[0] / vv, 0)}% Lula, ${fmt(100 * dv[1] / vv, 0)}% ${X.nomeAdv}. Estimativa — leia o método abaixo.`;
+  const m = X.meta, cf = m.conferencia, conf = DEST.map((d, j) => `${d} ${mil(cf[m.destinos[j]][0])} (real ${mil(cf[m.destinos[j]][1])})`).join(" · ");
+  if (ANO === "2022") {
+    document.getElementById("n-mig").innerHTML = `<b>2022, o mesmo método de 2026</b>: dentro de cada município, seção contra seção, com a matriz puxada para a da UF (κ 0,1) e
+      matriz própria com 5+ seções. Aqui não há amostra: são as ${m.secoes.toLocaleString("pt-BR")} seções que existem nos dois turnos de 2022 (o painel de 2022 deixa de fora o
+      exterior e as seções que não casam entre os turnos). ${m.mun_propria.toLocaleString("pt-BR")} municípios, com ${fmt(100 * m.eleitores_propria, 0)}% dos eleitores, têm matriz própria.
+      <br><b>Conferências.</b> Os fluxos somados reproduzem o 2º turno dessas seções: ${conf}. Prevendo metade das seções de cada município com a matriz ajustada na outra
+      metade, o erro médio na parte de Lula entre os dois é de ${fmt(m.validacao.erro_modelo, 2)} ponto, contra ${fmt(m.validacao.erro_ingenuo, 2)} supondo que todos repetem o 1º turno.
+      Trocar κ de 0,02 a 0,5 muda qualquer célula do Brasil em até ${fmt(m.sens_kappa, 1)} ponto. As origens pequenas (branco, nulo, outros candidatos) são as menos precisas.`;
+    return;
+  }
   document.getElementById("n-mig").innerHTML = `<b>Como se estima.</b> Ninguém sabe em quem cada eleitor votou: a migração é <b>inferida</b> comparando as seções de cada
     município nos dois turnos — onde Caiado teve mais voto no 1º turno, Flávio cresceu quanto no 2º? Isso é feito <b>dentro de cada município</b>, seção contra seção do
     mesmo lugar, porque entre municípios diferentes a conta confunde quem mora lá com o que o lugar fez (em 2022, a comparação entre municípios errava células
-    da matriz em até 14 pontos). Usa as ${m.secoes_bu.toLocaleString("pt-BR")} seções com boletim do 2º turno já baixado (${fmt(100 * m.secoes_bu / m.secoes, 0)}% das seções; os coletores
-    sorteiam a ordem dentro da UF, então é uma amostra). ${m.mun_propria.toLocaleString("pt-BR")} municípios, com ${fmt(100 * m.eleitores_propria, 0)}% dos eleitores, têm matriz própria
+    da matriz em até 14 pontos). Usa ${m.secoes_bu / m.secoes > .99 ? `os boletins de todas as ${m.secoes_bu.toLocaleString("pt-BR")} seções dos dois turnos` : `as ${m.secoes_bu.toLocaleString("pt-BR")} seções com boletim do 2º turno já baixado (${fmt(100 * m.secoes_bu / m.secoes, 0)}% das seções; os coletores
+    sorteiam a ordem dentro da UF, então é uma amostra)`}. ${m.mun_propria.toLocaleString("pt-BR")} municípios, com ${fmt(100 * m.eleitores_propria, 0)}% dos eleitores, têm matriz própria
     (${m.min_sec}+ seções com boletim, puxada para a da UF); os demais usam a da UF. A matriz de cada município vale para todas as seções dele, e os votos somados dão o país,
     as regiões e as UFs.<br><b>Conferências.</b> Os fluxos somados reproduzem o 2º turno: ${conf}.
     Prevendo metade das seções de cada município com a matriz ajustada na outra metade, o erro médio na parte de Lula entre os dois é de ${fmt(m.validacao.erro_modelo, 2)} ponto,
@@ -379,8 +411,39 @@ function desenharMig(){
     do Brasil em até ${fmt(m.sens_kappa, 1)} ponto. <b>As origens pequenas são as menos precisas</b>: branco, nulo e outros candidatos têm poucos votos em
     cada seção, e a conta tem pouco a separar — leia essas linhas como direção, não como número fino. Gerado em ${m.gerado}.`;
 }
+// 2022 × 2026 nas linhas que não tinham candidato no 2º turno, no mesmo recorte (Brasil, região ou UF)
+function desenharComparacao(){
+  const tab = document.getElementById("mig-comp");
+  if (!M22) { tab.innerHTML = ""; return; }
+  if (!grupoMig(MIGD("2022"), E.mig)) { tab.innerHTML = ""; document.getElementById("s-comp").textContent = "Sem 2022 para este recorte."; return; }
+  const anos = ["2022", "2026"].map(a => { const X = MIGD(a), G = grupoMig(X, E.mig), O = X.meta.origens;
+    const soma = os => [0, 1, 2, 3].map(j => os.reduce((s, o) => s + G.votos[O.indexOf(o)][j], 0));
+    return {a, X, linhas: {"os demais candidatos": soma(X.dem), branco: soma(["branco"]), nulo: soma(["nulo"]), "branco + nulo": soma(["branco", "nulo"]), "abstenção": soma(["abst"])}}; });
+  const nomes = Object.keys(anos[0].linhas);
+  const cel = v => { const t = v.reduce((a, b) => a + b, 0); return v.map((x, j) => `<td>${fmt(100 * x / t, 0)}%<span class="peq">${mil(x)}</span></td>`).join(""); };
+  tab.innerHTML = `<tr><th rowspan="2">no 1º turno</th>${anos.map(x => `<th colspan="5" style="text-align:center">${x.a}</th>`).join("")}</tr>
+    <tr>${anos.map(x => `<th>votos</th><th style="color:var(--lula)">Lula</th><th style="color:var(--flavio)">${x.X.nomeAdv}</th><th>br./nulo</th><th>absteve</th>`).join("")}</tr>` +
+    nomes.map(n => `<tr><td>${n}</td>${anos.map(x => `<td>${mil(x.linhas[n].reduce((a, b) => a + b, 0))}</td>${cel(x.linhas[n])}`).join("")}</tr>`).join("");
+  const bn = anos.map(x => x.linhas["branco + nulo"]), vv = bn.map(v => v[0] + v[1]);
+  document.getElementById("s-comp").innerHTML = `${E.mig === "brasil" ? "Brasil" : E.mig.length === 2 ? UF_NOME[E.mig] : E.mig}. De quem votou branco ou nulo no 1º turno, voltaram a um
+    candidato no 2º: <b>${fmt(100 * vv[0] / bn[0].reduce((a, b) => a + b, 0), 0)}% em 2022</b> e <b>${fmt(100 * vv[1] / bn[1].reduce((a, b) => a + b, 0), 0)}% em 2026</b>;
+    entre esses, Lula ficou com ${fmt(100 * bn[0][0] / vv[0], 0)}% em 2022 e ${fmt(100 * bn[1][0] / vv[1], 0)}% em 2026. Embaixo de cada %, os votos.`;
+  // a mesma pergunta sem matriz: quintis de seções pelo branco + nulo do 1º turno, tudo como desvio da média do próprio município
+  const K = M22.checagem;
+  if (!K) return;
+  const q = ["o quinto com menos", "2º", "3º", "4º", "o quinto com mais"], sg = x => `${x > 0 ? "+" : x < 0 ? "−" : ""}${fmt(Math.abs(x), 2)}`;
+  document.getElementById("mig-check").innerHTML = `<tr><th rowspan="2">seções do município, por branco + nulo no 1º turno</th><th colspan="3" style="text-align:center">2022</th><th colspan="3" style="text-align:center">2026</th></tr>
+    <tr><th>branco + nulo</th><th style="color:var(--lula)">Lula cresceu</th><th style="color:var(--flavio)">Bolsonaro cresceu</th><th>branco + nulo</th><th style="color:var(--lula)">Lula cresceu</th><th style="color:var(--flavio)">Flávio cresceu</th></tr>` +
+    q.map((n, i) => `<tr><td>${n}</td>${["2022", "2026"].map(a => K[a][i].map(x => `<td class="${cls(x)}">${sg(x)}</td>`).join("")).join("")}</tr>`).join("");
+  const inc = a => (K[a][4][1] - K[a][0][1]) / (K[a][4][0] - K[a][0][0]), incA = a => (K[a][4][2] - K[a][0][2]) / (K[a][4][0] - K[a][0][0]);
+  document.getElementById("s-check").innerHTML = `Brasil, todas as seções, sem matriz nenhuma. Cada número é o desvio da média do próprio município, em pontos dos aptos — então a comparação é
+    sempre entre seções do mesmo lugar. Em 2026, de um quinto para o outro, cada ponto a mais de branco + nulo no 1º turno veio com <b>${fmt(inc("2026"), 2)} ponto</b> a mais de crescimento
+    de Lula e ${fmt(incA("2026"), 2)} de Flávio; em 2022, ${fmt(inc("2022"), 2)} de Lula e ${fmt(incA("2022"), 2)} de Bolsonaro. É o mesmo sinal que a matriz lê, sem ela.
+    O que esta conta não separa: seção com muito branco e nulo também tem outro perfil de eleitor, e esse perfil pode ter ido a Lula por outro caminho (por exemplo, quem
+    se absteve no 1º turno e votou no 2º). A matriz controla as outras origens; esta tabela não.`;
+}
 // matriz: linhas = voto no 1º turno, colunas = 2º turno; a cor da célula é o volume (votos) ou a parte da linha (%)
-function desenharMatriz(G, O, ordem, tot){
+function desenharMatriz(G, O, ordem, tot, X){
   const dark = escuro(), base = dark ? "#1f2124" : "#ffffff";
   const cores = dark ? ["#e0705f", "#7fb4d4", "#b3aea5", "#8f8a80"] : ["#b03a2e", "#1f4f7a", "#6f6a61", "#9a9488"];
   // a cor sobe com a raiz do volume: Lula→Lula (dezenas de milhões) não apaga as células de centenas de mil
@@ -390,7 +453,7 @@ function desenharMatriz(G, O, ordem, tot){
   const cel = (i, j) => { const t = intens(i, j), fundo = misturar(base, cores[j], .06 + .94 * t), claro = t > .45;
     return `<td class="c" style="background:${fundo};color:${claro ? "#fff" : "var(--ink)"}" title="${ROT[O[i]]} → ${DEST[j]}: ${nf(G.votos[i][j])} votos, ${fmt(G.pct[i][j])}% de quem votou ${ROT[O[i]]} no 1º turno">
       <b>${MAT === "votos" ? mil(G.votos[i][j]) : fmt(G.pct[i][j]) + "%"}</b><span>${MAT === "votos" ? fmt(G.pct[i][j]) + "%" : mil(G.votos[i][j])}</span></td>`; };
-  const grupos = [["quem não estava no 2º turno", ["cury", "renan", "caiado", "zema", "outros"]], ["quem não escolheu no 1º turno", ["branco", "nulo", "abst"]], ["quem votou num dos dois", ["lula", "flavio"]]];
+  const grupos = [["quem não estava no 2º turno", X.dem], ["quem não escolheu no 1º turno", ["branco", "nulo", "abst"]], ["quem votou num dos dois", ["lula", X.adv]]];
   let h = `<tr><th></th>${DEST.map((d, j) => `<th style="color:${cores[j]}">${d}</th>`).join("")}<th>total no 1º turno</th></tr>`;
   for (const [nome, os] of grupos) {
     h += `<tr class="sep"><td class="o" style="text-align:left;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em" colspan="6">${nome}</td></tr>`;
