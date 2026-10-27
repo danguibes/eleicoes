@@ -35,6 +35,8 @@
   #mapa path.m{stroke:var(--card);stroke-width:.25;cursor:pointer}
   #mapa path.m:hover{stroke:var(--ink);stroke-width:1}
   #mapa path.u{fill:none;stroke:var(--ink);stroke-width:.6;opacity:.5;pointer-events:none}
+  #fp-mapa path.m{stroke:var(--card);stroke-width:.25;cursor:pointer} #fp-mapa path.m:hover{stroke:var(--ink);stroke-width:1}
+  #fp-mapa path.u{fill:none;stroke:var(--ink);stroke-width:.6;opacity:.5;pointer-events:none} #fp-mapa path.sel{stroke:var(--ink);stroke-width:1.6}
   #mapa circle{cursor:pointer;stroke:var(--card);stroke-width:.6;fill-opacity:.72}
   #mapa circle:hover{stroke:var(--ink);stroke-width:1.2}
   .escala{display:inline-block;width:140px;height:9px;border-radius:2px;vertical-align:middle;margin:0 6px}
@@ -127,6 +129,23 @@
   <p class="nota" id="n-mig" style="margin-top:10px"></p>
 </section>
 
+<section id="fp-sec">
+  <div class="topo">
+    <div><h2>Fora do padrão</h2><p class="sub" id="s-fp"></p></div>
+    <div class="modo" id="fp-modo"></div>
+  </div>
+  <div class="regua" id="fp-cartoes"></div>
+  <div class="dois" style="margin-top:14px">
+    <div><svg id="fp-mapa" style="width:100%;max-height:560px;display:block"></svg><div class="leg" id="fp-leg"></div></div>
+    <div><h3>Por UF: municípios no critério, 2022 × 2026</h3><svg id="fp-uf" style="width:100%;display:block"></svg></div>
+  </div>
+  <div id="fp-zona" hidden style="margin-top:14px"></div>
+  <h3 style="margin-top:14px">Municípios</h3>
+  <p class="sub" id="s-fp-tab"></p>
+  <div class="scroll" style="max-height:560px;overflow-y:auto;margin-top:6px"><table id="fp-tab"></table></div>
+  <p class="nota" id="n-fp" style="margin-top:10px"></p>
+</section>
+
 <section id="hora-sec">
   <h2>A que horas se votou: a prorrogação até as 19h</h2>
   <p class="sub" id="s-hora"></p>
@@ -171,7 +190,8 @@ const val1 = r => r.co1 - r.bn1, val2 = r => r.co2 - r.bn2;
 // cada medida abre na ordem da sua pergunta: Flávio, onde mais perdeu; as outras, onde mais cresceram
 const DIR0 = {fl: 1, lu: -1, mg: -1, ab: -1, bn: -1};
 const E = {med: "fl", uf: null, mun: null, mapa: "votos", busca: "", ord: "d", dir: 1, mig: "brasil"};
-let M22 = null, ANO = "2026";
+let M22 = null, ANO = "2026", FP = null;
+const FPE = {crit: "campos", sel: null, ord: "aptos", dir: -1};
 let D = null, H = null, MAPA = null, LIN = [], CENTRO = null, MAT = "votos";
 
 async function json(u){ const r = await fetch(u, {cache: "no-store"}); return r.ok ? r.json() : null; }
@@ -179,6 +199,7 @@ async function iniciar(){
   D = await json("dados/turnos2026.json");
   H = await json("dados/hora_do_voto.json");
   M22 = await json("dados/migracao2022.json");
+  FP = await json("dados/fora_do_padrao.json");
   const m = D.mun;
   LIN = m.municipio.map((k, i) => Object.fromEntries(Object.keys(m).map(c => [c, m[c][i]])));
   desenhar();
@@ -186,7 +207,7 @@ async function iniciar(){
 const soma = rs => { const o = {}; for (const c of ["ap1","co1","bn1","lu1","fl1","de1","ap2","co2","bn2","lu2","fl2"]) o[c] = rs.reduce((s, r) => s + r[c], 0); return o; };
 const doRecorte = () => LIN.filter(r => !E.uf || r.uf === E.uf);
 
-function desenhar(){ desenharControles(); desenharCartoes(); desenharMapa(); desenharBarras(); desenharTabela(); desenharFicha(); desenharMig(); desenharHora(); }
+function desenhar(){ desenharControles(); desenharCartoes(); desenharMapa(); desenharBarras(); desenharTabela(); desenharFicha(); desenharMig(); desenharFora(); desenharHora(); }
 
 // ---------- cartões: o recorte nos dois turnos, em votos
 function desenharCartoes(){
@@ -467,6 +488,95 @@ function desenharMatriz(G, O, ordem, tot, X){
   document.getElementById("s-mat").textContent = MAT === "votos"
     ? "Linhas: o voto no 1º turno; colunas: o 2º turno. A cor mostra o volume de votos de cada célula (em escala de raiz, para as células pequenas não sumirem ao lado de Lula→Lula); embaixo, a % da linha."
     : "Linhas: o voto no 1º turno; colunas: o 2º turno. A cor mostra a parte de cada linha (de quem votou X no 1º turno, quanto foi para cada lado); embaixo, os votos.";
+}
+
+// ---------- fora do padrão (anomalias_mun.py): o adversário perdendo voto entre os turnos, o "padrão Campos" e o resíduo contra a UF
+const FPC = {campos: ["padrão Campos", "o adversário perde voto E Lula cresce mais do que os demais candidatos tinham"],
+             perdeu: ["adversário perdeu voto", "o adversário tem menos voto no 2º turno do que no 1º"],
+             residuo: ["fora do previsto pela UF", "o adversário ficou muito abaixo do que a migração média do estado previa (os 2% mais extremos entre os municípios com 10 mil+ aptos)"]};
+function fpLinhas(){
+  const m = FP.mun, L = m.municipio.map((k, i) => Object.fromEntries(Object.keys(m).map(c => [c, m[c][i]])));
+  const ok = {campos: r => r.campos === 1, perdeu: r => r.d_adv < 0, residuo: r => r.aptos >= 10000 && r.res_adv_pp <= FP.meta.lim_residuo}[FPE.crit];
+  return L.filter(r => ok(r) && (!E.uf || r.uf === E.uf));
+}
+async function desenharFora(){
+  const sec = document.getElementById("fp-sec");
+  if (!FP) { sec.hidden = true; return; }
+  const R = FP.meta.resumo, L = fpLinhas();
+  document.getElementById("fp-modo").innerHTML = Object.entries(FPC).map(([k, [t]]) => `<button class="${FPE.crit === k ? "on" : ""}" data-k="${k}">${t}</button>`).join("");
+  document.querySelectorAll("#fp-modo button").forEach(b => b.onclick = () => { FPE.crit = b.dataset.k; FPE.sel = null; desenharFora(); });
+  document.getElementById("s-fp").innerHTML = `Critério: <b>${FPC[FPE.crit][1]}</b>. Não é teste de integridade — os boletins fecham e somam o total oficial em todos os municípios —
+    e sim a busca de comportamento raro entre os turnos, para olhar de perto. 2022 é a referência do que é normal.${E.uf ? ` Recorte: ${UF_NOME[E.uf]}.` : ""}`;
+  const pc = x => `${fmt(100 * x, 1)}%`;
+  document.getElementById("fp-cartoes").innerHTML =
+    `<div><span>adversário perdeu voto (municípios)</span><b>${nf(R["2022"].adv_perdeu)} → ${nf(R["2026"].adv_perdeu)}</b><span>2022 → 2026 · ${pc(R["2022"].aptos_perdeu)} → ${pc(R["2026"].aptos_perdeu)} dos eleitores</span></div>` +
+    `<div><span>votos que ele perdeu nesses municípios</span><b>${smil(R["2022"].votos_perdidos)} → ${smil(R["2026"].votos_perdidos)}</b><span>2022 (Bolsonaro) → 2026 (Flávio)</span></div>` +
+    `<div><span>padrão Campos (municípios)</span><b>${nf(R["2022"].campos)} → ${nf(R["2026"].campos)}</b><span>${pc(R["2022"].aptos_campos)} → ${pc(R["2026"].aptos_campos)} dos eleitores</span></div>` +
+    `<div><span>no critério escolhido, no recorte</span><b>${nf(L.length)}</b><span>municípios · ${mil(L.reduce((a, r) => a + r.aptos, 0))} aptos</span></div>`;
+  // mapa: os municípios no critério, pela queda do adversário (em pontos dos aptos)
+  if (!MAPA) MAPA = await json("dados/mapa_br.json");
+  const dark = escuro(), neutro = dark ? "#2a2d31" : "#efece7", desce = dark ? "#6cc5ad" : "#2f7a6b", sobe = dark ? "#e08a5f" : "#b5542f";
+  const marc = new Map(L.map(r => [r.municipio, r])), ufMun = new Map(LIN.map(r => [r.municipio, r.uf]));
+  let cam = "";
+  for (const [k, d] of Object.entries(MAPA.mun)) { const kk = +k, u = ufMun.get(kk); if (E.uf && u !== E.uf) continue;
+    const r = marc.get(kk), pp = r ? 100 * r.d_adv / r.aptos : 0;
+    const cor = r ? misturar(neutro, pp < 0 ? desce : sobe, .35 + .65 * Math.min(1, Math.abs(pp) / 3)) : neutro;
+    cam += `<path class="m${FPE.sel === kk ? " sel" : ""}" data-k="${kk}" d="${d}" fill="${cor}" ${r ? "" : 'opacity=".55"'}><title>${r ? `${r.nome} (${r.uf}): Flávio ${sn(r.d_adv)}, Lula ${sn(r.d_lula)}, demais ${nf(r.demais)}` : ""}</title></path>`; }
+  const bordas = E.uf ? (MAPA.uf[E.uf] ? `<path class="u" d="${MAPA.uf[E.uf]}"/>` : "") : Object.values(MAPA.uf).map(d => `<path class="u" d="${d}"/>`).join("");
+  const svg = document.getElementById("fp-mapa"); svg.innerHTML = `<g id="fp-g">${cam}${bordas}</g>`;
+  const bb = document.getElementById("fp-g").getBBox(), f = Math.max(bb.width, bb.height) * .02;
+  svg.setAttribute("viewBox", `${bb.x - f} ${bb.y - f} ${bb.width + 2 * f} ${bb.height + 2 * f}`);
+  svg.querySelectorAll("path.m").forEach(el => el.onclick = () => { const k = +el.dataset.k; if (!marc.has(k)) return; FPE.sel = FPE.sel === k ? null : k; desenharFora(); });
+  document.getElementById("fp-leg").innerHTML = `Colorido: no critério. <i style="background:${desce}"></i>Flávio perdeu voto <i style="background:${sobe}"></i>ganhou (cor mais forte: até 3 pontos dos aptos). Clique para ver as zonas.`;
+  // por UF, 2022 × 2026 (o "fora do previsto" não tem par em 2022: mostra o adversário perdendo)
+  const j = FPE.crit === "campos" ? 2 : 1;
+  const ufs = Object.keys(FP.uf).filter(u => u !== "ZZ").sort((a, b) => (FP.uf[b]["2026"]?.[j] || 0) / FP.uf[b]["2026"][0] - (FP.uf[a]["2026"]?.[j] || 0) / FP.uf[a]["2026"][0]);
+  const lh = 16, W = 440, H = ufs.length * lh + 22, m2 = {l: 30, r: 92}, sx = v => v * (W - m2.l - m2.r);
+  let t = "";
+  ufs.forEach((u, i) => { const y = 4 + i * lh, a = FP.uf[u]["2022"] || [1, 0, 0], b = FP.uf[u]["2026"];
+    t += `<g data-u="${u}" style="cursor:pointer"><text x="${m2.l - 6}" y="${y + 11}" text-anchor="end" style="${E.uf === u ? "fill:var(--ink);font-weight:700" : ""}">${u}</text>
+      <rect x="${m2.l}" y="${y + 1}" width="${sx(a[j] / a[0])}" height="5" fill="var(--mut)" opacity=".6"/><rect x="${m2.l}" y="${y + 7}" width="${sx(b[j] / b[0])}" height="6" fill="var(--accent)"/>
+      <text x="${W - 4}" y="${y + 11}" text-anchor="end">${a[j]} → ${b[j]} de ${b[0]}</text><title>${UF_NOME[u]}: ${a[j]} municípios em 2022, ${b[j]} em 2026</title></g>`; });
+  t += `<text x="${m2.l}" y="${H - 4}">cinza: 2022 · azul: 2026 · % dos municípios da UF${FPE.crit === "residuo" ? " (adversário perdeu voto)" : ""}</text>`;
+  const gu = document.getElementById("fp-uf"); gu.setAttribute("viewBox", `0 0 ${W} ${H}`); gu.innerHTML = t;
+  gu.querySelectorAll("g[data-u]").forEach(el => el.onclick = () => { E.uf = E.uf === el.dataset.u ? null : el.dataset.u; E.mun = null; desenhar(); });
+  // tabela
+  const COL = {nome: r => r.nome, aptos: r => r.aptos, d_adv: r => r.d_adv, d_lula: r => r.d_lula, demais: r => r.demais, exc: r => r.d_lula - r.demais,
+               d_bn: r => r.d_bn, d_abst: r => r.d_abst, d_adv22: r => r.d_adv22, res: r => r.res_adv_pp};
+  const fo = COL[FPE.ord];
+  L.sort((a, b) => { const x = fo(a), y = fo(b); return typeof x === "string" ? FPE.dir * x.localeCompare(y, "pt") : FPE.dir * (x - y); });
+  const th = (k, t, tit = "") => `<th data-c="${k}" class="${FPE.ord === k ? "ord" : ""}" title="${tit}">${t}${FPE.ord === k ? (FPE.dir > 0 ? " ▲" : " ▼") : ""}</th>`;
+  const v22 = x => x === -999999 ? "—" : sn(x);
+  document.getElementById("fp-tab").innerHTML = `<tr>${th("nome", "município")}${th("aptos", "aptos")}${th("d_adv", "Δ Flávio")}${th("d_lula", "Δ Lula")}${th("demais", "demais no 1º")}
+      ${th("exc", "Lula − demais", "quanto Lula cresceu além dos votos dos demais candidatos")}${th("d_bn", "Δ br./nulo")}${th("d_abst", "Δ abstenção")}
+      ${th("d_adv22", "2022: Δ Bolsonaro · Δ Lula")}${th("res", "resíduo", "Flávio no 2º turno contra o previsto pela migração da UF, em pontos dos aptos")}</tr>` +
+    L.slice(0, 300).map(r => `<tr class="clic" data-k="${r.municipio}"><td>${r.nome}<span class="peq">${r.uf}</span></td><td>${nf(r.aptos)}</td>
+      <td class="${cls(r.d_adv)}">${sn(r.d_adv)}</td><td class="${cls(r.d_lula)}">${sn(r.d_lula)}</td><td>${nf(r.demais)}</td>
+      <td class="${cls(r.d_lula - r.demais)}">${sn(r.d_lula - r.demais)}</td><td class="${cls(r.d_bn)}">${sn(r.d_bn)}</td><td class="${cls(r.d_abst)}">${sn(r.d_abst)}</td>
+      <td>${v22(r.d_adv22)} · ${v22(r.d_lula22)}</td><td class="${cls(r.res_adv_pp)}">${sp(r.res_adv_pp, 2)}</td></tr>`).join("");
+  document.querySelectorAll("#fp-tab th").forEach(h => h.onclick = () => { const k = h.dataset.c; if (FPE.ord === k) FPE.dir = -FPE.dir; else { FPE.ord = k; FPE.dir = k === "nome" ? 1 : -1; } desenharFora(); });
+  document.querySelectorAll("#fp-tab tr.clic").forEach(tr => tr.onclick = () => { FPE.sel = +tr.dataset.k; desenharFora();
+    document.getElementById("fp-zona").scrollIntoView({behavior: "smooth", block: "nearest"}); });
+  document.getElementById("s-fp-tab").textContent = `${nf(L.length)} municípios${L.length > 300 ? " (os 300 primeiros)" : ""}. Clique num cabeçalho para ordenar e numa linha para ver as zonas eleitorais.`;
+  // zonas do município escolhido: o padrão está espalhado ou em poucas urnas?
+  const zEl = document.getElementById("fp-zona"), Z = FPE.sel && FP.zonas[FPE.sel], r = FPE.sel && L.find(x => x.municipio === FPE.sel);
+  if (!Z || !r) { zEl.hidden = true; }
+  else {
+    zEl.hidden = false;
+    const tot = Z.reduce((a, z) => [a[0] + z[1], a[1] + z[2]], [0, 0]);
+    zEl.innerHTML = `<h3>${r.nome} (${r.uf}), por zona eleitoral <button class="fechar" id="fp-fechar">×</button></h3>
+      <p class="sub">Flávio perdeu voto em <b>${nf(tot[1])} de ${nf(tot[0])} seções (${fmt(100 * tot[1] / tot[0], 0)}%)</b>. Espalhado por muitas seções e zonas é o desenho de uma mudança
+      do eleitorado; concentrado em poucas urnas, com saltos grandes, é o que mereceria suspeita.</p>
+      <div class="scroll"><table><tr><th>zona</th><th>seções</th><th>Flávio perdeu em</th><th>Δ Flávio</th><th>Δ Lula</th><th>demais no 1º</th><th>Δ br./nulo</th></tr>` +
+      Z.map(z => `<tr><td>${z[0]}</td><td>${nf(z[1])}</td><td>${nf(z[2])} (${fmt(100 * z[2] / z[1], 0)}%)</td><td class="${cls(z[3])}">${sn(z[3])}</td><td class="${cls(z[4])}">${sn(z[4])}</td>
+        <td>${nf(z[5])}</td><td class="${cls(z[6])}">${sn(z[6])}</td></tr>`).join("") + `</table></div>`;
+    document.getElementById("fp-fechar").onclick = () => { FPE.sel = null; desenharFora(); };
+  }
+  document.getElementById("n-fp").innerHTML = `<b>Como ler.</b> O eleitorado é o mesmo nos dois turnos, então vale sempre: Δ Lula + Δ Flávio = demais − Δ brancos e nulos − Δ abstenção.
+    Lula pode crescer mais do que os demais tinham quando brancos e nulos caem, a abstenção cai ou o adversário perde eleitor — e é isso que distingue 2026 de 2022:
+    no padrão Campos, quase sempre brancos e nulos caem forte. No Norte (AP, RR, AC, AM) o adversário perde voto nos dois anos, com a abstenção subindo no 2º turno; a novidade
+    de 2026 é o Nordeste e, fora dele, Campos dos Goytacazes e o Norte Fluminense. O resíduo compara o município com a migração média do próprio estado: mede o que ele
+    fez de diferente do resto da UF. Gerado em ${FP.meta.gerado}.`;
 }
 
 // ---------- a hora do voto (logs de urna; hora_do_voto.py e hora_do_voto_tardias.py)
