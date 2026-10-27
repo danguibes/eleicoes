@@ -331,7 +331,7 @@ function desenharTabela(){
   const f = COL[E.ord];
   L.sort((x, y) => { const a = f(x), b = f(y); if (typeof a === "string") return E.dir * a.localeCompare(b, "pt"); return E.dir * (a - b); });
   const th = (k, t) => `<th data-c="${k}" class="${E.ord === k ? "ord" : ""}">${t}${E.ord === k ? (E.dir > 0 ? " ▲" : " ▼") : ""}</th>`;
-  const mostra = L.slice(0, 200);
+  const mostra = L;
   document.getElementById("tab").innerHTML = `<tr>${th("nome", "município")}${th("ap", "aptos")}${th("a", "1º turno")}${th("b", "2º turno")}${th("d", "diferença")}${th("p", "pontos")}</tr>` +
     mostra.map(x => `<tr class="clic" data-k="${x.r.municipio}"><td>${x.r.nome}<span class="peq">${x.r.uf}</span></td><td>${nf(x.r.ap2)}</td>
       <td>${nf(x.a)}<span class="peq">${fmt(x.pa)}</span></td><td>${nf(x.b)}<span class="peq">${fmt(x.pb)}</span></td>
@@ -340,7 +340,7 @@ function desenharTabela(){
   document.querySelectorAll("#tab tr.clic").forEach(tr => tr.onclick = () => { E.mun = +tr.dataset.k; desenharControles(); desenharFicha();
     document.getElementById("ficha").scrollIntoView({behavior: "smooth", block: "nearest"}); });
   document.getElementById("t-tab").textContent = `Municípios: ${M.nome}`;
-  document.getElementById("s-tab").innerHTML = `${L.length.toLocaleString("pt-BR")} municípios${L.length > 200 ? "; os 200 primeiros" : ""}, ordenados por
+  document.getElementById("s-tab").innerHTML = `${L.length.toLocaleString("pt-BR")} municípios, ordenados por
     ${E.ord === "d" ? (E.dir > 0 ? "<b>maior queda em votos</b>" : "<b>maior alta em votos</b>") : "a coluna marcada"}. Clique num cabeçalho para ordenar (de novo inverte).
     Embaixo de cada número, o mesmo em ${M.base}.`;
 }
@@ -550,14 +550,14 @@ async function desenharFora(){
   document.getElementById("fp-tab").innerHTML = `<tr>${th("nome", "município")}${th("aptos", "aptos")}${th("d_adv", "Δ Flávio")}${th("d_lula", "Δ Lula")}${th("demais", "demais no 1º")}
       ${th("exc", "Lula − demais", "quanto Lula cresceu além dos votos dos demais candidatos")}${th("d_bn", "Δ br./nulo")}${th("d_abst", "Δ abstenção")}
       ${th("d_adv22", "2022: Δ Bolsonaro · Δ Lula")}${th("res", "resíduo", "Flávio no 2º turno contra o previsto pela migração da UF, em pontos dos aptos")}</tr>` +
-    L.slice(0, 300).map(r => `<tr class="clic" data-k="${r.municipio}"><td>${r.nome}<span class="peq">${r.uf}</span></td><td>${nf(r.aptos)}</td>
+    L.map(r => `<tr class="clic" data-k="${r.municipio}"><td>${r.nome}<span class="peq">${r.uf}</span></td><td>${nf(r.aptos)}</td>
       <td class="${cls(r.d_adv)}">${sn(r.d_adv)}</td><td class="${cls(r.d_lula)}">${sn(r.d_lula)}</td><td>${nf(r.demais)}</td>
       <td class="${cls(r.d_lula - r.demais)}">${sn(r.d_lula - r.demais)}</td><td class="${cls(r.d_bn)}">${sn(r.d_bn)}</td><td class="${cls(r.d_abst)}">${sn(r.d_abst)}</td>
       <td>${v22(r.d_adv22)} · ${v22(r.d_lula22)}</td><td class="${cls(r.res_adv_pp)}">${sp(r.res_adv_pp, 2)}</td></tr>`).join("");
   document.querySelectorAll("#fp-tab th").forEach(h => h.onclick = () => { const k = h.dataset.c; if (FPE.ord === k) FPE.dir = -FPE.dir; else { FPE.ord = k; FPE.dir = k === "nome" ? 1 : -1; } desenharFora(); });
   document.querySelectorAll("#fp-tab tr.clic").forEach(tr => tr.onclick = () => { FPE.sel = +tr.dataset.k; desenharFora();
     document.getElementById("fp-zona").scrollIntoView({behavior: "smooth", block: "nearest"}); });
-  document.getElementById("s-fp-tab").textContent = `${nf(L.length)} municípios${L.length > 300 ? " (os 300 primeiros)" : ""}. Clique num cabeçalho para ordenar e numa linha para ver as zonas eleitorais.`;
+  document.getElementById("s-fp-tab").textContent = `${nf(L.length)} municípios. Clique num cabeçalho para ordenar e numa linha para ver as zonas eleitorais.`;
   // zonas do município escolhido: o padrão está espalhado ou em poucas urnas?
   const zEl = document.getElementById("fp-zona"), Z = FPE.sel && FP.zonas[FPE.sel], r = FPE.sel && L.find(x => x.municipio === FPE.sel);
   if (!Z || !r) { zEl.hidden = true; }
