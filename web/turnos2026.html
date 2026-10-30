@@ -146,6 +146,23 @@
   <p class="nota" id="n-fp" style="margin-top:10px"></p>
 </section>
 
+<section id="disp-sec">
+  <div class="topo">
+    <div><h2>Lula × adversário, município a município: 2022 e 2026</h2><p class="sub" id="s-disp"></p></div>
+    <div class="modo" id="disp-modo"></div>
+  </div>
+  <div class="dois" style="margin-top:10px">
+    <div><h3>2022: Lula × Bolsonaro</h3><svg id="disp-2022" style="width:100%;display:block"></svg></div>
+    <div><h3>2026: Lula × Flávio</h3><svg id="disp-2026" style="width:100%;display:block"></svg></div>
+  </div>
+  <div class="leg"><i style="background:var(--lula)"></i>pró-Lula fora do padrão: o adversário perde voto e Lula cresce mais do que os demais tinham
+    <i style="background:var(--flavio)"></i>pró-adversário fora do padrão: Lula perde e o adversário cresce mais do que os demais tinham
+    <i style="background:var(--mut)"></i>os outros · área da bolha: eleitores</div>
+  <h3 style="margin-top:14px">Os quadrantes, nas duas eleições</h3>
+  <div class="scroll"><table id="disp-tab"></table></div>
+  <p class="nota" id="n-disp" style="margin-top:10px"></p>
+</section>
+
 <section id="hora-sec">
   <h2>A que horas se votou: a prorrogação até as 19h</h2>
   <p class="sub" id="s-hora"></p>
@@ -190,7 +207,7 @@ const val1 = r => r.co1 - r.bn1, val2 = r => r.co2 - r.bn2;
 // cada medida abre na ordem da sua pergunta: Flávio, onde mais perdeu; as outras, onde mais cresceram
 const DIR0 = {fl: 1, lu: -1, mg: -1, ab: -1, bn: -1};
 const E = {med: "fl", uf: null, mun: null, mapa: "votos", busca: "", ord: "d", dir: 1, mig: "brasil"};
-let M22 = null, ANO = "2026", FP = null;
+let M22 = null, ANO = "2026", FP = null, DSP = null, DMODO = "votos";
 const FPE = {crit: "campos", sel: null, ord: "aptos", dir: -1};
 let D = null, H = null, MAPA = null, LIN = [], CENTRO = null, MAT = "votos";
 
@@ -200,6 +217,7 @@ async function iniciar(){
   H = await json("dados/hora_do_voto.json");
   M22 = await json("dados/migracao2022.json");
   FP = await json("dados/fora_do_padrao.json");
+  DSP = await json("dados/dispersao.json");
   const m = D.mun;
   LIN = m.municipio.map((k, i) => Object.fromEntries(Object.keys(m).map(c => [c, m[c][i]])));
   desenhar();
@@ -207,7 +225,7 @@ async function iniciar(){
 const soma = rs => { const o = {}; for (const c of ["ap1","co1","bn1","lu1","fl1","de1","ap2","co2","bn2","lu2","fl2"]) o[c] = rs.reduce((s, r) => s + r[c], 0); return o; };
 const doRecorte = () => LIN.filter(r => !E.uf || r.uf === E.uf);
 
-function desenhar(){ desenharControles(); desenharCartoes(); desenharMapa(); desenharBarras(); desenharTabela(); desenharFicha(); desenharMig(); desenharFora(); desenharHora(); }
+function desenhar(){ desenharControles(); desenharCartoes(); desenharMapa(); desenharBarras(); desenharTabela(); desenharFicha(); desenharMig(); desenharFora(); desenharDisp(); desenharHora(); }
 
 // ---------- cartões: o recorte nos dois turnos, em votos
 function desenharCartoes(){
@@ -577,6 +595,63 @@ async function desenharFora(){
     no padrão Campos, quase sempre brancos e nulos caem forte. No Norte (AP, RR, AC, AM) o adversário perde voto nos dois anos, com a abstenção subindo no 2º turno; a novidade
     de 2026 é o Nordeste e, fora dele, Campos dos Goytacazes e o Norte Fluminense. O resíduo compara o município com a migração média do próprio estado: mede o que ele
     fez de diferente do resto da UF. Gerado em ${FP.meta.gerado}.`;
+}
+
+// ---------- dispersão Lula × adversário (dispersao.py): votos em escala log com sinal, ou % sobre os próprios votos do 1º turno
+const slog = v => Math.sign(v) * Math.log10(1 + Math.abs(v));
+function desenharDisp(){
+  const sec = document.getElementById("disp-sec");
+  if (!DSP) { sec.hidden = true; return; }
+  document.getElementById("disp-modo").innerHTML = [["votos", "em votos (escala de potências de 10)"], ["pct", "em % dos próprios votos do 1º turno"]].map(([k, t]) =>
+    `<button class="${DMODO === k ? "on" : ""}" data-k="${k}">${t}</button>`).join("");
+  document.querySelectorAll("#disp-modo button").forEach(b => b.onclick = () => { DMODO = b.dataset.k; desenharDisp(); });
+  const dark = escuro(), cL = dark ? "#e0705f" : "#b03a2e", cA = dark ? "#7fb4d4" : "#1f4f7a", cO = dark ? "#8a857c" : "#9a958c";
+  // um eixo comum aos dois anos, para comparar o espalhamento
+  const val = (m, i) => DMODO === "votos" ? [slog(m.dl[i]), slog(m.da[i])] : [100 * m.dl[i] / Math.max(m.lu1[i], 1), 100 * m.da[i] / Math.max(m.adv1[i], 1)];
+  let lo = 0, hi = 0;
+  const todos = [];
+  for (const a of ["2022", "2026"]) { const m = DSP[a].mun; for (let i = 0; i < m.dl.length; i++) if (!E.uf || m.uf[i] === E.uf) todos.push(...val(m, i)); }
+  todos.sort((a, b) => a - b);
+  if (DMODO === "votos") { lo = Math.floor(Math.min(todos[0], -1)); hi = Math.ceil(todos[todos.length - 1]); }
+  else { lo = Math.min(-10, todos[Math.floor(.002 * todos.length)]); hi = Math.max(10, todos[Math.floor(.998 * todos.length)]); }
+  const W = 520, H = 460, mg = {l: 52, r: 12, t: 10, b: 40}, pw = W - mg.l - mg.r, ph = H - mg.t - mg.b;
+  const X = v => mg.l + (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * pw, Y = v => mg.t + ph - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * ph;
+  const rot = v => DMODO === "votos" ? (v === 0 ? "0" : `${v < 0 ? "−" : "+"}${Math.pow(10, Math.abs(v)) >= 1e6 ? "1 mi" : Math.pow(10, Math.abs(v)) >= 1e3 ? nf(Math.pow(10, Math.abs(v)) / 1e3) + " mil" : nf(Math.pow(10, Math.abs(v)))}`) : `${v > 0 ? "+" : ""}${v}%`;
+  const ticks = DMODO === "votos" ? Array.from({length: hi - lo + 1}, (_, k) => lo + k) : (() => { const t = []; const p = hi - lo > 150 ? 50 : hi - lo > 60 ? 20 : 10; for (let v = Math.ceil(lo / p) * p; v <= hi; v += p) t.push(v); return t; })();
+  const mxA = Math.max(...["2022", "2026"].flatMap(a => DSP[a].mun.aptos));
+  for (const a of ["2022", "2026"]) {
+    const m = DSP[a].mun, adv = a === "2022" ? "Bolsonaro" : "Flávio";
+    let s = "";
+    for (const v of ticks) s += `<line x1="${X(v)}" x2="${X(v)}" y1="${mg.t}" y2="${mg.t + ph}" stroke="${v === 0 ? "var(--ink)" : "var(--grid)"}" ${v === 0 ? 'opacity=".5"' : ""}/>
+      <line x1="${mg.l}" x2="${mg.l + pw}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v === 0 ? "var(--ink)" : "var(--grid)"}" ${v === 0 ? 'opacity=".5"' : ""}/>
+      <text x="${X(v)}" y="${H - 24}" text-anchor="middle" style="font-size:9.5px">${rot(v)}</text><text x="${mg.l - 5}" y="${Y(v) + 3}" text-anchor="end" style="font-size:9.5px">${rot(v)}</text>`;
+    s += `<text x="${mg.l + pw / 2}" y="${H - 6}" text-anchor="middle" style="fill:var(--lula);font-weight:700">Δ Lula →</text>
+      <text transform="translate(12 ${mg.t + ph / 2}) rotate(-90)" text-anchor="middle" style="fill:var(--flavio);font-weight:700">Δ ${adv} →</text>`;
+    // as menores por cima: ordena pelo eleitorado, decrescente
+    const idx = m.dl.map((_, i) => i).filter(i => !E.uf || m.uf[i] === E.uf).sort((i, j) => m.aptos[j] - m.aptos[i]);
+    for (const i of idx) {
+      const proL = m.da[i] < 0 && m.dl[i] > m.dem[i], proA = m.dl[i] < 0 && m.da[i] > m.dem[i];
+      const [x, y] = val(m, i), rr = Math.max(1.2, 16 * Math.sqrt(m.aptos[i] / mxA));
+      s += `<circle cx="${X(x).toFixed(1)}" cy="${Y(y).toFixed(1)}" r="${rr.toFixed(1)}" fill="${proL ? cL : proA ? cA : cO}" fill-opacity="${proL || proA ? .75 : .28}" stroke="${proL || proA ? "var(--card)" : "none"}" stroke-width=".4">
+        <title>${m.nome[i]} (${m.uf[i]}): Lula ${sn(m.dl[i])} (${sp(100 * m.dl[i] / Math.max(m.lu1[i], 1))}%), ${adv} ${sn(m.da[i])} (${sp(100 * m.da[i] / Math.max(m.adv1[i], 1))}%), demais ${nf(m.dem[i])}</title></circle>`;
+    }
+    const svg = document.getElementById("disp-" + a); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = s;
+  }
+  const lin = [["os dois crescem", "os_dois_crescem"], ["Lula cresce, o adversário perde", "lula_cresce_adv_perde"], ["o adversário cresce, Lula perde", "adv_cresce_lula_perde"],
+               ["os dois perdem", "os_dois_perdem"], ['<span class="lula">pró-Lula fora do padrão</span>: o adversário perde e Lula cresce mais que os demais tinham', "pro_lula"],
+               ['<span class="flavio">pró-adversário fora do padrão</span>: Lula perde e o adversário cresce mais que os demais tinham', "pro_adv"],
+               ["Lula cresce mais do que os demais tinham", "lula_mais_que_demais"], ["o adversário cresce mais do que os demais tinham", "adv_mais_que_demais"]];
+  document.getElementById("disp-tab").innerHTML = `<tr><th>municípios onde…</th><th>2022 (Bolsonaro)</th><th>eleitores</th><th>2026 (Flávio)</th><th>eleitores</th></tr>` +
+    lin.map(([t, k]) => `<tr><td>${t}</td>${["2022", "2026"].map(a => `<td>${nf(DSP[a].resumo[k][0])}</td><td>${fmt(DSP[a].resumo[k][1], 2)}%</td>`).join("")}</tr>`).join("");
+  document.getElementById("s-disp").innerHTML = `Cada bolha é um município${E.uf ? ` de ${UF_NOME[E.uf]}` : ""}: no eixo x, quanto Lula variou do 1º para o 2º turno; no y, o adversário.
+    ${DMODO === "votos" ? "Em votos, com escala de potências de 10 nos dois sentidos (±10, ±100, ±1 mil…), para caberem juntas a capital e a cidade de 3 mil eleitores." :
+      "Em % sobre os votos que o próprio candidato teve no 1º turno (não em pontos dos válidos: com dois candidatos, o que um ganha em pontos o outro perde, e tudo cairia numa linha)."}
+    Os dois gráficos usam o mesmo eixo.`;
+  document.getElementById("n-disp").innerHTML = `<b>A resposta curta:</b> os casos fora do padrão aconteceram nas duas eleições, e sempre a favor de quem cresceu no 2º turno.
+    Em 2022, foi Bolsonaro: ${nf(DSP["2022"].resumo.adv_cresce_lula_perde[0])} municípios em que ele cresceu e Lula perdeu, ${nf(DSP["2022"].resumo.pro_adv[0])} no padrão pró-Bolsonaro, e
+    ${nf(DSP["2022"].resumo.adv_mais_que_demais[0])} em que ele cresceu mais do que os demais tinham. Em 2026 o espelho, a favor de Lula: ${nf(DSP["2026"].resumo.lula_cresce_adv_perde[0])},
+    ${nf(DSP["2026"].resumo.pro_lula[0])} e ${nf(DSP["2026"].resumo.lula_mais_que_demais[0])}. Crescer mais do que os demais tinham é possível porque o eleitorado é o mesmo:
+    o que sobra vem de quem não votou ou votou branco ou nulo no 1º turno, e do adversário. O que muda de um ano para o outro é a direção, não a existência do fenômeno.`;
 }
 
 // ---------- a hora do voto (logs de urna; hora_do_voto.py e hora_do_voto_tardias.py)
